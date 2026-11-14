@@ -180,7 +180,9 @@ the remaining runners there are boars. Practice has a Crow entry.
 Stags charge (`charger`, 30 HP): from up to 220 away on Red's ledge a stag rears for 0.7 s (attack row, a line on
 the ground shows the run), then charges up to 300 along the ledge on its special row and stops where the ledge
 ends. Jump it or dash through it. It does not flinch from sword hits while rearing or charging (a played hand stops
-it) and is open for 1.1 s afterwards. Four of the five guards on the Huntsman's Bridge are now charging stags.
+it) and is open for 1.1 s afterwards. Four of the five guards on the Huntsman's Bridge are now charging stags. Two of the Ruined Chapel's seven heavies
+(brambles and living trees) became boars: a no-dodge test brawler took 2.4 hits per foe there against 1.1–1.4 elsewhere,
+now 1.95.
 
 Wisps (`will_o_wisp`, `lost_wisp`; still `mage` behaviour) cast on their attack row. Once a wisp has cast, if Red is
 within 170 when it is next free to act it blinks instead: 0.5 s on its special row, during which it cannot be hit,
