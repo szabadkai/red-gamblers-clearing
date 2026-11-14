@@ -206,7 +206,8 @@ export function updateEnemies(world,dt){
   if(!aware&&(e.x<=e.left+2||e.x>=e.right-2)){e.patrolDir=e.x<=e.left+2?1:-1;direction=e.patrolDir}
   const speed=aware?def.speed*haste:28;
   const oldX=e.x;e.x=clamp(e.x+direction*speed*dt,e.left,e.right);
-  if(Math.abs(e.x-oldX)>.01){e.face=direction;e.walk+=dt}
+  // The run cycle advances with distance (10 frames a second at 95 units a second), so slow patrols walk and boars race.
+  if(Math.abs(e.x-oldX)>.01){e.face=direction;e.walk+=Math.abs(e.x-oldX)/95}
  }
 }
 
