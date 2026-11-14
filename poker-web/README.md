@@ -126,6 +126,10 @@ Thorn House's painted backdrop gets only a light dusk wash (it used to be greyed
 terrain sheet's bushes in dusk greens with scarlet berries (`house-bushes`, built in `prepareScenery`) instead of the
 bright cartoon bush from the old forest strip, and lone warm lights (lit windows, lamps) survive the scenery
 speck cleanup. Moss Cavern's briar gates are lighter so they read against the cave.
+
+The room inside the Wolf is a dark ribcage that breathes (Motion Off holds it still), with pieces of the rooms he
+swallowed hanging in it: the kitchen door, hearth and table, a chapel window and bell, a turning mill wheel. Its ledges
+are flesh with a bone lip. The walk home uses Lantern Wood's painted forest and grass under a dawn wash with a low sun.
 The health display blinks at one heart (not with Motion Off).
 The last hit plays out as a 0.9 s slowed death beat (Red's silhouette burns red, the scene dims) before the retry
 screen; falling into a pit skips it.

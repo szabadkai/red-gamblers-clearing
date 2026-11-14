@@ -215,14 +215,35 @@ export function drawStorySet(ctx,images,world,time,reduced=false) {
   const location=world.storyLocation??'trail',stage=world.stageIndex??0,t=reduced?0:time;
   ctx.save();ctx.imageSmoothingEnabled=false;ctx.scale(2,2);
   if(location==='inside') {
-    rect(ctx,0,20,480,190,'#272332');
-    for(let i=0;i<9;i++){const x=i*59;poly(ctx,[[x,20],[x+21,20],[x+31,143],[x+21,210],[x+8,210],[x+17,143]],i%2?'#38303d':'#423442');}
+    // Inside the Wolf: a dark ribcage that breathes, with pieces of the rooms he swallowed (a kitchen door and
+    // hearth, a chapel window and bell, a mill wheel) hanging in the gloom.
+    const BANDS=['#170c18','#1d0f1d','#241222','#2c1527','#33182b','#3a1c2f'],breath=reduced?0:Math.sin(time*1.4);
+    for(let i=0;i<BANDS.length;i++)rect(ctx,0,20+i*32,480,32,BANDS[i]);
+    for(let x=0;x<480;x+=16)ellipse(ctx,x+8,22,10,7,'#3c1a2b');
+    for(let x=0;x<480;x+=16)ellipse(ctx,x+8,20,8,5,'#22101c');
+    // chapel window and mill wheel, dim in the background
+    rect(ctx,92,46,36,52,C.ink);poly(ctx,[[92,46],[110,30],[128,46]],C.ink);
+    for(const [x,y,col] of [[96,50,'#4d3a63'],[111,50,'#6e3540'],[96,72,'#6e3540'],[111,72,'#3f5a63']])rect(ctx,x,y,13,20,col);
+    poly(ctx,[[95,46],[110,33],[125,46]],'#4d3a63');rect(ctx,109,46,2,50,C.ink);rect(ctx,94,70,32,2,C.ink);
+    ellipse(ctx,350,70,30,30,'#2a1621');ellipse(ctx,350,70,24,24,'#1d0f1d');
+    for(let k=0;k<8;k++){const a=k*Math.PI/4+(reduced?0:time*.2);line(ctx,350,70,350+Math.cos(a)*28,70+Math.sin(a)*28,'#4a3326',2);}
+    ellipse(ctx,350,70,4,4,'#4a3326');
+    // ribs bow outwards from the ceiling to the floor; each pair of ribs breathes slightly apart
+    for(let i=0;i<6;i++){
+      const x0=18+i*89,bow=(i<3?-1:1)*(10+breath*2);
+      for(let y=24;y<210;y+=2){const x=x0+Math.sin((y-24)/186*Math.PI)*bow;rect(ctx,x-4,y,9,2,C.ink);rect(ctx,x-3,y,7,2,'#b9a98f');rect(ctx,x-3,y,2,2,C.bone);rect(ctx,x+3,y,1,2,'#7d6a5c');}
+    }
+    for(let i=0;i<5;i++){const x=60+i*97,y=(reduced?40:20+((time*40+i*53)%190));if(y<206){rect(ctx,x,y,2,4,'#7a2f3f');rect(ctx,x,y,1,1,'#c4707a');}}
     rect(ctx,28,104,50,106,C.ink);rect(ctx,32,109,42,101,'#4a4651');rect(ctx,32,109,5,101,C.silver);
     hearth(ctx,406,210,false,t);table(ctx,247,210);bell(ctx,207,82,t,true);
     line(ctx,250,210,300,164,C.red,2);line(ctx,300,164,361,120,C.red,2);line(ctx,361,120,443,65,C.red,2);
     for(let i=0;i<13;i++){const x=(i*71)%470,y=38+(i*37)%130;rect(ctx,x,y,2,2,Math.floor(t+i)%3?C.pale:C.gold);}
   } else if(location==='home') {
-    rect(ctx,0,24,480,186,'#6a7468');rect(ctx,0,140,480,70,'#394d3f');
+    // Dawn over Lantern Wood: a warm stepped wash over the painted forest, the low sun behind the trees.
+    const DAWN=[['#f3a46c',.26],['#f5b67a',.22],['#f7c98d',.18],['#f8d9a2',.13],['#f9e4b6',.08],['#f9e4b6',.04]];
+    for(let i=0;i<DAWN.length;i++){ctx.globalAlpha=DAWN[i][1];rect(ctx,0,24+i*26,480,26,DAWN[i][0]);}
+    ctx.globalAlpha=.55;ellipse(ctx,392,92,18,18,'#ffe3a8');ctx.globalAlpha=.85;ellipse(ctx,392,92,12,12,'#fff2cf');ctx.globalAlpha=1;
+    for(let k=0;k<7;k++){ctx.globalAlpha=.08;poly(ctx,[[392,92],[300+k*30,210],[316+k*30,210]],'#fff2cf');}ctx.globalAlpha=1;
     for(let x=16;x<480;x+=24){rect(ctx,x,164,4,46,C.wood);rect(ctx,x-2,161,8,5,C.gold);}
     rect(ctx,0,178,480,4,C.gold);rect(ctx,0,194,480,4,C.wood);
     rect(ctx,173,118,7,92,C.wood);rect(ctx,302,118,7,92,C.wood);rect(ctx,172,116,138,7,C.wood);

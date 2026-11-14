@@ -294,18 +294,19 @@ function drawStoryPlatforms(){
  for(const p of world.platforms){
   if(cottage&&!p.ground)continue;
   const depth=p.ground?120:18;
-  rect(p.x,p.y,p.w,depth,inside?'#393544':'#4b3b36');
-  rect(p.x,p.y,p.w,4,inside?'#a99cab':'#b69a6a');
-  rect(p.x,p.y+4,p.w,4,inside?'#656071':'#6e5543');
+  // Inside the Wolf the ledges are flesh with a bone lip.
+  rect(p.x,p.y,p.w,depth,inside?'#3f1f2c':'#4b3b36');
+  rect(p.x,p.y,p.w,4,inside?'#d3ceae':'#b69a6a');
+  rect(p.x,p.y+4,p.w,4,inside?'#8a6a70':'#6e5543');
   for(let x=p.x+4,k=0;x<p.x+p.w-4;x+=32,k++){
-   const tone=inside?['#3d3849','#35303f','#423c4e'][k%3]:['#4b3b36','#433430','#54423b'][(k*7+p.id)%3];
-   rect(x+2,p.y+8,30,depth-8,tone);rect(x+2,p.y+8,30,2,inside?'#4c465a':'#5e4a40');
-   for(let y=p.y+16+(k%3)*6;y<p.y+depth-4;y+=22)rect(x+8+(k%4)*4,y,10,2,inside?'#2e2a38':'#3a2c28');
-   rect(x,p.y+8,2,depth-8,inside?'#242637':'#28282b');
-   rect(x+4,p.y+10,16,2,inside?'#574b60':'#765c47');
+   const tone=inside?['#45222f','#3c1d29','#4b2633'][k%3]:['#4b3b36','#433430','#54423b'][(k*7+p.id)%3];
+   rect(x+2,p.y+8,30,depth-8,tone);rect(x+2,p.y+8,30,2,inside?'#5a2c3b':'#5e4a40');
+   for(let y=p.y+16+(k%3)*6;y<p.y+depth-4;y+=22)rect(x+8+(k%4)*4,y,10,2,inside?'#2a1420':'#3a2c28');
+   rect(x,p.y+8,2,depth-8,inside?'#1d0e17':'#28282b');
+   rect(x+4,p.y+10,16,2,inside?'#6b3446':'#765c47');
    rect(x+20,p.y+6,2,2,'#c0ad87');
   }
-  if(!p.ground){rect(p.x+10,p.y+depth,8,8,inside?'#494055':'#3c3030');rect(p.x+p.w-18,p.y+depth,8,8,inside?'#494055':'#3c3030');}
+  if(!p.ground){rect(p.x+10,p.y+depth,8,8,inside?'#5a2c3b':'#3c3030');rect(p.x+p.w-18,p.y+depth,8,8,inside?'#5a2c3b':'#3c3030');}
  }
  return true;
 }
@@ -486,11 +487,13 @@ function draw(){
  ctx.imageSmoothingEnabled=false;ctx.clearRect(0,0,960,540);ctx.save();ctx.save();ctx.beginPath();ctx.rect(0,0,960,400);ctx.clip();ctx.translate(0,-80);
  const shake=shakeOffset(world.shakeTime,world.shakeDuration,world.shakePower,reduced);ctx.translate(shake.x,shake.y);
  const bridge=world.clearing.theme==='bridge'&&!world.arena;
- if(bridge)drawBridgeBackdrop(ctx,images,cam,visual,reduced);else drawBackdrop(ctx,images,cam,visual,reduced,world.clearing.theme,world.worldWidth);
+ // The walk home is back in Lantern Wood at dawn, whatever clearing the story ended in.
+ const theme=world.storyLocation==='home'?'wood':world.clearing.theme;
+ if(bridge)drawBridgeBackdrop(ctx,images,cam,visual,reduced);else drawBackdrop(ctx,images,cam,visual,reduced,theme,world.worldWidth);
  if(world.dark>0){ctx.fillStyle='#31184c36';ctx.fillRect(0,0,960,480)}
  ctx.save();ctx.translate(-snap(cam),0);
  drawStorySet(ctx,images,world,reduced?0:visual,reduced);
- if(bridge)drawBridgeArchitecture(ctx,images,world.platforms,visual,reduced);else if(!drawStoryPlatforms())drawTerrain(ctx,images,world.platforms,visual,reduced,world.clearing.theme);
+ if(bridge)drawBridgeArchitecture(ctx,images,world.platforms,visual,reduced);else if(!drawStoryPlatforms())drawTerrain(ctx,images,world.platforms,visual,reduced,theme);
  if(!world.arena){
   if(!bridge)drawLandmarks(ctx,images,world,visual,reduced);
   if(world.clearing.theme==='house')drawHome(ctx,images,world.collected,visual,reduced,world.clearing.exit.x);else drawTrailGate(ctx,images,world,visual,reduced);
