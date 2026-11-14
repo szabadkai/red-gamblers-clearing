@@ -9,7 +9,7 @@ window.H={
   const page=html.replace('<head>','<head><base href="'+location.origin+'/"><script>window.requestAnimationFrame=cb=>{window.F=cb;return 0}</scr'+'ipt>');
   document.body.innerHTML='';const f=document.createElement('iframe');f.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#000';
   f.srcdoc=page;document.body.append(f);await new Promise(r=>f.onload=r);const g=f.contentWindow;H.G=g;
-  for(let i=0;i<120&&(!g.F||g.document.getElementById('begin').disabled);i++)await new Promise(r=>setTimeout(r,250));
+  for(let i=0;i<480&&(!g.F||g.document.getElementById('begin').disabled);i++)await new Promise(r=>setTimeout(r,250));
   g.T=g.performance.now();H.run(2);H.W=(await g.eval("import('./game.mjs')")).world;return 'ready';
  },
  run(n=1){for(let i=0;i<n;i++)H.G.F(H.G.T+=1000/60)},

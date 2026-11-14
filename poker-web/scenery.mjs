@@ -3,6 +3,7 @@ import {periodicPixels,compatibleTile,TERRAIN_TILE_SIZE} from './tiles.mjs';
 
 const SCENERY_PALETTE=['101820','17252b','20343a','2b4449','38585b','477077','5b8989','83aaa0','b4c6ac','ece0ad','262128','3a2b32','543840','73424a','99504f','b76955','495241','687356','96976c','c5ad7a']
  .map(hex=>[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16)));
+const WARM=new Set([9,19]);
 function crispScenery(context,w,h){
  const pixels=context.getImageData(0,0,w,h),data=pixels.data,cache=new Map();
  let indices=new Int16Array(w*h);
@@ -23,7 +24,8 @@ function crispScenery(context,w,h){
    const i=y*w+x,current=indices[i];if(current<0)continue;
    const counts=new Uint8Array(SCENERY_PALETTE.length);
    for(const d of [-w-1,-w,-w+1,-1,1,w-1,w,w+1])if(indices[i+d]>=0)counts[indices[i+d]]++;
-   if(counts[current]>1)continue;
+   // Lone warm lights (lit windows, lamps) are the point of a dark painting: never merge them away.
+   if(counts[current]>1||WARM.has(current))continue;
    let best=current;for(let n=0;n<counts.length;n++)if(counts[n]>counts[best])best=n;
    if(counts[best]>=3)next[i]=best;
   }indices=next;
@@ -53,6 +55,18 @@ export function prepareScenery(images){
  const atlas=images.get('concept-interior-props-v2');
  // The atlas cells are independent objects, not scaled instances at draw time.
  // Each is rasterized to its authored game size once, preserving alpha holes.
+ // Thorn House undergrowth: the terrain sheet's two leafy bushes, shifted to dusk greens with scarlet berries,
+ // instead of the bright cartoon bush from the old forest strip (which clashed with the painted scenery).
+ const terrain=images.get('terrain');
+ if(terrain){
+  const canvas=surface(64,16),context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
+  context.drawImage(terrain,416,32,64,16,0,0,64,16);
+  const pixels=context.getImageData(0,0,64,16),d=pixels.data;
+  for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;const l=(d[i]*.3+d[i+1]*.59+d[i+2]*.11)/255;
+   const [r,g,b]=l<.25?[32,36,44]:l<.4?[43,58,58]:l<.55?[56,82,74]:[90,112,88];d[i]=r;d[i+1]=g;d[i+2]=b;}
+  for(const [x,y] of [[6,7],[11,5],[19,9],[25,6],[38,7],[44,4],[51,9],[57,6]]){const i=(y*64+x)*4;if(d[i+3]){d[i]=209;d[i+1]=110;d[i+2]=88;}}
+  context.putImageData(pixels,0,0);images.set('house-bushes',canvas);
+ }
  for(const [index,name,w,h] of [[0,'root-column',64,96],[1,'hanging-roots',128,112],[2,'moss-rock',64,56],[3,'blue-mushrooms',40,40],[4,'chapel-column',64,112],[5,'ruined-arch',128,128],[6,'carved-rubble',64,48],[7,'candle-shrine',40,64]]){
   const canvas=surface(w,h),context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
   context.drawImage(atlas,index%4*atlas.width/4,Math.floor(index/4)*atlas.height/2,atlas.width/4,atlas.height/2,0,0,w,h);
@@ -116,7 +130,8 @@ export function drawBackdrop(ctx,images,cam,time,reduced,theme,width=2400){
  const viewCam=reduced?0:cam;
  if(theme==='cave'||theme==='chapel'){drawInterior(ctx,images,viewCam,time,reduced,theme);return;}
  drawMirrored(ctx,images.get(theme==='house'?'paint-thorn-house':'paint-forest'),viewCam*.1,48,1120,488);
- rect(ctx,-12,48,984,450,theme==='house'?'#1e102b60':theme==='bridge'?'#0b273d38':'#071d2428');
+ // A light dusk wash for Thorn House: enough to set it apart, not so much that it greys out the teal painting.
+ rect(ctx,-12,48,984,450,theme==='house'?'#1e102b22':theme==='bridge'?'#0b273d38':'#071d2428');
  // Separate transparent tree sheets move at their own depths. The distant
  // painting, low woodland and oak canopy are three independent image planes.
  const woods=images.get('forest5');
@@ -155,7 +170,7 @@ export function drawForeground(ctx,images,cam,world,reduced){
  for(let x=offset-310;x<960;x+=310){
   const screenX=snap(x),left=cam+screenX;
   if(!world.platforms.some(p=>p.ground&&left>=p.x&&left+76<=p.x+p.w))continue;
-  ctx.globalAlpha=.8;ctx.drawImage(images.get('forest7'),52,96,38,22,screenX,448,76,44);ctx.globalAlpha=1;
+  const k=Math.floor(left/310)%2;ctx.drawImage(images.get('house-bushes'),k*32,0,32,16,screenX,456,64,32);
  }
 }
 export function drawLantern(ctx,x,y,lit,time,reduced){
@@ -202,7 +217,7 @@ export function drawLandmarks(ctx,images,world,time,reduced){
  drawLantern(ctx,96,420,true,time,reduced);
 }
 // Briar gates: five thorned strands from canopy to ground. An opened gate withers downward.
-const BRIAR={cave:['#12262c','#28555a','#83aaa0'],chapel:['#2a1f33','#593d63','#b76955'],house:['#2b1830','#5f304d','#d16e58']};
+const BRIAR={cave:['#12262c','#3d7a80','#c2ece0'],chapel:['#2a1f33','#593d63','#b76955'],house:['#2b1830','#5f304d','#d16e58']};
 export function drawGates(ctx,world,time,reduced){
  const [dark,mid,bright]=BRIAR[world.clearing.theme]||['#2a1418','#6e3540','#c8352f'],held=world.wall;
  for(const g of world.gates){

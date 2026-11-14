@@ -121,6 +121,11 @@ harder knockback and a two-frame hit stop. The chain breaks after 1.1 s without 
 Hearts mend: playing a pair or better that spends at least one heart card restores one heart (kickers and lone
 high cards do not count, and nothing is gained at full health). The hand panel says so, the heart it would
 restore is shown dim red, and card-drop hints mark choices that would make a mending hand.
+
+Thorn House's painted backdrop gets only a light dusk wash (it used to be greyed out), its undergrowth uses the
+terrain sheet's bushes in dusk greens with scarlet berries (`house-bushes`, built in `prepareScenery`) instead of the
+bright cartoon bush from the old forest strip, and lone warm lights (lit windows, lamps) survive the scenery
+speck cleanup. Moss Cavern's briar gates are lighter so they read against the cave.
 The health display blinks at one heart (not with Motion Off).
 The last hit plays out as a 0.9 s slowed death beat (Red's silhouette burns red, the scene dims) before the retry
 screen; falling into a pit skips it.

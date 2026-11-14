@@ -94,7 +94,7 @@ export function drawTerrain(ctx,images,platforms,time,reduced,theme='wood'){
    }
    if(p.w>300){
     sprite('terrain',416,32,32,16,p.x+140,p.y-28);
-    if(theme!=='wood')sprite('forest7',52,96,38,22,p.x+p.w-168,p.y-44);
+    if(theme==='house')sprite('house-bushes',(p.id%2)*32,0,32,16,p.x+p.w-168,p.y-32);
    }
   }else{
    sprite('terrain',368,32,16,16,p.x+18,p.y-32);
