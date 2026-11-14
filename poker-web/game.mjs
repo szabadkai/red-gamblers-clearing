@@ -372,15 +372,29 @@ function drawPatches(){
   }
  }
 }
+// Pixel ellipse in 2-unit rows: shadows on the floor.
+function ellipseRows(x,y,rx,ry,color){for(let r=-ry;r<=ry;r+=2){const half=Math.floor(rx*Math.sqrt(Math.max(0,1-r*r/(ry*ry)))/2)*2;if(half>0)rect(x-half,y+r,half*2,2,color);}}
+// Boss and room warnings: each kind has its own shape on the floor, and all of them brighten and pulse as the hit nears.
 function drawHazards(){
  for(const h of world.hazards||[]){
-  const telegraph=h.delay>0,color=telegraph?'#f1c27b':'#d26373';
-  if(!telegraph){drawHazardArt(ctx,h,visual);continue;}
-  if(telegraph){
-   rect(h.x-h.w/2,h.y-3,h.w,3,color);
-   for(let x=h.x-h.w/2;x<h.x+h.w/2;x+=16)rect(x,h.y-9,6,3,color);
-   text('!',h.x-4,h.y-18,14,color);
+  if(h.delay<=0){drawHazardArt(ctx,h,visual);continue;}
+  h.total??=h.delay;const k=Math.min(1,1-h.delay/h.total),left=h.x-h.w/2,late=k>.66&&(reduced||Math.floor(visual*12)%2===0);
+  const warm=late?'#fff1c1':'#f1c27b';
+  if(h.kind==='landing'||h.kind==='silk'){
+   // Something is coming down here: its shadow grows on the floor (a silk thread marks the Widow's drop).
+   if(h.kind==='silk')for(let y=60;y<h.y-12;y+=8)rect(h.x-1,y,2,5,'#c8c6d8');
+   const rx=h.w*(.35+.3*k);ellipseRows(h.x,h.y-2,rx+4,8,warm);ellipseRows(h.x,h.y-2,rx,6,'#0b0a12');
+   for(const side of [-1,1]){const x=h.x+side*h.w*(.35+.3*k)-(side>0?4:0);rect(x,h.y-6,4,8,warm);}
+  }else if(h.kind==='roots'){
+   rect(left-2,h.y-4,h.w+4,6,'#1a110c');rect(left,h.y-3,h.w,2,'#5a3b26');
+   for(let x=left+4;x<left+h.w-2;x+=10){const t=2+Math.round(k*7)*2;rect(x-2,h.y-t-2,6,t+2,'#1a110c');rect(x,h.y-t,2,t,'#7fbf4a');}
+  }else{
+   // Slams and shadows: a scorched band with jagged cracks and sparks lifting off it.
+   rect(left-2,h.y-5,h.w+4,7,'#1a1016');rect(left,h.y-3,h.w,3,warm);
+   for(let x=left+6;x<left+h.w-6;x+=18)rect(x,h.y-8-((x+Math.floor(visual*8))%3)*2,4,4,warm);
+   rect(left,h.y-14,2,12,warm);rect(left+h.w-2,h.y-14,2,12,warm);
   }
+  text('!',h.x-5,h.y-30-(late?2:0),20,late?'#fff1c1':'#ffd27a');
  }
  if(world.storyPhase==='inside'&&world.knots.every(k=>k.hp<=0)){
   text('FOLLOW THE RED THREAD →',540,190,16,'#f1c27b');
