@@ -132,3 +132,10 @@ body.reduced #rotate .phone{animation:none;transform:rotate(-90deg)}
  /* the keyboard legend means nothing on a touch screen */
  .intro footer>p:first-child{display:none!important}
 }
+/* Title: the pixel wordmark (sources/lrrh_sprites/ui/logo.lua) replaces the text heading, and the in-game HUD text
+   behind the title is hidden so the dimmed scene reads as a backdrop. */
+#logo{display:none;width:25cqw;height:auto;margin:.6cqw auto .8cqw;image-rendering:pixelated;filter:drop-shadow(.3cqw .3cqw #050b0e)}
+body.at-title #logo{display:block}
+body.at-title #story-title{display:none}
+body.at-title .hud,body.at-title #journey-hud,body.at-title #objective,body.at-title .hand-info,body.at-title .draw-info{visibility:hidden}
+@media(pointer:coarse){#logo{width:max(25cqw,150px)}}
