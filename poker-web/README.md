@@ -46,8 +46,8 @@ encounter. Practice never writes story progress.
 
 Every boss can be beaten with ordinary movement and sword attacks. Rowan's guard
 blocks damage and draw credit until he recovers. Rare hands and Dark Red still
-provide their normal benefits. The Explore / practice selector offers all five
-bosses independently, alongside the existing card and enemy practices.
+provide their normal benefits. The Explore / practice selector is grouped into poker hands, foes (one entry per behaviour), the five bosses and the
+explorable clearings.
 
 Character artwork reuses the dungeon atlas and `Assets/doc.png`. Missing large
 creatures and scene props are drawn on the native pixel grid. See
@@ -176,7 +176,7 @@ along a dotted tell at the ground under her. The dive is aimed when the tell beg
 the bird then sits where it landed for 0.9 s, which is the moment to strike. They ignore ledges, roam their whole
 gated section, return to their perch when Red is out of sight, and fall to the ground when killed in the air.
 Thirteen former ground runners on the Huntsman's Bridge, in Moss Cavern and in the Ruined Chapel are now flyers;
-the remaining runners there are boars. Practice has a Crow entry.
+the remaining runners there are boars. Practice has a Raven entry.
 
 Stags charge (`charger`, 30 HP): from up to 220 away on Red's ledge a stag rears for 0.7 s (attack row, a line on
 the ground shows the run), then charges up to 300 along the ledge on its special row and stops where the ledge
@@ -361,9 +361,9 @@ five complete routes with enemies removed, new enemy tells/routing, hostile-shot
 collision/parrying/pause, and old-save migration. Combat balance across a full
 five-stage run still needs human playtesting.
 
-Browser smoke check: open the local game, select Goblin runner in Explore / practice,
+Browser smoke check: open the local game, select Boar in Explore / practice,
 press Practice, approach with D, attack with J, jump with Space and play K.
-Pause with P; repeat with Lantern mage and Iron guard. Choose Explore Moss Cavern
+Pause with P; repeat with Hunter and Living tree. Choose Explore Moss Cavern
 or Explore Ruined Chapel for the authored encounters. No console warnings or
 errors appeared during these checks. `../docs/poker-prototype/runner-combat.mp4`
 is a short 3-fps sampled browser capture; `moss-cavern.jpg` and
