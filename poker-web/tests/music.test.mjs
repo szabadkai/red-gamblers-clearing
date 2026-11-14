@@ -26,7 +26,7 @@ test('every tune renders without bar-count warnings',async()=>{
 });
 
 test('every sound the game asks for is synthesised, short and audible',async()=>{
- const files=await Promise.all(['model.mjs','story.mjs','game.mjs'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
+ const files=await Promise.all(['model.mjs','story.mjs','game.mjs','enemies.mjs','bosses.mjs'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
  const asked=[...files.join('\n').matchAll(/(?:emit|sound)\('([a-z0-9_]+)'\)/g)].map(m=>m[1]);
  assert.ok(asked.length>10);
  for(const name of [...asked,'boss_intro','victory'])assert.ok(SFX[name],name);

@@ -208,6 +208,8 @@ Four more creatures use the special row of their sheet:
   ghost form over 0.5 s instead of vanishing. It cannot be hit on the way.
 - Brown bear: at half health it roars for 0.8 s, once, then walks 1.6 times as fast and slams that much sooner;
   its health bar turns red.
+Foe and boss attacks have sounds: a thud for slams, lashes and landings, a twang for arrows and casts, a whoosh for
+lunges, charges, dives and boss strikes, and a crackle when a hex, roots or a spore cloud erupts (`sfx.mjs`).
 Patches are drawn over the foreground foliage so a bush never hides a tell; the tree's tell is a dark crack with
 green tips that push up as it runs out. Patches (`world.patches`: the hex, the roots, the cloud) share one rule: a tell owned by a foe, cancelled if that
 foe is staggered or killed first, then a harmful area. Practice has Tree, Mushroom, Ghost hunter and Bear entries.

@@ -62,6 +62,7 @@ export function updateBoss(world,dt){
  if(b.state==='windup'){
   b.timer-=dt;b.wind=Math.max(0,b.timer);if(b.timer>0)return;
   b.state='strike';b.connected=false;b.startX=b.x;b.elapsed=0;b.chainTip=null;
+  if(['charge','bite','chain','cut','axe','leap'].includes(b.pattern))world.emit('lunge');
   b.duration={charge:.65,roots:.25,chain:.4,slam:.3,axe:1.2,cut:.3,silk:.3,rings:.3,bite:.36,leap:.6}[b.pattern];
   if(b.pattern==='rings')for(const dir of [-1,1])warn(world,'ring',b.x+dir*45,420,30,20,0,{vx:dir*240,life:3});
   if(b.pattern==='axe')warn(world,'axe',b.x,b.targetY,30,30,0,{vx:b.strikeDir*340,life:1.2,origin:b.x,returning:true});
@@ -94,7 +95,7 @@ export function updateBoss(world,dt){
 }
 export function updateHazards(world,dt){
  for(const h of world.hazards){
-  h.age+=dt;if(h.delay>0){h.delay-=dt;continue;}
+  h.age+=dt;if(h.delay>0){h.delay-=dt;if(h.delay<=0)world.emit(h.kind==='landing'||h.kind==='slam'?'thud':'erupt');continue;}
   const old=h.x;h.life-=dt;
   if(h.returning&&h.life<.6&&!h.turned){h.vx=-h.vx;h.turned=true;}
   h.x+=(h.vx||0)*dt;

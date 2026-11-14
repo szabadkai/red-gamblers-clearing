@@ -41,6 +41,23 @@ inst boom wave=n,t arp=19,0,-7,-12,-17 adsr=0,9,0,2
 a: @zap v11 o5 e8 r8
 b: @swish v10 o6 c8 r8
 c: @boom v8 o2 a8 r8`),
+ // foes and bosses
+ thud:fx(.6,`
+inst boom wave=n,t arp=12,0,-7,-12,-17 adsr=0,10,0,3
+inst rumble wave=n adsr=0,14,0,4 filter=lp cut=900>200/60 res=0.4
+a: @boom v14 o2 c8 r16
+b: @rumble v10 o3 c8 r16`),
+ shoot:fx(.55,`
+inst twang wave=p,s pw=20 slide=9/6 adsr=0,8,0,2 filter=lp cut=3000 res=0.3
+a: @twang v12 o5 a16 r16`),
+ lunge:fx(.55,`
+inst whoosh wave=n adsr=1,10,0,3 filter=bp cut=400>2200/250 res=0.6
+a: @whoosh v12 o4 c8 r16`),
+ erupt:fx(.7,`
+inst crack wave=n adsr=0,12,0,4 filter=bp cut=600>3000/200 res=0.6
+inst rise wave=s slide=-12/10 adsr=0,10,0,3 filter=lp cut=1800 res=0.4
+a: @crack v13 o4 c8 r16
+b: @rise v8 o3 e8 r16`),
  roar:fx(.9,`
 inst growl wave=s,n slide=-7/20 vib=0.8 adsr=2,0,13,10 filter=lp cut=250>1100/45 res=0.7
 inst rasp wave=n adsr=3,0,9,12 filter=bp cut=300>1400/40 res=0.6

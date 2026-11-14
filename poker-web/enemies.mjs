@@ -56,7 +56,7 @@ function updateFlyer(world,e,def,dt,aware,dx){
   e.x+=ox/d*speed*dt;e.y+=oy/d*speed*dt;if(Math.abs(ox)>1)e.face=Math.sign(ox);return false;
  };
  e.cool=Math.max(0,(e.cool||0)-dt);
- if(e.state==='windup'){e.wind-=dt;if(e.wind<=0){e.wind=0;e.state='lunge';e.connected=false;}return;}
+ if(e.state==='windup'){e.wind-=dt;if(e.wind<=0){e.wind=0;e.state='lunge';e.connected=false;world.emit('lunge');}return;}
  if(e.state==='lunge'){
   const landed=flyTo(e.aimX,e.aimY,def.lunge);
   if(!e.connected&&Math.abs(world.x-e.x)<26&&Math.abs(world.y-e.y)<34){world.hurt(e.x);e.connected=true;}
@@ -141,16 +141,16 @@ export function updateEnemies(world,dt){
      const length=Math.hypot(e.aimX,e.aimY)||1;
      // A hex has no projectile: its flames rise from the patch marked when the tell began.
      const patch=(e.hexing||e.puffing)&&world.patches.find(p=>p.owner===e.id&&p.delay>0);
-     if(patch)patch.delay=0;else world.enemyShots.push({x:e.x+e.strikeDir*16,y:e.y-24,vx:e.aimX/length*220,vy:e.aimY/length*220,life:2.2,arrow:!!e.arrow,look:e.look});
+     if(patch){patch.delay=0;world.emit('erupt');}else{world.enemyShots.push({x:e.x+e.strikeDir*16,y:e.y-24,vx:e.aimX/length*220,vy:e.aimY/length*220,life:2.2,arrow:!!e.arrow,look:e.look});world.emit('shoot');}
      e.hexed=!!e.hexing;e.puffed=!!e.puffing;e.cast=!e.puffing;e.hexing=e.puffing=false;e.rest=def.recovery;e.state='recover';
     }else if(e.erupting){
-     const patch=world.patches.find(p=>p.owner===e.id&&p.delay>0);if(patch)patch.delay=0;
+     const patch=world.patches.find(p=>p.owner===e.id&&p.delay>0);if(patch){patch.delay=0;world.emit('erupt');}
      e.erupting=false;e.erupted=true;e.rest=def.recovery;e.state='recover';
     }else if(e.rooted){
      // Brambles lash one way, further than a slam: get behind them or stay out of reach.
-     const ahead=dx*e.strikeDir;if(ahead>-24&&ahead<120&&Math.abs(dy)<34)world.hurt(e.x);
+     world.emit('thud');const ahead=dx*e.strikeDir;if(ahead>-24&&ahead<120&&Math.abs(dy)<34)world.hurt(e.x);
      world.rings.push({x:e.x+e.strikeDir*84,y:e.y-4,radius:40,dark:false,physical:true,life:.25});e.rest=def.recovery;e.state='recover';
-    }else if(e.tough){if(Math.abs(dx)<90&&Math.abs(dy)<30)world.hurt(e.x);world.rings.push({x:e.x,y:e.y-4,radius:90,dark:false,physical:true,life:.25});e.rest=def.recovery;e.state='recover'}else{e.state='lunge';e.action=def.action||.17;e.connected=false}
+    }else if(e.tough){world.emit('thud');if(Math.abs(dx)<90&&Math.abs(dy)<30)world.hurt(e.x);world.rings.push({x:e.x,y:e.y-4,radius:90,dark:false,physical:true,life:.25});e.rest=def.recovery;e.state='recover'}else{e.state='lunge';e.action=def.action||.17;e.connected=false;world.emit('lunge')}
    }
    continue;
   }
