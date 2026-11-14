@@ -37,7 +37,7 @@ for(const name of ['bridge-atlas-v1','bridge-distance-v1','bridge-bough-v1'])loa
 for(const [key,url] of Object.entries(STORY_IMAGES))loadImage(key,url);
 loadImage('cards','./assets/cards.png');loadImage('dock-branch','./assets/ui/dock_branch.png');loadImage('dock-corner','./assets/ui/dock_corner.png');loadImage('dungeon','./assets/dungeon.png');for(const name of Object.keys(ROSTER))loadImage('cast/'+name,`./assets/cast/${name}_sheet.png`);
 const total=tasks.length;let done=0;tasks.forEach(p=>p.then(()=>{$('loading').textContent=`Opening the forest · ${Math.round(++done/total*100)}%`},()=>{}));
-Promise.all(tasks).then(()=>{prepareScenery(images);loaded=true;$('begin').disabled=false;$('begin').textContent='Begin journey';$('continue').hidden=!savedJourney;$('continue').textContent=savedJourney?.complete?'Replay final encounter':'Continue journey';$('save-status').textContent=savedJourney?`Saved: ${CLEARINGS[savedJourney.stage].name} · this browser`:'';$('loading').textContent='Keyboard controls · headphones welcome';updateUI(true)}).catch(err=>{$('begin').textContent='Reload to retry';$('loading').textContent=err.message;console.error(err)});
+Promise.all(tasks).then(()=>{prepareScenery(images);loaded=true;$('begin').disabled=false;$('begin').textContent='Begin journey';$('continue').hidden=!savedJourney;$('continue').textContent=savedJourney?.complete?'Replay final encounter':'Continue journey';$('save-status').textContent=savedJourney?`Saved: ${CLEARINGS[savedJourney.stage].name} · this browser`:'';$('loading').textContent=(matchMedia('(pointer: coarse)').matches?'Touch controls':'Keyboard controls')+' · headphones welcome';updateUI(true)}).catch(err=>{$('begin').textContent='Reload to retry';$('loading').textContent=err.message;console.error(err)});
 function sound(name){if(!muted)music.sfx(name)}
 const music=createMusic();
 function syncMusic(){
@@ -88,7 +88,29 @@ $('motion').onclick=()=>{reduced=!reduced;motion();focusGame()};
 $('deal').onclick=()=>{if(!loaded)return;world.practiceDeal(Number($('practice').value));enterWorld()};
 $('stage').addEventListener('pointerdown',event=>{if(world.mode!=='drafting'&&!event.target.closest('button,select,summary,a'))focusGame()});
 $('draft-left').onclick=()=>finishDraft(0);$('draft-right').onclick=()=>finishDraft(1);$('draft-skip').onclick=()=>finishDraft(null);
-for(const button of document.querySelectorAll('[data-hold]')){button.onpointerdown=e=>{e.preventDefault();button.setPointerCapture(e.pointerId);if(started&&world.mode==='playing')press(button.dataset.hold)};button.onpointerup=button.onpointercancel=button.onlostpointercapture=()=>release(button.dataset.hold)}
+// Touch controls: a floating joystick on the left half of the world (it centres wherever the thumb lands and
+// trails the thumb past its rim; pull down to drop through a ledge) and round action buttons on the right,
+// each held by its own finger. Held moves and the sword survive a pause or scene that cleared the keyboard state.
+const touchHeld=new Set();
+function touchDown(code,el){el?.classList.add('on');if(touchHeld.has(code))return;touchHeld.add(code);if(started&&world.mode==='playing')press(code);}
+function touchUp(code,el){el?.classList.remove('on');if(!touchHeld.delete(code))return;release(code);}
+for(const button of document.querySelectorAll('[data-hold]')){const code=button.dataset.hold;button.onpointerdown=e=>{e.preventDefault();button.setPointerCapture(e.pointerId);touchDown(code,button)};button.onpointerup=button.onpointercancel=button.onlostpointercapture=()=>touchUp(code,button);button.oncontextmenu=e=>e.preventDefault()}
+const zone=$('stickzone'),stick=$('stick'),knob=$('knob');let stickId=null,origin=null;
+function placeStick(){const z=zone.getBoundingClientRect();stick.style.left=origin.x-z.left+'px';stick.style.top=origin.y-z.top+'px';}
+function steer(e){
+ const r=stick.offsetWidth/2;let dx=e.clientX-origin.x,dy=e.clientY-origin.y,d=Math.hypot(dx,dy);
+ if(d>r){origin.x+=dx*(1-r/d);origin.y+=dy*(1-r/d);dx*=r/d;dy*=r/d;placeStick();}
+ knob.style.transform=`translate(${dx}px,${dy}px)`;
+ const dead=r*.3,down=dy>r*.6&&dy>Math.abs(dx);
+ dx<-dead?touchDown('KeyA'):touchUp('KeyA');dx>dead?touchDown('KeyD'):touchUp('KeyD');down?touchDown('KeyS'):touchUp('KeyS');
+}
+zone.onpointerdown=e=>{if(stickId!==null)return;e.preventDefault();zone.setPointerCapture(e.pointerId);stickId=e.pointerId;origin={x:e.clientX,y:e.clientY};placeStick();stick.classList.add('active');steer(e)};
+zone.onpointermove=e=>{if(e.pointerId===stickId)steer(e)};
+zone.onpointerup=zone.onpointercancel=zone.onlostpointercapture=e=>{if(e.pointerId!==stickId)return;stickId=null;for(const code of ['KeyA','KeyD','KeyS'])touchUp(code);stick.classList.remove('active');stick.style.left=stick.style.top='';knob.style.transform='';};
+zone.oncontextmenu=e=>e.preventDefault();
+// Devices that report a fine pointer but get touched still get the controls.
+window.addEventListener('touchstart',()=>document.body.classList.add('touch-seen'),{once:true,passive:true});
+function holdTouch(){if(started&&world.mode==='playing')for(const code of ['KeyA','KeyD','KeyJ'])if(touchHeld.has(code))keys.add(code);}
 // Gamepad (standard mapping): stick or d-pad moves, A jumps, X swings, Y plays the hand, B/RB/RT dash, Start pauses.
 const PAD_BUTTONS={0:'Space',1:'ShiftLeft',2:'KeyJ',3:'KeyK',5:'ShiftLeft',7:'ShiftLeft',9:'KeyP',13:'KeyS',14:'KeyA',15:'KeyD'};
 const padHeld=new Set();
@@ -310,6 +332,14 @@ function drawPatches(){
    }
    continue;
   }
+  if(p.delay>0&&roots){
+   // Roots: a dark crack across the floor with green tips pushing up through it as the tell runs out.
+   const owner=world.enemies.find(e=>e.id===p.owner),grow=owner?.windTotal?1-Math.max(0,owner.wind)/owner.windTotal:0;
+   rect(left-2,p.y-4,p.w+4,6,'#1a110c');rect(left,p.y-3,p.w,2,'#5a3b26');
+   for(let i=0;i<4;i++){const x=left+6+i*12,h=2+Math.round(grow*8)*2;rect(x-2,p.y-h-2,6,h+2,'#1a110c');rect(x,p.y-h,2,h,'#7fbf4a');}
+   text('!',p.x-4,p.y-26,16,'#ffd27a');
+   continue;
+  }
   if(p.delay>0){
    const mark=roots?'#8a6a48':'#b46bfa',mote=roots?'#c9a777':'#d9a8ff';
    rect(left,p.y-3,p.w,3,mark);text('!',p.x-4,p.y-20,14,mote);
@@ -459,7 +489,7 @@ function draw(){
   drawGates(ctx,world,visual,reduced);
  }
  drawStoryCharacters();
- drawHazards();drawPatches();
+ drawHazards();
  // Ground loot sits behind combatants; cards must never mask an enemy pose.
  for(const drop of world.cardDrops){
   const x=snap(drop.x),y=snap(drop.y-26-(reduced?0:Math.sin(visual*3+drop.id)*2)-Math.sin(Math.min(1,drop.age/.4)*Math.PI)*18);
@@ -525,9 +555,11 @@ function draw(){
  if(!reduced)for(const d of world.dust)drawDust(d);
  for(const p of world.particles)rect(p.x,p.y,3,3,'#eacd88');for(const n of world.texts)text(n.text,n.x,n.y,20,'#ffe4a2');
  // Depth foreground around the floor rather than across landing surfaces.
- ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else if(!storyFloor())drawForeground(ctx,images,cam,world,reduced);drawBossCard();if(world.dying>0||world.mode==='dead'){ctx.fillStyle=`rgba(11,8,16,${(world.mode==='dead'?1:1-world.dying/DEATH_TIME)*.55})`;ctx.fillRect(0,0,960,480);}ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
+ ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else if(!storyFloor())drawForeground(ctx,images,cam,world,reduced);
+ // Ground marks, roots, flames and spore clouds go over the foreground foliage so a bush never hides a tell.
+ ctx.save();ctx.translate(-snap(cam),0);drawPatches();ctx.restore();drawBossCard();if(world.dying>0||world.mode==='dead'){ctx.fillStyle=`rgba(11,8,16,${(world.mode==='dead'?1:1-world.dying/DEATH_TIME)*.55})`;ctx.fillRect(0,0,960,480);}ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
 }
-function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();if(loaded){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
+function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();holdTouch();if(loaded){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
   while(accumulator>=1/60){const input={axis:Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),sword:keys.has('KeyJ')};if(first&&world.hitStop<=0){input.jump=edges.has('Space');input.jumpRelease=releaseJump;input.dash=edges.has('ShiftLeft')||edges.has('ShiftRight');input.play=edges.has('KeyK');input.drop=edges.has('KeyS')||edges.has('ArrowDown');for(let i=0;i<5;i++)if(edges.has('Digit'+(i+1)))input.replace=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}
   for(const event of world.events.splice(0))sound(event);
  }else accumulator=0;

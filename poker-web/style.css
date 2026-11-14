@@ -81,3 +81,18 @@ body:has(#boss-hud:not([hidden])) #toast{top:15cqw;font-size:1.2cqw}body:has(#bo
 /* the heart the current hand would restore */.heart.mend{background:#7a3440;box-shadow:inset 3px 3px #a85560,inset -3px -3px #4d2630}
 #health.low{animation:low-health .8s steps(1) infinite}@keyframes low-health{50%{filter:brightness(1.8)}}body.reduced #health.low{animation:none}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.unsaid{visibility:hidden}
+/* Touch controls: shown on coarse pointers (or once the screen is touched), hidden on the title, in scenes and card choices.
+   #touch covers the world above the card dock; the joystick zone is its left half, the buttons fan out from the
+   bottom-right corner (--x/--y: centre from that corner, --s: diameter). */
+#touch{top:0;left:0;right:0;bottom:26%;pointer-events:none}
+#stickzone{position:absolute;left:0;top:14%;bottom:0;width:48%;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#stick{position:absolute;left:12cqw;top:calc(100% - 12cqw);width:13cqw;height:13cqw;margin:-6.5cqw 0 0 -6.5cqw;border-radius:50%;border:2px solid #f0ead766;background:#18291f55;opacity:.45;pointer-events:none}
+#stick.active{opacity:1;border-color:#e3be7fcc}
+#knob{position:absolute;left:50%;top:50%;width:5.5cqw;height:5.5cqw;margin:-2.75cqw 0 0 -2.75cqw;border-radius:50%;background:#f0ead7b3;border:2px solid #8e956b;box-shadow:0 .3cqw .8cqw #0008}
+#touch button{position:absolute;right:calc(var(--x) - var(--s)/2);bottom:calc(var(--y) - var(--s)/2);width:var(--s);height:var(--s);border-radius:50%;padding:0;margin:0;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border:2px solid #8e956b;background:#18291fb3;color:#f0ead7;font:1.05cqw Silkscreen,monospace;box-shadow:0 .3cqw .8cqw #0006}
+#touch button.big{border-color:#e3be7f;font-size:1.3cqw}
+#touch button.on{background:#53684e;transform:scale(.94)}
+body.touch-seen #touch{display:flex}
+body.at-title #touch,body.in-cutscene #touch,body.drafting #touch{display:none!important}
+body{touch-action:manipulation}
+@media not (pointer:coarse){body:not(.touch-seen) #touch{display:none}}

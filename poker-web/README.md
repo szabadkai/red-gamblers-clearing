@@ -91,7 +91,13 @@ New journey in the menu starts from Lantern Wood.
 A gamepad with the standard mapping also works: stick or d-pad moves (down drops through), A jumps, X swings,
 Y plays the hand, B/RB/RT dash, Start pauses. In scenes A advances and Start skips; at a card drop, left/right
 take that card and B leaves it; A confirms the menu button. A saved card cannot be slotted from the pad (it still
-fills a slot when a hand is played). Checked against a simulated pad only, not real hardware. No touch controls yet.
+fills a slot when a hand is played). Checked against a simulated pad only, not real hardware.
+On touch screens (coarse pointer, or once the screen is touched) the left half of the world is a floating joystick:
+it centres wherever the thumb lands, trails the thumb past its rim, and pulling it down drops through a ledge. Round
+buttons fan out from the bottom-right corner: JUMP (largest, hold for a higher jump), SWORD, DASH and HAND.
+They hide on the title, in scenes and at card choices; menus, dialogue, card choices and hand slots are tapped
+directly. Checked with simulated touches in a 740×360 touch viewport, not on a real phone. The game is laid out
+for landscape; in portrait the 16:9 stage and its controls are small.
 The card dock, health, settings and pause/help menus stay inside one 16:9 viewport.
 
 Cross five authored clearings: Lantern Wood, Broken Crossing, Moss Cavern, Ruined Chapel, and Thorn House.
@@ -183,7 +189,8 @@ Four more creatures use the special row of their sheet:
   ghost form over 0.5 s instead of vanishing. It cannot be hit on the way.
 - Brown bear: at half health it roars for 0.8 s, once, then walks 1.6 times as fast and slams that much sooner;
   its health bar turns red.
-Patches (`world.patches`: the hex, the roots, the cloud) share one rule: a tell owned by a foe, cancelled if that
+Patches are drawn over the foreground foliage so a bush never hides a tell; the tree's tell is a dark crack with
+green tips that push up as it runs out. Patches (`world.patches`: the hex, the roots, the cloud) share one rule: a tell owned by a foe, cancelled if that
 foe is staggered or killed first, then a harmful area. Practice has Tree, Mushroom, Ghost hunter and Bear entries.
 
 On a journey, the first time each kind of foe notices Red a one-line hint names its counter (`hintFor` in
