@@ -6,7 +6,7 @@ const ROW={idle:[0,4],run:[1,4],attack:[2,6],special:[3,8],hit:[4,4],death:[5,8]
 // Highest opaque source row across the action rows; keeps health bars and lines above the head.
 export const CAST={
  big_bad_wolf:5,rogue_hunter:13,forest_witch:5,wild_boar:7,forest_crow:10,living_tree:7,thorn_brambles:7,
- lost_wisp:9,brown_bear:1,forest_stag:0,spore_mushroom:5,ghost_hunter:8,raven:0,will_o_wisp:3,
+ lost_wisp:9,brown_bear:1,forest_stag:0,spore_mushroom:5,ghost_hunter:8,raven:0,will_o_wisp:9,
  wolf_in_disguise:12,mother:6,grandmother:9,woodcutter:6
 };
 export const castTop=skin=>CAST[skin]??0;
