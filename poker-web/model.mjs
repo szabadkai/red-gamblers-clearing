@@ -7,13 +7,15 @@ export const CORPSE_LIFE=1.2;
 export const HIT_TIME=.32;
 // Dust kicked up by a jump, a landing or a ground dash.
 export const DUST_LIFE=.3;
+// Seconds a sword chain survives without another landed swing.
+export const COMBO_WINDOW=1.1;
 export const HANDS=['High card','Pair','Two pair','Three of a kind','Straight','Flush','Full house','Four of a kind','Straight flush'];
 export const DAMAGE=[6,14,20,26,32,40,52,64,90];
 export const EFFECTS=['Quick bolt','Heavy bolt','Explosive shot','Piercing lance','Piercing beam','Dark wave','Twin dark waves','Royal burst','Royal burst + wave'];
 export const SUITS=['spades','diamonds','clubs','hearts'];
 export function cardName(id){const rank=id%13+2;return `${({11:'Jack',12:'Queen',13:'King',14:'Ace'})[rank]||rank} of ${SUITS[Math.floor(id/13)]}`;}
 export function evaluate(cards){
- if(!cards.length)return {tier:-1,name:'Empty hand',damage:0,indices:[]};
+ if(!cards.length)return {tier:-1,name:'Empty hand',damage:0,indices:[],heal:false};
  const groups=new Map();cards.forEach((c,i)=>{let r=c%13+2;if(!groups.has(r))groups.set(r,[]);groups.get(r).push(i)});
  const ranks=[...groups.keys()].sort((a,b)=>groups.get(b).length-groups.get(a).length||b-a);
  const sorted=[...ranks].sort((a,b)=>a-b),count=groups.get(ranks[0]).length;
@@ -27,7 +29,8 @@ export function evaluate(cards){
  else if(count===3){tier=3;indices=[...groups.get(ranks[0])]}
  else if(count===2){tier=1;indices=[...groups.get(ranks[0])];if(groups.get(ranks[1])?.length===2){tier=2;indices.push(...groups.get(ranks[1]))}}
  if([4,5,6,8].includes(tier))indices=cards.map((_,i)=>i);
- return {tier,name:HANDS[tier],damage:DAMAGE[tier],indices};
+ // Hearts mend: a pair or better heals one heart when a heart is among the cards it spends.
+ return {tier,name:HANDS[tier],damage:DAMAGE[tier],indices,heal:tier>=1&&indices.some(i=>Math.floor(cards[i]/13)===3)};
 }
 export class Deck{
  constructor(random=Math.random){this.random=random;this.reset()}
@@ -68,7 +71,7 @@ export class World{
   this.attackForm='light';this.castForm='light';this.castFacing=1;
   this.morphFrom='light';this.morphDuration=.75;this.morphPose=false;this.morphFacing=1;
   this.hitStop=0;this.shakeTime=0;this.shakeDuration=0;this.shakePower=0;
-  this.cardDrops=[];this.activeDraft=null;this.lastPicked=null;
+  this.cardDrops=[];this.activeDraft=null;this.lastPicked=null;this.combo=0;this.comboTime=0;
   this.platforms=platformsFor(stageIndex);this.embers=this.clearing.embers.map(([x,y])=>({x,y}));this.collected=0;
   this.checkpoint={x:60,y:420};this.checkpointId=0;this.mode='playing';this.practice=false;this.kills=0;
   this.impacts=[];this.corpses=[];this.bolts=[];this.enemyShots=[];this.rings=[];this.texts=[];this.particles=[];this.dust=[];this.events=[];this.banner='';this.bannerTime=0;this.nextId=0;
@@ -115,12 +118,16 @@ export class World{
  startDash(){if(this.dashCD>0||this.mode!=='playing')return;this.dash=.14;this.dashCD=.7;this.vy=0;this.invincible=Math.max(this.invincible,.14);this.emit('dash');if(this.grounded)this.puff('dash')}
  sword(){if(this.attack>0||this.mode!=='playing')return;this.attack=.32;this.swordPending=.10;this.attackFacing=this.facing;this.attackForm=this.dark>0?'dark':'light';this.morphPose=false;this.emit('attack1');}
  resolveSword(){let source=null;
+  // Every third landed swing in a row is a heavy finisher; a pause or taking a hit breaks the chain.
+  const chain=this.comboTime>0?this.combo:0,finisher=chain%3===2,base=this.attackForm==='dark'?4:2,first=this.impacts.length;
   this.enemyShots=this.enemyShots.filter(b=>{const d=(b.x-this.x)*this.attackFacing;if(d>=-10&&d<76&&Math.abs(b.y-(this.y-22))<36){this.impacts.push({x:b.x,y:b.y,amount:2,life:.25});this.emit('attack3');return false;}return true;});
   for(const e of this.enemies){const box=e.boss&&bossBox(e);let hit;
    if(box){const f=this.attackFacing,a0=f>0?this.x-10:this.x-76,a1=f>0?this.x+76:this.x+10;hit=a1>box.x0&&a0<box.x1&&this.y-56<box.y1&&this.y>box.y0;}
    else{const d=(e.x-this.x)*this.attackFacing;hit=d>=-10&&d<76&&Math.abs(e.y-this.y)<40;}
-   if(hit){if(this.damage(e,this.attackForm==='dark'?4:2,10*this.attackFacing,true)!==false)source??={x:e.x,y:e.y}}}
-  if(source){this.emit('hit');const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,source);this.emit('meter_full');this.banner='CARD DROP · TOUCH TO CHOOSE';this.bannerTime=1.5}}this.removeDead();
+   if(hit){if(this.damage(e,finisher?base*2.5:base,(finisher?26:10)*this.attackFacing,true)!==false)source??={x:e.x,y:e.y}}}
+  if(source){this.combo=chain+1;this.comboTime=COMBO_WINDOW;
+   if(finisher){for(const hit of this.impacts.slice(first))hit.heavy=true;this.hitStop=Math.max(this.hitStop,2/60);this.shakePower=2;this.shakeDuration=.1;this.shakeTime=.1;this.emit('finisher');}
+   this.emit('hit');const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,source);this.emit('meter_full');this.banner='CARD DROP · TOUCH TO CHOOSE';this.bannerTime=1.5}}this.removeDead();
  }
  spawnCardDrop(draft,source){
   if(!draft)return;
@@ -154,6 +161,7 @@ export class World{
  }
  suppressNearbyDrops(){for(const drop of this.cardDrops)if(Math.abs(drop.x-this.x)<32&&Math.abs(drop.y-this.y)<40)drop.blocked=true;}
  play(){if(this.cast>0||!this.deck.hand.length||this.mode!=='playing')return;const r=this.deck.play();this.cast=.36;this.banner=r.name.toUpperCase();this.bannerTime=1.5;this.emit('attack3');
+  if(r.heal&&this.health<5){this.health++;this.banner+=' · +1 HEART';this.bannerTime=2;this.emit('pickup_essence');}
   if(r.tier>=5){if(this.dark<=0)this.startMorph('light',.75);this.dark=6;this.invincible=Math.max(this.invincible,.75);this.emit('transform_dark')}
   this.castForm=this.dark>0?'dark':'light';this.castFacing=this.facing;
   const impact={tier:r.tier,spent:false};
@@ -173,11 +181,11 @@ export class World{
  blast(x,y,radius,damage,dark=false,impact=null){this.rings.push({x,y,radius,dark,life:.45});for(const e of this.enemies){const box=e.boss&&bossBox(e);if(box?Math.hypot(clamp(x,box.x0,box.x1)-x,clamp(y,box.y0,box.y1)-y)<=radius:Math.hypot(e.x-x,e.y-22-y)<=radius){this.damage(e,damage,Math.sign(e.x-x)*40);this.pokerImpact(impact,e.hp<=0)}}}
  damage(e,amount,push,sword=false){if(this.wall&&e.x>this.wall.x)return false;e.hp-=amount;e.flash=.15;
   // A brute or guard that has begun its slam braces through sword hits; only a played hand breaks it.
-  if(sword&&e.tough&&e.state==='windup')e.brace=.15;else{e.x=clamp(e.x+push,e.left,e.right);e.wind=0;e.rest=.22;e.hurt=HIT_TIME;e.state='stagger';}
+  if(sword&&e.tough&&e.state==='windup'){e.brace=.15;if(this.bannerTime<=0){this.banner='IT BRACES · STEP BACK, STRIKE AFTER THE SLAM';this.bannerTime=1.8;}}else{e.x=clamp(e.x+push,e.left,e.right);e.wind=0;e.rest=.22;e.hurt=HIT_TIME;e.state='stagger';}
   this.texts.push({x:e.x,y:e.y-55,text:String(amount),life:.7});this.impacts.push({x:e.x,y:e.y-25,amount,life:.25,knockout:e.hp<=0});
   for(let i=0;i<7;i++)this.particles.push({x:e.x,y:e.y-22,vx:Math.cos(i*2.4)*90,vy:-40-i*12,life:.4});}
  removeDead(){if(this.enemies.some(e=>e.hp<=0))this.emit('enemy_death');for(const e of this.enemies)if(e.hp<=0)this.corpses.push({kind:e.kind,skin:e.skin,x:e.x,y:e.y,face:e.face,life:CORPSE_LIFE});this.kills+=this.enemies.filter(e=>e.hp<=0).length;this.enemies=this.enemies.filter(e=>e.hp>0)}
- hurt(fromX){if(this.invincible>0)return;this.health--;this.invincible=1;this.emit('player_hurt');
+ hurt(fromX){if(this.invincible>0)return;this.health--;this.invincible=1;this.combo=0;this.emit('player_hurt');
   const dir=fromX===undefined?-this.facing:Math.sign(this.x-fromX)||-this.facing;
   this.vx=dir*320;this.vy=Math.min(this.vy,-250);this.grounded=false;this.dash=0;this.knock=.3;this.hurtTime=.4;
   this.hitStop=Math.max(this.hitStop,.05);this.shakePower=4;this.shakeDuration=.18;this.shakeTime=.18;
@@ -187,7 +195,7 @@ export class World{
   this.shakeTime=Math.max(0,this.shakeTime-dt);
   if(this.hitStop>0){this.hitStop=Math.max(0,this.hitStop-dt-1e-9);return;}
   this.time+=dt;const wasDark=this.dark>0;
-  for(const key of ['invincible','dash','dashCD','attack','cast','dark','transform','land','drop','buffer','bannerTime','knock','hurtTime'])this[key]=Math.max(0,this[key]-dt);
+  for(const key of ['invincible','dash','dashCD','attack','cast','dark','transform','land','drop','buffer','bannerTime','knock','hurtTime','comboTime'])this[key]=Math.max(0,this[key]-dt);
   if(wasDark&&this.dark===0)this.startMorph('dark',.6);
   const knocked=this.knock>0;
   if(!knocked){if(input.jump)this.jump();if(input.jumpRelease)this.releaseJump();if(input.drop)this.dropDown();if(input.dash)this.startDash();}

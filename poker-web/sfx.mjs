@@ -27,6 +27,13 @@ inst smack wave=n,p,p arp=24,7,0,-5 pw=40 adsr=0,5,0,1
 inst crack wave=n adsr=0,3,0,1 filter=hp cut=2000 res=0.3
 a: @smack v13 o3 a16 r16
 b: @crack v9 o6 c32 r16.`),
+ finisher:fx(1,`
+inst whack wave=n,p,p arp=19,7,0,-7,-12 pw=45 adsr=0,7,0,2
+inst boom wave=n,t arp=19,0,-7,-12,-17 adsr=0,9,0,2
+inst crack wave=n adsr=0,4,0,1 filter=hp cut=2000 res=0.3
+a: @whack v14 o3 e16 r16
+b: @boom v10 o2 a16 r16
+c: @crack v10 o6 c32 r16.`),
  attack3:fx(1,`
 inst zap wave=p,s,p arp=12,7,0,-5 pw=20-60/6 ring=2.01 adsr=0,10,0,3
 inst swish wave=n adsr=0,10,0,3 filter=bp cut=900>4500/400 res=0.55
@@ -67,6 +74,21 @@ inst bell wave=t ring=2.76 adsr=0,50,0,40
 inst glow wave=p arp=12,0 pw=20-50/2 adsr=2,20,0,20
 a: @bell v10 o5 g8 >d4< r2
 b: @glow v6 o4 r8 {gb>d}4 r2`),
+ // dialogue voices: one syllable each, repitched per speaker and per vowel by game.mjs
+ voice_soft:fx(.35,`
+inst mum wave=p,t pw=35 slide=-2/3 adsr=1,5,0,2 filter=lp cut=2200 res=0.3
+a: @mum v13 o5 c32. r32`),
+ voice_reed:fx(.28,`
+inst mum wave=p pw=22 slide=-3/4 adsr=0,6,0,2 filter=lp cut=1600 res=0.5
+a: @mum v13 o4 c32. r32`),
+ voice_gruff:fx(.42,`
+inst growl wave=s slide=-5/5 adsr=0,7,0,2 filter=lp cut=900 res=0.6
+inst rasp wave=n adsr=0,5,0,1 filter=bp cut=700 res=0.5
+a: @growl v14 o3 c32. r32
+b: @rasp v6 o4 c32. r32`),
+ voice_bell:fx(.32,`
+inst toll wave=t ring=2.76 slide=-2/3 adsr=0,8,0,3
+a: @toll v14 o5 c32. r32`),
  // music stingers, played by music.mjs when the track changes
  boss_intro:fx(1.3,`
 inst hit wave=n,p arp=36,12,7,0,-5,-9,-12,-14,-17,-19 pw=50 adsr=0,24,0,6

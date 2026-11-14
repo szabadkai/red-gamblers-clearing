@@ -178,3 +178,17 @@ test('trail foes leave Red alone until the opening encounter has played',()=>{
  tick(w,60,{axis:1});assert.equal(w.dialogue?.id,STAGES[0].encounter);skip(w);
  w.x=w.enemies[0].x-120;tick(w,30);assert.ok(w.enemies[0].alert>0);
 });
+test('a trail save resumes at the last opened gate with its embers; malformed gate data is rejected',()=>{
+ const s=storage(),w=new StoryWorld();skip(w);w.seen.add(STAGES[0].encounter);
+ w.enemies=w.enemies.filter(e=>e.section>0);w.embers.shift();w.collected=1;const revision=w.storyRevision;
+ tick(w,2);assert.ok(w.gates[0].open);assert.ok(w.storyRevision>revision);
+ assert.ok(saveStory(s,w));const saved=loadStory(s);assert.equal(saved.gates,1);assert.deepEqual(saved.embers,[1,2]);
+ const r=new StoryWorld();r.reset(saved.stage,saved);
+ assert.equal(r.mode,'playing');assert.equal(r.x,w.gates[0].x-40);assert.equal(r.collected,1);assert.equal(r.embers.length,2);
+ assert.ok(r.gates[0].open&&!r.gates[1].open);assert.ok(r.enemies.length>0&&r.enemies.every(e=>e.section>=1));
+ assert.deepEqual(r.snapshot(),w.snapshot());
+ const raw=JSON.parse(s.memory.get(STORY_SAVE_KEY));
+ for(const bad of [{gates:9},{gates:0},{embers:[1,1]},{embers:[5]},{embers:null},{phase:'boss'}]){
+  s.setItem(STORY_SAVE_KEY,JSON.stringify({...raw,...bad}));assert.equal(loadStory(s),null,JSON.stringify(bad));
+ }
+});

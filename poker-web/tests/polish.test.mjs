@@ -62,3 +62,19 @@ test('a jump, its landing and a ground dash each kick up dust that settles',()=>
  run(1,{dash:true});assert.deepEqual(kinds,['jump','land','dash']);
  run(1,{jump:true});w.dashCD=0;run(1,{dash:true});assert.equal(kinds.filter(k=>k==='dash').length,1);
 });
+test('every third landed swing in a row is a heavy finisher; a pause or a hit taken breaks the chain',()=>{
+ const w=new World();w.practiceDeal(0);w.enemies=[];w.spawn(220,0);const e=w.enemies[0];e.hp=500;
+ const swing=()=>{const hp=e.hp;e.x=220;e.rest=99;w.sword();for(let i=0;i<24;i++)w.step(1/60);return hp-e.hp;};
+ assert.deepEqual([swing(),swing(),swing(),swing(),swing(),swing()],[2,2,5,2,2,5]);
+ assert.equal(w.events.filter(name=>name==='finisher').length,2);
+ swing();swing();e.rest=99;for(let i=0;i<80;i++)w.step(1/60);assert.equal(swing(),2);
+ swing();assert.equal(w.combo,2);w.invincible=0;w.hurt(e.x);assert.equal(w.combo,0);
+ w.dark=6;w.x=180;w.y=420;w.vx=0;w.vy=0;w.knock=0;w.facing=1;assert.deepEqual([swing(),swing(),swing()],[4,4,10]);
+});
+test('a pair or better that spends a heart card mends one heart; high cards, kickers and full health do not',()=>{
+ const play=(cards,health)=>{const w=new World();w.practiceDeal(0);w.enemies=[];w.deck.preset(cards);w.health=health;w.play();return w;};
+ assert.equal(play([5,44,2,9,24],3).health,4);assert.match(play([5,44,2,9,24],3).banner,/PAIR · \+1 HEART/);
+ assert.equal(play([5,18,2,9,24],3).health,3);assert.equal(play([5,18,40,9,24],3).health,3);
+ assert.equal(play([49,0,15,30,7],3).health,3);assert.equal(play([5,44,2,9,24],5).health,5);
+ assert.equal(play([39,40,41,42,43],1).health,2);
+});

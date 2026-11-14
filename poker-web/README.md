@@ -40,7 +40,7 @@ including the bridge's lower passage, remain intact.
 Each boss, the swallowed rooms, and the garden have retry checkpoints. R restores
 full health and a normal fresh hand at the current encounter. Continue restores
 saved dialogue at its current line or restarts the saved encounter. On a trail,
-reload/retry begins that clearing again. Saves use `red.poker.story.v3`; older
+Continue after a reload returns to the last opened briar gate with the embers carried so far. Saves use `red.poker.story.v3`; older
 journeys migrate by clearing name. A saved completed journey can replay the final
 encounter. Practice never writes story progress.
 
@@ -51,8 +51,9 @@ bosses independently, alongside the existing card and enemy practices.
 
 Character artwork reuses the dungeon atlas and `Assets/doc.png`. Missing large
 creatures and scene props are drawn on the native pixel grid. See
-[story asset sources](assets/story/README.md). Dialogue is captioned, without
-recorded voice acting. The campaign uses compact arenas and staged in-engine
+[story asset sources](assets/story/README.md). Dialogue is captioned and types out while the speaker
+mumbles: one synthesised syllable per vowel, repitched per character (`voice` in `story-data.mjs`, samples
+`voice_*` in `sfx.mjs`). The first press finishes a line, the next advances. Motion Off shows lines at once, unvoiced. The campaign uses compact arenas and staged in-engine
 scenes; its timing and difficulty still need a full human playthrough.
 
 Implementation: `story.mjs` owns progression and saves; `story-data.mjs` contains
@@ -101,10 +102,17 @@ returns to the last opened gate with the earlier sections still cleared. Checkpo
 position after pits (falling costs a heart). Movement uses fixed 60 Hz updates,
 120 ms coyote time, a 140 ms jump buffer, variable jump height, ground/air
 acceleration, and a brief invulnerable dash. Blur or hiding the tab pauses and
-clears input. Progress saves at clearing entrances in this browser. Continue restarts that
-clearing with five hearts and five fresh cards. Existing v1 saves migrate by destination; new saves use stable clearing IDs.
+clears input. Progress saves at clearing entrances and at every opened briar gate in this browser. Continue returns to the
+last opened gate (or the entrance) with five hearts and five fresh cards. Existing v1 saves migrate by destination; new saves use stable clearing IDs.
 Practice never overwrites journey progress. Unavailable browser storage is
-reported; there is no cross-device sync or mid-clearing save.
+reported; there is no cross-device sync, and nothing is saved between gates.
+
+Every third landed sword swing in a row is a finisher: 5 damage instead of 2 (10 instead of 4 as Dark Red), a
+harder knockback and a two-frame hit stop. The chain breaks after 1.1 s without a landed swing or when Red is hurt.
+Hearts mend: playing a pair or better that spends at least one heart card restores one heart (kickers and lone
+high cards do not count, and nothing is gained at full health). The hand panel says so, the heart it would
+restore is shown dim red, and card-drop hints mark choices that would make a mending hand.
+The health display blinks at one heart (not with Motion Off).
 
 Five unique cards are dealt initially. Three landed sword swings drop one
 face-down card near the enemy. Touch it to pause combat and reveal two choices.
@@ -150,8 +158,8 @@ Warm trail lanterns mark checkpoints; banners, mushrooms, falling leaves and
 separate stone treatments distinguish the route. Thorn House has a new generated
 background. Separate distant scenery, woodland silhouettes, transparent oak
 canopy and foreground foliage scroll at distinct rates; Motion Off freezes the
-background planes. See assets/concept/ART_NOTES.md for prompts and provenance. The original forest music and
-dark ambience return through Sound On, and stop when paused or away.
+background planes. See assets/concept/ART_NOTES.md for prompts and provenance. Sound is on by default and starts with the first click or key press; the Sound button's
+setting is remembered in this browser. Music stops when paused or away.
 
 ## Storybook cast
 

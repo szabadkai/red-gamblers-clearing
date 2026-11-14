@@ -1,16 +1,17 @@
 // Authored dialogue and encounter layouts. Story state lives in story.mjs.
+// voice: the syllable sample (sfx.mjs) and playback rate the character mumbles with.
 export const CAST={
- red:{name:'Red',role:'A basket, a blade, a borrowed deck',color:'#df7773'},
- mother:{name:'Mother',role:'At the village gate',color:'#e6c591'},
- grandma:{name:'Grandmother',role:'Keeper of the forest roads',color:'#e6c591'},
- stranger:{name:'The stranger',role:'A familiar voice in the trees',color:'#aab6c7'},
- pip:{name:'Pip',role:'Ferryman. Very reasonable rates.',color:'#b8cb84'},
- rowan:{name:'Rowan',role:'The Huntsman',color:'#b9c9c5'},
- wren:{name:'Sister Wren',role:'Keeper of the chapel bell',color:'#b7b4e3'},
- wolf:{name:'The Wolf',role:'Keeper of stolen voices',color:'#d99494'},
- hart:{name:'The Briar Hart',role:'A wounded guardian',color:'#c6bc89'},
- tollkeeper:{name:'The Tollkeeper',role:'Bound to the mill',color:'#d0ae7e'},
- widow:{name:'The Bell Widow',role:'Silence in the belfry',color:'#b9add3'}
+ red:{name:'Red',role:'A basket, a blade, a borrowed deck',color:'#df7773',voice:['voice_soft',1.26]},
+ mother:{name:'Mother',role:'At the village gate',color:'#e6c591',voice:['voice_soft',1]},
+ grandma:{name:'Grandmother',role:'Keeper of the forest roads',color:'#e6c591',voice:['voice_soft',0.8]},
+ stranger:{name:'The stranger',role:'A familiar voice in the trees',color:'#aab6c7',voice:['voice_reed',0.9]},
+ pip:{name:'Pip',role:'Ferryman. Very reasonable rates.',color:'#b8cb84',voice:['voice_reed',1.4]},
+ rowan:{name:'Rowan',role:'The Huntsman',color:'#b9c9c5',voice:['voice_reed',0.7]},
+ wren:{name:'Sister Wren',role:'Keeper of the chapel bell',color:'#b7b4e3',voice:['voice_soft',1.12]},
+ wolf:{name:'The Wolf',role:'Keeper of stolen voices',color:'#d99494',voice:['voice_gruff',0.8]},
+ hart:{name:'The Briar Hart',role:'A wounded guardian',color:'#c6bc89',voice:['voice_gruff',1.05]},
+ tollkeeper:{name:'The Tollkeeper',role:'Bound to the mill',color:'#d0ae7e',voice:['voice_gruff',0.66]},
+ widow:{name:'The Bell Widow',role:'Silence in the belfry',color:'#b9add3',voice:['voice_bell',1]}
 };
 const line=(speaker,text)=>({speaker,text});
 const scene=(title,caption,cast,lines)=>({title,caption,cast,lines:lines.map(([who,text])=>line(who,text))});

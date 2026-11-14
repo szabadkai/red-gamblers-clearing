@@ -21,6 +21,8 @@ export class StoryWorld extends World{
   else if(phase==='inside')this.setupInside();
   else if(phase==='cleared'){this.setupArena(stageIndex===4?'garden':'boss');this.enemies=[];this.boss=null;this.storyPhase='cleared';this.mode='won';}
   else if(phase==='home'||phase==='complete'){this.setupHome();if(phase==='complete'){this.storyPhase='complete';this.mode='won';}}
+  // A saved trail resumes at its last opened gate with the embers already carried.
+  if(phase==='trail'&&progress?.gates)this.resume(progress.gates,(progress.embers||[0,1,2]).map(i=>({x:this.clearing.embers[i][0],y:this.clearing.embers[i][1]})));
   if(progress?.dialogue)this.startScene(progress.dialogue.id,progress.dialogue.index);
   else if(phase==='trail'&&stageIndex===0&&!this.seen.has('prologue'))this.startScene('prologue');
  }
@@ -118,7 +120,9 @@ export class StoryWorld extends World{
     p.y=nextY;
    }
   }
+  const opened=this.gates.filter(g=>g.open).length,held=this.collected;
   super.step(dt,input);
+  if(this.storyPhase==='trail'&&(this.collected!==held||this.gates.filter(g=>g.open).length!==opened))this.storyRevision++;
   if(this.practice&&!this.bossPractice)return;
   if(this.mode==='dead'||stopped)return;
   if(this.storyLocation!=='trail')this.x=clamp(this.x,24,936);
@@ -150,7 +154,12 @@ export class StoryWorld extends World{
   }
   if(this.storyPhase==='home'&&this.x>=820){this.storyPhase='complete';this.mode='won';this.storyRevision++;}
  }
- snapshot(){return {version:3,clearing:this.clearing.id,phase:this.storyPhase,seen:[...this.seen],dialogue:this.dialogue?{...this.dialogue}:null};}
+ snapshot(){
+  const save={version:3,clearing:this.clearing.id,phase:this.storyPhase,seen:[...this.seen],dialogue:this.dialogue?{...this.dialogue}:null};
+  const gates=this.storyPhase==='trail'?this.gates.filter(g=>g.open).length:0;
+  if(gates){save.gates=gates;save.embers=this.embers.map(e=>this.clearing.embers.findIndex(([x,y])=>x===e.x&&y===e.y));}
+  return save;
+ }
 }
 export function loadStory(storage){
  try{
@@ -164,7 +173,14 @@ export function loadStory(storage){
   if(d&&(!allScenes.has(d.id)||!Number.isInteger(d.index)||d.index<0||d.index>=SCENES[d.id].lines.length))return null;
   const allowed={trail:[stage===0?'prologue':null,STAGES[stage].encounter],boss:[STAGES[stage].intro],inside:['swallowed','inside'],garden:['garden'],cleared:[STAGES[stage].outro],home:['epilogue'],complete:[]};
   if(d&&!allowed[data.phase].includes(d.id))return null;
-  return {stage,phase:data.phase,seen:data.seen,dialogue:d||null,complete:data.phase==='complete'};
+  const trail={};
+  if(data.gates!==undefined){
+   const g=data.gates,e=data.embers;
+   if(data.phase!=='trail'||!Number.isInteger(g)||g<1||g>CLEARINGS[stage].gates.length)return null;
+   if(!Array.isArray(e)||new Set(e).size!==e.length||e.some(i=>!Number.isInteger(i)||i<0||i>2))return null;
+   trail.gates=g;trail.embers=e;
+  }
+  return {stage,phase:data.phase,seen:data.seen,dialogue:d||null,complete:data.phase==='complete',...trail};
  }catch{return null;}
 }
 export function saveStory(storage,world){

@@ -28,9 +28,10 @@ export function createMusic(volume=.1,sfxVolume=.16){
   if(!data.buffer){data.buffer=ctx.createBuffer(1,data.samples.length,data.rate);data.buffer.copyToChannel(data.samples,0);}
   node.buffer=data.buffer;gain.gain.value=level;node.connect(gain);gain.connect(ctx.destination);return {node,gain};
  }
- function sfx(name,when=0){
+ // `rate` repitches the sample (the dialogue voices use it for their syllables).
+ function sfx(name,when=0,rate=1){
   if(!rendered.has(name))return 0;
-  unlock();const {node}=source(name,sfxVolume*SFX[name].gain);node.start(when);return node.buffer.duration;
+  unlock();const {node}=source(name,sfxVolume*SFX[name].gain);node.playbackRate.value=rate;node.start(when);return node.buffer.duration;
  }
  function begin(name,when,fade,offset=0){
   const {node,gain}=source(name,volume);node.loop=true;

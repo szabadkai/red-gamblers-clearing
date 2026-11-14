@@ -78,3 +78,6 @@ body.at-title .intro h2{font-size:7cqw;letter-spacing:1cqw;line-height:1;color:#
 body.in-cutscene .table,body.in-cutscene .hud,body.in-cutscene #journey-hud,body.in-cutscene #objective,body.in-cutscene #toast,body.in-cutscene #dark-meter,body.in-cutscene #stage>nav{visibility:hidden}
 body:has(#boss-hud:not([hidden])) #toast{top:15cqw;font-size:1.2cqw}body:has(#boss-hud:not([hidden])) #dark-meter{left:86%;top:8cqw;width:21cqw}
 @media(prefers-reduced-motion:reduce){#boss-fill{transition:none}}
+/* the heart the current hand would restore */.heart.mend{background:#7a3440;box-shadow:inset 3px 3px #a85560,inset -3px -3px #4d2630}
+#health.low{animation:low-health .8s steps(1) infinite}@keyframes low-health{50%{filter:brightness(1.8)}}body.reduced #health.low{animation:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.unsaid{visibility:hidden}
