@@ -207,10 +207,23 @@ export function drawLandmarks(ctx,images,world,time,reduced){
  // Each clearing has its own trail banners, lamps and vegetation accents.
  for(const p of world.platforms){
   if(!p.ground&&p.w>=140){
-   const x=p.x+Math.floor(p.w/2)-8;
-   rect(ctx,x,p.y+24,18,36,theme==='cave'?'#28555a':theme==='chapel'?'#593d63':theme==='house'?'#5f304d':'#6e3540');
-   rect(ctx,x+2,p.y+24,14,2,'#b98062');rect(ctx,x+8,p.y+34,2,12,'#dab87b');rect(ctx,x+4,p.y+38,10,4,'#dab87b');
-   rect(ctx,x,p.y+56,6,4,'#17252b');
+   // Under each long ledge: a trail banner, a trailing curtain of vines or roots, or a small lamp on a chain,
+   // chosen by ledge so neighbours differ.
+   const x=p.x+Math.floor(p.w/2)-8,kind=(p.id*7+3)%4;
+   if(kind===0||kind===3&&theme==='chapel'){
+    rect(ctx,x,p.y+24,18,36,theme==='cave'?'#28555a':theme==='chapel'?'#593d63':theme==='house'?'#5f304d':'#6e3540');
+    rect(ctx,x+2,p.y+24,14,2,'#b98062');rect(ctx,x+8,p.y+34,2,12,'#dab87b');rect(ctx,x+4,p.y+38,10,4,'#dab87b');
+    rect(ctx,x,p.y+56,6,4,'#17252b');
+   }else if(kind===1){
+    const [stem,leaf]=theme==='cave'?['#3c5248','#6f8f6a']:theme==='house'?['#3b2941','#5c3b52']:['#3f5a3a','#6f8f4f'];
+    for(let i=0;i<5;i++){const vx=p.x+20+i*Math.floor((p.w-40)/4),len=18+(i*13+p.id*5)%26;
+     for(let y=p.y+20;y<p.y+20+len;y+=4){const sway=reduced?0:Math.round(Math.sin(time*1.2+y*.08+i)*1);rect(ctx,vx+sway*2,y,2,4,stem);if((y/4+i)%3===0)rect(ctx,vx+sway*2+((i%2)?2:-4),y,4,2,leaf);}}
+   }else if(kind===2){
+    for(let y=p.y+20;y<p.y+40;y+=4)rect(ctx,x+8,y,2,2,'#514334');
+    rect(ctx,x+2,p.y+40,14,4,'#8b7552');rect(ctx,x+4,p.y+44,10,14,'#111a20');rect(ctx,x+6,p.y+46,6,10,'#ffdfa0');
+    rect(ctx,x+8,p.y+48+(reduced?0:Math.floor(time*5+p.id)%2)*2,2,4,'#fff5d1');rect(ctx,x+2,p.y+58,14,2,'#8b7552');
+    ctx.globalAlpha=.08;rect(ctx,x-6,p.y+38,30,26,'#ffd88b');ctx.globalAlpha=1;
+   }
   }
   if(p.ground){
    for(let x=p.x+68;x<p.x+p.w-28;x+=122){

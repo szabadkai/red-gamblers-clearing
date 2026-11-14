@@ -132,6 +132,9 @@ terrain sheet's bushes in dusk greens with scarlet berries (`house-bushes`, buil
 bright cartoon bush from the old forest strip, and lone warm lights (lit windows, lamps) survive the scenery
 speck cleanup. Moss Cavern's briar gates are lighter so they read against the cave.
 
+Long ledges no longer all carry the same banner: by ledge, a banner, a curtain of swaying vines or roots, or a small
+lamp on a chain hangs underneath.
+
 Lantern Wood has blinking fireflies near the trail and Moss Cavern has water dripping from the roof and splashing on
 the floor (Motion Off freezes both).
 
