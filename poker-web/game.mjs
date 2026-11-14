@@ -172,6 +172,8 @@ function updateDraftUI(){
 const speech={text:'',shown:0,clock:0,wait:0,last:-9,voice:null},VOWEL={a:0,e:3,i:5,o:-2,u:-4,y:2};
 $('dialogue-text').innerHTML='<span class="sr-only"></span><span aria-hidden="true"><span></span><span class="unsaid"></span></span>';
 const [spokenFull,spokenLive]=$('dialogue-text').children,[said,unsaid]=spokenLive.children;
+// On touch screens the keyboard hints in the dialogue panel become tap hints.
+if(matchMedia('(pointer: coarse)').matches){const hint=document.querySelector('.dialogue-copy small');if(hint?.firstChild?.nodeType===3)hint.firstChild.textContent='Tap to continue ';}
 function showSpeech(){said.textContent=speech.text.slice(0,speech.shown);unsaid.textContent=speech.text.slice(speech.shown)}
 function say(text,voice){Object.assign(speech,{text,voice,shown:reduced?text.length:0,clock:0,wait:0,last:-9});spokenFull.textContent=text;showSpeech()}
 function speak(dt){
@@ -196,6 +198,8 @@ function finishDialogue(skip=false){
  clearInput();lastSceneLine='';cameraSnap=true;updateUI(true);focusGame();
 }
 $('dialogue-next').onclick=()=>finishDialogue(false);
+// Tapping or clicking anywhere in a scene (outside its buttons) finishes the line, then moves on.
+$('dialogue').addEventListener('click',e=>{if(!e.target.closest('button'))finishDialogue(false)});
 $('dialogue-skip').onclick=()=>finishDialogue(true);
 function updateStoryUI(){
  const active=started&&world.mode==='cutscene'&&world.dialogue;

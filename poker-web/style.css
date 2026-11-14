@@ -106,3 +106,29 @@ body.touch-seen #stage>nav .touch-only:not([hidden]){display:block}
 @keyframes turn{50%{transform:rotate(-90deg)}}
 @media(pointer:coarse) and (orientation:portrait){body:not(.portrait-ok) #rotate{display:grid}}
 body.reduced #rotate .phone{animation:none;transform:rotate(-90deg)}
+/* Touch screens: the layout scales with the 16:9 stage, which leaves 5-8 px text on a phone. Floor the sizes that
+   carry words players need to read; boxes grow or scroll a little instead. */
+@media(pointer:coarse){
+ .intro p,.intro small,details,details p,.intro summary,footer,footer p{font-size:max(1cqw,9px)!important}
+ .intro .eyebrow,.hud .eyebrow,.hand-info .eyebrow,.draw-info .eyebrow{font-size:max(.8cqw,7px)}
+ .intro .primary{font-size:max(1.3cqw,12px)}
+ .practice button,.practice select,.practice label,#stage>nav button{font-size:max(.9cqw,9px)}
+ .dialogue-copy p{font-size:max(1.23cqw,11px);line-height:1.5}
+ .dialogue-copy strong{font-size:max(1.25cqw,10px)}
+ .dialogue-copy small{font-size:max(.7cqw,7px)}
+ .dialogue-actions small{display:none}
+ .dialogue-actions button,.dialogue-actions .primary{font-size:max(1cqw,10px)}
+ .dialogue-panel{height:32%}
+ .quest strong{font-size:max(1.1cqw,9px)}
+ #toast{font-size:max(1.8cqw,13px)}
+ .hand-info h2{font-size:max(1.7cqw,12px)}
+ .hand-info p:not(.eyebrow),.draw-info p,.draw-info small{font-size:max(.85cqw,7px)}
+ .draw-info strong,.cast-button{font-size:max(1.05cqw,9px)}
+ .draft-panel>.eyebrow,.draft-panel>p:not(.eyebrow),.draft-option small{font-size:max(.9cqw,8px)}
+ .draft-option strong{font-size:max(1cqw,9px)}
+ #boss-name{font-size:max(1cqw,9px)}#boss-tell{font-size:max(.8cqw,8px)}
+ /* the chapter label crowds the top bar at phone size; the objective line still names the goal */
+ #journey-hud{display:none}
+ /* the keyboard legend means nothing on a touch screen */
+ .intro footer>p:first-child{display:none!important}
+}

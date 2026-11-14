@@ -100,6 +100,9 @@ directly. Checked with simulated touches in a 740×360 touch viewport, not on a 
 for landscape: on a touch screen held upright a prompt asks to turn the phone (tap to play upright anyway). Touch
 devices also get a Full screen button (it locks landscape where the browser allows) and short vibrations on getting
 hurt, finishers, kills and the bear's roar where the browser supports them (not iPhone Safari).
+On touch screens text has minimum sizes (the stage-relative sizes fell to 5-8 px on a phone), the keyboard legend and
+the chapter label are hidden, and scenes say "Tap to continue": a tap anywhere in a scene finishes the line, then
+moves on (a click does the same on desktop).
 `tests/harness.js` steps the game frame by frame in a browser for visual checks.
 The card dock, health, settings and pause/help menus stay inside one 16:9 viewport.
 
