@@ -4,8 +4,8 @@ export const characterSize=(width,height)=>({w:width*PIXEL,h:height*PIXEL});
 export const snap=n=>Math.round(n/PIXEL)*PIXEL;
 // Anatomical pivots in source pixels, excluding transparent padding and spell trails.
 const pivots={
- light:{idle_blink:[8,18],run:[10,21],jump:[7,25],fall:[8,30],dash:[11,19],attack1:[18,27],attack3:[18,27],transform:[12,60]},
- dark:{idle_blink:[12,18],run:[13,22],jump:[12,27],fall:[9,37],dash:[16,21],attack1:[26,33],attack3:[26,33],transform:[12,65]}
+ light:{idle_blink:[8,18],run:[10,21],jump:[7,25],fall:[8,30],dash:[11,19],attack1:[18,27],attack2:[18,27],attack3:[18,27],look:[8,18],transform:[12,60]},
+ dark:{idle_blink:[12,18],run:[13,22],jump:[12,27],fall:[9,37],dash:[16,21],attack1:[26,33],attack2:[26,33],attack3:[26,33],look:[12,19],transform:[12,65]}
 };
 export function playerAnchor(form,state,width){return pivots[form]?.[state]?-pivots[form][state][0]*PIXEL:-width*PIXEL/2;}
 export function playerOffset(form,state,width,height){return {x:playerAnchor(form,state,width),y:-(pivots[form]?.[state]?.[1]??height)*PIXEL};}

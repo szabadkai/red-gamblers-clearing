@@ -41,3 +41,11 @@ test('opaque sprite feet align across forms and airtime holds its final pose',()
  assert.equal(playerOffset('dark','transform',26,67).y+65*2,0);
  assert.equal(playerFrame('jump',{},3),3);assert.equal(playerFrame('fall',{},3),3);
 });
+test('the chain finisher swings the rising crescent; standing still, Red glances around now and then',()=>{
+ const w=new World();w.practiceDeal(0);w.enemies=[];w.spawn(220,0);const e=w.enemies[0];e.hp=500;
+ const moves=[];for(let i=0;i<4;i++){e.x=220;e.rest=99;w.sword();moves.push(playerClip(w).state);step(w,24);}
+ assert.deepEqual(moves,['attack1','attack1','attack2','attack1']);
+ const still=new World();still.practiceDeal(0);still.enemies=[];step(still,60*3.9);assert.equal(playerClip(still).state,'idle_blink');
+ step(still,20);assert.equal(playerClip(still).state,'look');assert.ok(playerFrame('look',still,0)>=1);
+ step(still,60);assert.equal(playerClip(still).state,'idle_blink');step(still,1,{axis:1});assert.equal(still.idleTime,0);
+});

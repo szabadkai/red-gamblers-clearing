@@ -117,7 +117,8 @@ Practice never overwrites journey progress. Unavailable browser storage is
 reported; there is no cross-device sync, and nothing is saved between gates.
 
 Every third landed sword swing in a row is a finisher: 5 damage instead of 2 (10 instead of 4 as Dark Red), a
-harder knockback and a two-frame hit stop. The chain breaks after 1.1 s without a landed swing or when Red is hurt.
+harder knockback and a two-frame hit stop, swung with the character pack's rising crescent slash (`attack2`, unused
+before). After 4 s standing still Red glances around (the pack's `look_intro` row), then again every 7 s. The chain breaks after 1.1 s without a landed swing or when Red is hurt.
 Hearts mend: playing a pair or better that spends at least one heart card restores one heart (kickers and lone
 high cards do not count, and nothing is gained at full health). The hand panel says so, the heart it would
 restore is shown dim red, and card-drop hints mark choices that would make a mending hand.

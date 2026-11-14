@@ -126,7 +126,9 @@ export class World{
  releaseJump(){if(this.vy < -170)this.vy=-170}
  dropDown(){if(this.grounded&&!this.platforms.find(p=>p.id===this.surface)?.ground){this.drop=.22;this.y+=3;this.grounded=false;this.coyote=0}}
  startDash(){if(this.dashCD>0||this.mode!=='playing')return;this.dash=.14;this.dashCD=.7;this.vy=0;this.invincible=Math.max(this.invincible,.14);this.emit('dash');if(this.grounded)this.puff('dash')}
- sword(){if(this.attack>0||this.mode!=='playing')return;this.attack=.32;this.swordPending=.10;this.attackFacing=this.facing;this.attackForm=this.dark>0?'dark':'light';this.morphPose=false;this.emit('attack1');}
+ sword(){if(this.attack>0||this.mode!=='playing')return;this.attack=.32;this.swordPending=.10;this.attackFacing=this.facing;
+  // A swing that would be the chain's finisher uses the pack's rising crescent slash.
+  this.attackMove=(this.comboTime>0?this.combo:0)%3===2?'attack2':'attack1';this.attackForm=this.dark>0?'dark':'light';this.morphPose=false;this.emit('attack1');}
  resolveSword(){let source=null;
   // Every third landed swing in a row is a heavy finisher; a pause or taking a hit breaks the chain.
   const chain=this.comboTime>0?this.combo:0,finisher=chain%3===2,base=this.attackForm==='dark'?4:2,first=this.impacts.length;
@@ -226,6 +228,7 @@ export class World{
   if(!this.dash)this.vy+=1300*dt;this.y+=this.vy*dt;this.grounded=false;this.surface=-1;
   if(this.vy>=0){let landing=null;for(const p of this.platforms){if(this.drop>0&&!p.ground)continue;if(this.x+9>p.x&&this.x-9<p.x+p.w&&oldY<=p.y+.5&&this.y>=p.y&&(!landing||p.y<landing.y))landing=p}if(landing){this.y=landing.y;this.vy=0;this.grounded=true;this.surface=landing.id;if(!wasGround){this.land=.12;this.emit('land');this.puff('land')}this.tryJump()}}
   if(!this.grounded||Math.abs(this.vx)>10||this.attack>0||this.dash>0)this.morphPose=false;
+  this.idleTime=this.grounded&&Math.abs(this.vx)<=10&&!this.attack&&!this.cast&&!this.dash&&!this.transform&&!input.axis?(this.idleTime||0)+dt:0;
   if(this.y>530&&this.dying>0){this.dying=0;this.mode='dead';return;}
   if(this.y>530){this.invincible=0;this.hurt();this.fallCount++;this.x=this.checkpoint.x;this.y=this.checkpoint.y;this.vx=0;this.vy=0;this.dash=0;this.buffer=0;this.grounded=true;this.coyote=.12}
   if(!this.arena){
