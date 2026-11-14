@@ -10,6 +10,7 @@ local D = HERE .. "/.."
 local NAMES = {
   "little_red_riding_hood", "grandmother", "mother", "woodcutter", "rogue_hunter", "forest_witch",
   "wolf_in_disguise", "big_bad_wolf", "wild_boar", "forest_crow", "living_tree", "thorn_brambles", "lost_wisp",
+  "ghost_hunter", "spore_mushroom",
 }
 -- kept at their original size (the overview and lineup show the original sheet)
 local ORIGINAL = { wild_boar = true, big_bad_wolf = true }   -- the beasts keep their full size next to Red

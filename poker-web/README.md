@@ -201,7 +201,9 @@ Enemies and townsfolk use the Little Red Riding Hood roster from the Aseprite pr
 `cast.mjs` keeps each behaviour (scout, brute, runner, mage, guard) and dresses it per clearing:
 wolves, hunters and boars in Lantern Wood; stag, witch, boars and ravens on the bridge; ravens, boars, mushrooms and
 wisps in the cavern; brambles, trees and the ghost hunter in the chapel; the wolf in disguise at Thorn House.
-Windups play the attack row (mages the special row), hits flash, and corpses play the death row.
+Windups play the attack row, hits flash, and corpses play the death row.
+The ghost hunter and spore mushroom use `_small` sheets (24 px and 16 px tall, about 20% smaller than first drawn),
+made like the other small sheets by deleting repeated rows and columns (`sources/lrrh_sprites/shrink/`).
 Bowmen (rogue hunter, ghost hunter) use the ranged behaviour: they draw on the attack row and loose arrows.
 Mother, the woodcutter and Grandmother stand at the start of the first two clearings and by the hearth,
 and speak a line when Red is near. Hitboxes and balance are unchanged.
