@@ -17,10 +17,13 @@ export const BLINKERS=new Set(['will_o_wisp','lost_wisp']);
 // Witches alternate their bolt with a hex (flames from the ground, special row); brambles are rooted and lash.
 export const HEXERS=new Set(['forest_witch']);
 export const ROOTED=new Set(['thorn_brambles']);
+// Special moves, each on the creature's special row: the living tree sends roots up under Red, the mushroom
+// bursts into a spore cloud when crowded, the ghost hunter phases through her, the bear roars into a rage.
+export const ERUPTERS=new Set(['living_tree']),CLOUDERS=new Set(['spore_mushroom']),PHASERS=new Set(['ghost_hunter']),RAGERS=new Set(['brown_bear']);
 // What a caster's shot looks like; anything else throws the wisps' teal orb.
 export const SHOT_LOOK={forest_witch:'hex',spore_mushroom:'spore'};
 // Skin-specific behaviour flags, set when a foe is spawned or re-dressed.
-export const traits=skin=>({skin,arrow:ARCHERS.has(skin),blink:BLINKERS.has(skin),hex:HEXERS.has(skin),rooted:ROOTED.has(skin),look:SHOT_LOOK[skin]||'orb'});
+export const traits=skin=>({skin,arrow:ARCHERS.has(skin),blink:BLINKERS.has(skin)||PHASERS.has(skin),phase:PHASERS.has(skin),hex:HEXERS.has(skin),rooted:ROOTED.has(skin),erupts:ERUPTERS.has(skin),cloud:CLOUDERS.has(skin),rage:RAGERS.has(skin),look:SHOT_LOOK[skin]||'orb'});
 // Each clearing dresses its enemy behaviours in local wildlife. Every flyer uses the raven sheet: the older
 // forest_crow sheet has no hover or dive pose and reads poorly against the dark backdrops, so it is unused.
 const DEFAULT={scout:['big_bad_wolf'],brute:['brown_bear'],runner:['wild_boar'],flyer:['raven'],charger:['forest_stag'],mage:['forest_witch','will_o_wisp'],guard:['living_tree']};
@@ -45,12 +48,15 @@ export function castFrame(e,time){
   if(e.state==='lunge')return cell('attack',2+Math.floor(time*12)%2);
   return e.aloft?cell('run',Math.floor(time*10+(e.id||0))):cell('idle',Math.floor(time*5+(e.id||0)));
  }
- if(e.state==='blink')return cell('special',1+Math.min(5,Math.floor((1-Math.max(0,e.action||0)/.5)*6)));
+ if(e.state==='blink')return cell('special',1+Math.min(e.phase?3:5,Math.floor((1-Math.max(0,e.action||0)/.5)*(e.phase?4:6))));
+ if(e.state==='roar')return cell('special',1+Math.min(4,Math.floor((1-Math.max(0,e.action||0)/.8)*5)));
  const caster=e.kind==='mage';
  if(e.state==='windup'){
   // Every tell is the first half of the attack row; a witch's hex raises the staff on her special row.
   if(e.hexing)return cell('special',Math.min(5,Math.floor((1-Math.max(0,e.wind||0))*6)));
-  const total=(ENEMY_TYPES[e.kind]||ENEMY_TYPES.scout).wind,progress=1-Math.max(0,e.wind||0)/total;
+  if(e.erupting)return cell('special',Math.min(4,Math.floor((1-Math.max(0,e.wind||0)/.9)*5)));
+  if(e.puffing)return cell('special',Math.min(2,Math.floor((1-Math.max(0,e.wind||0)/.6)*3)));
+  const total=e.windTotal||(ENEMY_TYPES[e.kind]||ENEMY_TYPES.scout).wind,progress=1-Math.max(0,e.wind||0)/total;
   return cell('attack',Math.min(2,Math.floor(progress*3)));
  }
  // A stag's charge is the leap on its special row.
@@ -58,7 +64,8 @@ export function castFrame(e,time){
  if(e.state==='lunge')return cell('attack',3+Math.min(2,Math.floor((.17-(e.action||0))/.06)));
  if(e.air)return cell('run',e.vy<0?1:3);
  // Follow-through: the shot leaving, the hex burning out, the bramble's vine coming down.
- if(caster&&e.state==='recover'){const since=ENEMY_TYPES.mage.recovery-(e.rest||0);if(e.hexed){if(since<.5)return cell('special',since<.25?6:7);}else{if(since<.14)return cell('attack',3);if(since<.4)return cell('attack',5);}}
+ if(caster&&e.state==='recover'){const since=ENEMY_TYPES.mage.recovery-(e.rest||0);if(e.hexed){if(since<.5)return cell('special',since<.25?6:7);}else if(e.puffed){if(since<.7)return cell('special',3+Math.min(3,Math.floor(since/.175)));}else{if(since<.14)return cell('attack',3);if(since<.4)return cell('attack',5);}}
+ if(e.erupted&&e.state==='recover'){const since=ENEMY_TYPES.guard.recovery-(e.rest||0);if(since<.4)return cell('special',since<.2?5:6);}
  if(e.rooted&&e.state==='recover'){const since=ENEMY_TYPES.guard.recovery-(e.rest||0);if(since<.3)return cell('attack',since<.12?3:4);}
  if(['chase','patrol','jump','drop'].includes(e.state))return cell('run',Math.floor((e.walk||0)*10+(e.id||0)));
  return cell('idle',Math.floor(time*5+(e.id||0)));

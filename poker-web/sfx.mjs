@@ -41,6 +41,11 @@ inst boom wave=n,t arp=19,0,-7,-12,-17 adsr=0,9,0,2
 a: @zap v11 o5 e8 r8
 b: @swish v10 o6 c8 r8
 c: @boom v8 o2 a8 r8`),
+ roar:fx(.9,`
+inst growl wave=s,n slide=-7/20 vib=0.8 adsr=2,0,13,10 filter=lp cut=250>1100/45 res=0.7
+inst rasp wave=n adsr=3,0,9,12 filter=bp cut=300>1400/40 res=0.6
+a: @growl v14 o2 d4. r8
+b: @rasp v9 o3 c4. r8`),
  enemy_death:fx(.8,`
 inst pop wave=n,t,t,n arp=31,12,5,0,-7 adsr=0,10,0,3
 inst puff wave=n adsr=0,12,0,4 filter=bp cut=2500>500/200 res=0.5

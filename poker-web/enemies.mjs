@@ -99,11 +99,19 @@ export function updateEnemies(world,dt){
   }
   if(e.state==='blink'){
    e.action-=dt;
-   if(e.spot&&e.action<=BLINK/2){const {x,p}=e.spot;e.spot=null;e.x=x;e.y=p.y;e.surface=p.id;e.left=p.x+16;e.right=p.x+p.w-16;}
+   // A wisp is gone and then elsewhere; the ghost hunter glides there, changing ledge at the midpoint.
+   if(e.spot){
+    const {x,p}=e.spot,half=e.action<=BLINK/2,done=e.phase?e.action<=0:half;
+    if(e.phase)e.x=done?x:e.fromX+(x-e.fromX)*(1-e.action/BLINK);else if(done)e.x=x;
+    if(half&&e.surface!==p.id||done){e.y=p.y;e.surface=p.id;e.left=p.x+16;e.right=p.x+p.w-16;}
+    if(done)e.spot=null;
+   }
    if(e.action<=0)e.state='recover';
    continue;
   }
   if(e.rest>0){e.rest=Math.max(0,e.rest-dt);e.state=e.flash>0?'stagger':'recover';e.wind=0;continue}
+  if(e.state==='roar'){e.action-=dt;if(e.action<=0)e.state='recover';continue;}
+  e.specialCD=Math.max(0,(e.specialCD||0)-dt);
   const dx=world.x-e.x,dy=world.y-e.y;
   // world.calm: the trail's opening scene has not played yet, so nothing hunts Red at the trailhead.
   const visible=!beyond&&!world.calm&&Math.abs(dx)<360&&Math.abs(dy)<210;
@@ -118,9 +126,12 @@ export function updateEnemies(world,dt){
     if(e.kind==='mage'){
      const length=Math.hypot(e.aimX,e.aimY)||1;
      // A hex has no projectile: its flames rise from the patch marked when the tell began.
-     const patch=e.hexing&&world.patches.find(p=>p.owner===e.id&&p.delay>0);
+     const patch=(e.hexing||e.puffing)&&world.patches.find(p=>p.owner===e.id&&p.delay>0);
      if(patch)patch.delay=0;else world.enemyShots.push({x:e.x+e.strikeDir*16,y:e.y-24,vx:e.aimX/length*220,vy:e.aimY/length*220,life:2.2,arrow:!!e.arrow,look:e.look});
-     e.hexed=!!e.hexing;e.hexing=false;e.rest=def.recovery;e.state='recover';e.cast=true;
+     e.hexed=!!e.hexing;e.puffed=!!e.puffing;e.cast=!e.puffing;e.hexing=e.puffing=false;e.rest=def.recovery;e.state='recover';
+    }else if(e.erupting){
+     const patch=world.patches.find(p=>p.owner===e.id&&p.delay>0);if(patch)patch.delay=0;
+     e.erupting=false;e.erupted=true;e.rest=def.recovery;e.state='recover';
     }else if(e.rooted){
      // Brambles lash one way, further than a slam: get behind them or stay out of reach.
      const ahead=dx*e.strikeDir;if(ahead>-24&&ahead<120&&Math.abs(dy)<34)world.hurt(e.x);
@@ -137,19 +148,32 @@ export function updateEnemies(world,dt){
   }
   // Once it has cast, a wisp that finds Red within arm's reach blinks away before it casts again.
   if(e.blink&&e.cast&&aware&&Math.abs(dx)<170&&Math.abs(dy)<110&&(e.spot=blinkSpot(world,e))){
-   e.cast=false;e.state='blink';e.action=BLINK;e.face=Math.sign(dx)||e.face;world.emit('dash');continue;
+   e.cast=false;e.state='blink';e.action=BLINK;e.fromX=e.x;e.face=Math.sign(dx)||e.face;world.emit('dash');continue;
+  }
+  // A crowded mushroom that has already spat swells and bursts into a cloud that hangs around it.
+  if(e.cloud&&e.cast&&aware&&Math.abs(dx)<95&&Math.abs(dy)<50){
+   e.state='windup';e.wind=CLOUD_TELL;e.puffing=true;e.hexed=false;e.puffed=false;e.strikeDir=e.face=Math.sign(dx)||e.face;
+   world.patches.push({owner:e.id,x:e.x,y:e.y,w:150,delay:CLOUD_TELL,life:CLOUD_HANG,look:'spores'});continue;
   }
   if(e.kind==='mage'&&aware&&Math.abs(dx)<310&&Math.abs(dy)<110){
    e.state='windup';e.wind=def.wind;e.strikeDir=Math.sign(dx)||e.face;e.face=e.strikeDir;
    // Aim is committed at the beginning of the tell, so movement can evade it.
    e.aimX=dx;e.aimY=dy+2;
    // Every other spell from a witch is a hex on the ground Red stands on as the tell begins.
-   e.hexing=!!e.hex&&!!destination&&(e.spells=(e.spells||0)+1)%2===0;e.hexed=false;
+   e.hexing=!!e.hex&&!!destination&&(e.spells=(e.spells||0)+1)%2===0;e.hexed=false;e.puffed=false;
    if(e.hexing){e.wind=HEX_TELL;world.patches.push({owner:e.id,x:world.x,y:destination.y,w:56,delay:HEX_TELL,life:HEX_BURN});}
    continue;
   }
+  // A bear at half health roars once, then walks faster and slams sooner.
+  if(e.rage&&!e.enraged&&e.hp<=e.max/2){e.enraged=true;e.state='roar';e.action=ROAR;e.face=Math.sign(dx)||e.face;world.emit('roar');continue;}
+  const haste=e.enraged?RAGE:1;
   if(aware&&sameSurface&&Math.abs(dx)<(e.rooted?112:def.reach||(e.tough?80:88))&&Math.abs(dy)<32){
-   e.state='windup';e.wind=def.wind;e.strikeDir=Math.sign(dx)||e.face;e.face=e.strikeDir;continue;
+   e.state='windup';e.wind=e.windTotal=def.wind/haste;e.erupted=false;e.strikeDir=Math.sign(dx)||e.face;e.face=e.strikeDir;continue;
+  }
+  // A living tree that cannot reach Red sends roots up under the spot she stands on as its tell begins.
+  if(e.erupts&&aware&&destination&&e.specialCD<=0&&Math.abs(dx)>90&&Math.abs(dx)<260&&Math.abs(dy)<70){
+   e.state='windup';e.wind=e.windTotal=ROOT_TELL;e.erupting=true;e.erupted=false;e.specialCD=3;e.strikeDir=e.face=Math.sign(dx)||e.face;
+   world.patches.push({owner:e.id,x:world.x,y:destination.y,w:48,delay:ROOT_TELL,life:ROOT_HOLD,look:'roots'});continue;
   }
   if(e.rooted){e.state='idle';if(aware)e.face=Math.sign(dx)||e.face;continue;}
   if(!aware){e.idleClock=(e.idleClock||0)+dt;if(e.idleClock>2.2){e.state='idle';if(e.idleClock>3.1)e.idleClock=0;continue;}}else e.idleClock=0;
@@ -166,14 +190,15 @@ export function updateEnemies(world,dt){
   }
   let direction=route?Math.sign(route.launch-e.x):(aware?Math.sign(dx):e.patrolDir);
   if(!aware&&(e.x<=e.left+2||e.x>=e.right-2)){e.patrolDir=e.x<=e.left+2?1:-1;direction=e.patrolDir}
-  const speed=aware?def.speed:28;
+  const speed=aware?def.speed*haste:28;
   const oldX=e.x;e.x=clamp(e.x+direction*speed*dt,e.left,e.right);
   if(Math.abs(e.x-oldX)>.01){e.face=direction;e.walk+=dt}
  }
 }
 
 // A hex: marked for HEX_TELL seconds while the witch holds her tell, then it burns for HEX_BURN.
-export const HEX_TELL=1,HEX_BURN=.5;
+// Roots and spore clouds are the same kind of patch: a tell owned by a foe, then a harmful area.
+export const HEX_TELL=1,HEX_BURN=.5,ROOT_TELL=.9,ROOT_HOLD=.4,CLOUD_TELL=.6,CLOUD_HANG=1.6,ROAR=.8,RAGE=1.6;
 export function updatePatches(world,dt){
  for(const p of world.patches){
   if(p.delay>0){

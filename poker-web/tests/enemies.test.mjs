@@ -127,3 +127,37 @@ test('brambles stay rooted and lash one way: out of reach or behind them is safe
  assert.equal(lash(250)[0].health,4);assert.equal(lash(225)[0].health,4);assert.equal(lash(200)[0].health,5);assert.equal(lash(370)[0].health,5);
  const [w,e]=lash(200);assert.equal(e.state,'recover');assert.ok(e.rest>.9);assert.equal(e.x,330);
 });
+test('a living tree out of reach sends roots up where Red stood; leaving the spot or a played hand avoids them',()=>{
+ const run=(w,n)=>{for(let i=0;i<n;i++)w.step(1/60)};
+ const erupting=()=>{const w=new World();w.practiceDeal(20);const e=w.enemies[0];e.rest=0;run(w,1);return [w,e];};
+ let [w,e]=erupting();assert.equal(e.erupts,true);assert.equal(e.state,'windup');assert.equal(e.erupting,true);
+ assert.deepEqual([w.patches[0].look,w.patches[0].x,w.patches[0].y],['roots',w.x,420]);
+ run(w,50);assert.equal(w.health,5);run(w,10);assert.equal(w.health,4);run(w,40);assert.equal(w.patches.length,0);
+ assert.ok(e.specialCD>0);run(w,30);assert.notEqual(e.state,'windup');
+ [w,e]=erupting();w.x-=70;run(w,90);assert.equal(w.health,5);
+ [w,e]=erupting();w.sword();w.x=e.x-50;run(w,7);assert.equal(e.state,'windup');w.x=180;w.damage(e,14,0);run(w,2);assert.equal(w.patches.length,0);run(w,70);assert.equal(w.health,5);
+});
+test('a crowded mushroom that has spat bursts into a hanging spore cloud, then must spit again first',()=>{
+ const run=(w,n)=>{for(let i=0;i<n;i++)w.step(1/60)};
+ const w=new World();w.practiceDeal(21);const e=w.enemies[0];e.rest=0;assert.equal(e.cloud,true);
+ let n=0;while(!w.enemyShots.length&&n++<120)run(w,1);assert.equal(w.enemyShots[0].look,'spore');w.enemyShots=[];
+ w.x=e.x-60;w.invincible=0;n=0;while(!e.puffing&&n++<200)run(w,1);assert.equal(e.state,'windup');assert.equal(w.patches[0].look,'spores');
+ run(w,30);assert.equal(w.health,5);run(w,10);assert.equal(w.health,4);assert.equal(w.enemyShots.length,0);
+ w.x=e.x-200;run(w,110);assert.equal(w.patches.length,0);
+ w.x=e.x-60;n=0;while(e.state!=='windup'&&n++<200)run(w,1);assert.equal(e.puffing,false);
+});
+test('the ghost hunter glides through Red to her far side and cannot be hit on the way',()=>{
+ const w=new World();w.practiceDeal(22);const e=w.enemies[0];e.rest=0;assert.deepEqual([e.arrow,e.blink,e.phase],[true,true,true]);
+ let n=0;while(!w.enemyShots.length&&n++<120)tick(w,1);assert.equal(w.enemyShots[0].arrow,true);
+ w.x=300;n=0;while(e.state!=='blink'&&n++<200)tick(w,1);tick(w,14);assert.ok(e.x<400&&e.x>110,'part way');
+ const hp=e.hp;w.damage(e,5,0);assert.equal(e.hp,hp);
+ n=0;while(e.state==='blink'&&n++<60)tick(w,1);assert.equal(e.x,110);
+});
+test('a bear at half health roars once, then walks faster and slams sooner',()=>{
+ const w=new World();w.practiceDeal(23);const e=w.enemies[0];e.rest=0;assert.equal(e.rage,true);w.x=20;
+ tick(w,1);const calm=e.x;tick(w,30);const slow=Math.abs(e.x-calm);
+ e.hp=e.max/2;tick(w,1);assert.equal(e.state,'roar');assert.equal(e.enraged,true);tick(w,50);assert.notEqual(e.state,'roar');
+ const from=e.x;tick(w,30);assert.ok(Math.abs(e.x-from)>slow*1.4);
+ w.x=e.x-60;let n=0;while(e.state!=='windup'&&n++<60)tick(w,1);assert.ok(e.wind<.5);
+ e.hp=1;e.rest=0;e.state='chase';tick(w,1);assert.notEqual(e.state,'roar');
+});

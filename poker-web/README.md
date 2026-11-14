@@ -174,6 +174,18 @@ Brambles are rooted: they never walk or hop. From within 112 they raise a vine f
 themselves only, so being out of reach or behind them is safe. Like other heavies they brace through sword hits
 during the tell and are open for 1.1 s after. Practice has Witch and Brambles entries.
 
+Four more creatures use the special row of their sheet:
+- Living tree: when Red is 90–260 away it marks the ground under her for 0.9 s, then roots stand there for 0.4 s
+  (at most once every 3 s). It still walks and slams up close. A played hand during the tell cancels the roots.
+- Spore mushroom: once it has spat, if Red is within 95 when it is next free it swells for 0.6 s and bursts into a
+  cloud 150 wide that hangs for 1.6 s and hurts inside. It must spit again before it can cloud again.
+- Ghost hunter: like the wisps it slips away after a shot when Red is within 170, but it glides through her in
+  ghost form over 0.5 s instead of vanishing. It cannot be hit on the way.
+- Brown bear: at half health it roars for 0.8 s, once, then walks 1.6 times as fast and slams that much sooner;
+  its health bar turns red.
+Patches (`world.patches`: the hex, the roots, the cloud) share one rule: a tell owned by a foe, cancelled if that
+foe is staggered or killed first, then a harmful area. Practice has Tree, Mushroom, Ghost hunter and Bear entries.
+
 `tests/soak.test.mjs` sends an invulnerable hunter (`tests/support/hunter.mjs`) through every clearing: it follows the
 same ledge graph as the foes, swings at the nearest one and plays any pair. It checks that every foe can be reached
 and killed and every gate opens; it does not dodge, so it says nothing about difficulty. It found that a foe on a

@@ -278,13 +278,34 @@ function drawStoryPlatforms(){
  return true;
 }
 const SHOT_COLORS={orb:['#111d2b','#8de0cf','#fff0c2'],hex:['#1d1230','#b46bfa','#f3dcff'],spore:['#3a2a2a','#d9a98c','#f2d7c0']};
-// A witch's hex: a violet mark on the ground while she holds her tell, then a row of flames.
+// Patches: a tell on the ground (or around a mushroom) while their owner winds up, then the harmful part.
+// A witch's hex is a violet mark and flames, a tree's roots a cracked line and spikes, a mushroom's a spore cloud.
 function drawPatches(){
  for(const p of world.patches){
-  const left=p.x-p.w/2;
+  const left=p.x-p.w/2,roots=p.look==='roots',tick=reduced?0:Math.floor(visual*8);
+  if(p.look==='spores'){
+   if(p.delay>0)continue;
+   // Puffs hang in three staggered rows and thin out as the cloud fades.
+   const size=p.life>.5?10:p.life>.25?8:6;
+   for(let i=0;i<9;i++){
+    const x=left+12+i*16+(reduced?0:Math.sin(visual*2+i)*4),y=p.y-12-i%3*14-(reduced?0:Math.sin(visual*3+i*2)*3);
+    circle(x,y,size+2,'#3a2a2a');circle(x,y,size,i%2?'#b98570':'#d9a98c');circle(x-2,y-2,size-6,'#f2d7c0');
+   }
+   continue;
+  }
   if(p.delay>0){
-   rect(left,p.y-3,p.w,3,'#b46bfa');text('!',p.x-4,p.y-20,14,'#d9a8ff');
-   for(let i=0;i<4;i++)rect(left+6+i*14,p.y-9-(reduced?0:(Math.floor(visual*8)+i)%3*3),4,4,'#d9a8ff');
+   const mark=roots?'#8a6a48':'#b46bfa',mote=roots?'#c9a777':'#d9a8ff';
+   rect(left,p.y-3,p.w,3,mark);text('!',p.x-4,p.y-20,14,mote);
+   for(let i=0;i<4;i++)rect(left+6+i*(p.w-12)/3-2,p.y-9-(tick+i)%3*3,4,4,mote);
+   continue;
+  }
+  if(roots){
+   // Four roots of different heights, each a tapering spike with a leaf at its tip.
+   for(let i=0;i<4;i++){
+    const cx=left+6+i*12,h=[30,44,36,24][i];
+    for(const [w,from,to,color] of [[12,0,.45,'#2b1c14'],[8,.45,.8,'#2b1c14'],[4,.8,1,'#2b1c14'],[8,0,.45,'#6e4a30'],[4,.45,.8,'#8a6a48'],[2,0,.4,'#b08a60']])rect(cx-w/2,p.y-h*to,w,h*(to-from),color);
+    rect(cx-2,p.y-h-2,4,4,'#6fa04a');
+   }
    continue;
   }
   // Five tapering tongues of different heights, flickering unless Motion is off.
@@ -434,8 +455,8 @@ function draw(){
  for(const e of world.enemies){if(e.boss||e.storyTarget){if(world.dialogue?.id!=='wolfIntro')drawStoryActor(ctx,images,e.kind,e.x,e.y,visual,{facing:e.face,state:e.state,flash:e.flash,boss:e});continue;}const img=images.get('cast/'+e.skin);const frame=castFrame(e,world.time);ctx.save();ctx.translate(snap(e.x),snap(e.y));ctx.scale(e.face,1);const {w}=characterSize(frame.w,frame.h),h=(CELL-castTop(e.skin))*2;ctx.drawImage(img,frame.x,frame.y,frame.w,frame.h,snap(-w/2),-w,w,w);
   // A braced heavy keeps its slam pose and only flashes: the hit landed, the slam is still coming.
   if(e.brace>0)ctx.drawImage(tinted(img,'#fff4ee'),frame.x,frame.y,frame.w,frame.h,snap(-w/2),-w,w,w);
-  ctx.restore();if(e.state!=='blink'){rect(e.x-16,e.y-h-8,32,3,'#26322e');rect(e.x-16,e.y-h-8,32*e.hp/e.max,3,e.tough?'#bd8fe0':'#ca8072');}if(e.wind>0){text(e.arrow?'AIM':e.kind==='mage'?(e.hexing?'HEX':'CAST'):e.rooted?'LASH':e.tough?'SLAM':e.kind==='charger'?'CHARGE':'!',e.x-(e.kind==='charger'?22:e.tough||e.arrow?14:3),e.y-h-20,12,'#ffbf80');
- if(e.arrow){}else if(e.fly){for(let t=.2;t<1;t+=.16)rect(e.x+(e.aimX-e.x)*t-2,e.y-12+(e.aimY-e.y+12)*t-2,4,4,'#e58955');}else if(e.kind==='mage'){if(!e.hexing){diamond(e.x+e.face*18,e.y-24,8,(SHOT_COLORS[e.look]||SHOT_COLORS.orb)[0]);diamond(e.x+e.face*18,e.y-24,4,(SHOT_COLORS[e.look]||SHOT_COLORS.orb)[1])}}else if(e.rooted)rect(e.x-24*e.strikeDir,e.y-3,144*e.strikeDir,3,'#e58955');else if(e.kind==='charger')rect(e.x,e.y-3,Math.max(e.left,Math.min(e.right,e.x+e.strikeDir*300))-e.x,3,'#e58955');else rect(e.tough?e.x-90:e.x,e.y-3,e.tough?180:88*e.strikeDir,3,'#e58955');}
+  ctx.restore();if(e.state!=='blink'){rect(e.x-16,e.y-h-8,32,3,'#26322e');rect(e.x-16,e.y-h-8,32*e.hp/e.max,3,e.enraged?'#e8434a':e.tough?'#bd8fe0':'#ca8072');}if(e.state==='roar')text('ROAR',e.x-16,e.y-h-20,12,'#ffbf80');if(e.wind>0){text(e.arrow?'AIM':e.kind==='mage'?(e.hexing?'HEX':e.puffing?'SPORES':'CAST'):e.erupting?'ROOTS':e.rooted?'LASH':e.tough?'SLAM':e.kind==='charger'?'CHARGE':'!',e.x-(e.kind==='charger'?22:e.tough||e.arrow?14:3),e.y-h-20,12,'#ffbf80');
+ if(e.arrow){}else if(e.fly){for(let t=.2;t<1;t+=.16)rect(e.x+(e.aimX-e.x)*t-2,e.y-12+(e.aimY-e.y+12)*t-2,4,4,'#e58955');}else if(e.kind==='mage'){if(!e.hexing&&!e.puffing){diamond(e.x+e.face*18,e.y-24,8,(SHOT_COLORS[e.look]||SHOT_COLORS.orb)[0]);diamond(e.x+e.face*18,e.y-24,4,(SHOT_COLORS[e.look]||SHOT_COLORS.orb)[1])}}else if(e.erupting){}else if(e.rooted)rect(e.x-24*e.strikeDir,e.y-3,144*e.strikeDir,3,'#e58955');else if(e.kind==='charger')rect(e.x,e.y-3,Math.max(e.left,Math.min(e.right,e.x+e.strikeDir*300))-e.x,3,'#e58955');else rect(e.tough?e.x-90:e.x,e.y-3,e.tough?180:88*e.strikeDir,3,'#e58955');}
  if(e.state==='lunge'&&!e.fly){rect(e.x-e.strikeDir*30,e.y-20,e.strikeDir*28,3,'#f1c17d')}
  if(e.state==='chase'&&!e.fly&&e.hopCD<.1)text('•',e.x-2,e.y-h-18,10,'#caa16d');}
  drawChainSweep();
