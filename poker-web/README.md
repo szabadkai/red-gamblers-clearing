@@ -97,7 +97,10 @@ it centres wherever the thumb lands, trails the thumb past its rim, and pulling 
 buttons fan out from the bottom-right corner: JUMP (largest, hold for a higher jump), SWORD, DASH and HAND.
 They hide on the title, in scenes and at card choices; menus, dialogue, card choices and hand slots are tapped
 directly. Checked with simulated touches in a 740×360 touch viewport, not on a real phone. The game is laid out
-for landscape; in portrait the 16:9 stage and its controls are small.
+for landscape: on a touch screen held upright a prompt asks to turn the phone (tap to play upright anyway). Touch
+devices also get a Full screen button (it locks landscape where the browser allows) and short vibrations on getting
+hurt, finishers, kills and the bear's roar where the browser supports them (not iPhone Safari).
+`tests/harness.js` steps the game frame by frame in a browser for visual checks.
 The card dock, health, settings and pause/help menus stay inside one 16:9 viewport.
 
 Cross five authored clearings: Lantern Wood, Broken Crossing, Moss Cavern, Ruined Chapel, and Thorn House.
@@ -196,6 +199,9 @@ foe is staggered or killed first, then a harmful area. Practice has Tree, Mushro
 On a journey, the first time each kind of foe notices Red a one-line hint names its counter (`hintFor` in
 `enemies.mjs`), and the first time Red is hurt holding a hand that would mend, a hint says so. Each hint shows once;
 the set is kept in this browser (`red.poker.hints`) and cleared by New journey. Practice never shows them.
+
+In phase two the Wolf follows each leap with a second one at wherever Red has moved, with a fresh landing mark and
+a 0.45 s tell ("HE LEAPS AGAIN"), then rests as usual.
 
 Each boss fight opens with a 2.2 s title card (name and role, under the hint line) and the boss waits 1.5 s before
 it starts. At half health every boss takes one second-wind beat: a short hit stop, a shake, a dark burst and

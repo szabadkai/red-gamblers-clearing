@@ -11,6 +11,8 @@ export const BOSS_STATS={
 export const BOSS_BODY={hart:{hw:30,h:72},tollkeeper:{hw:24,h:84},rowan:{hw:14,h:44},widow:{hw:28,h:60},wolf:{hw:26,h:40}};
 export function bossBox(e){const b=BOSS_BODY[e.kind];return b?{x0:e.x-b.hw,x1:e.x+b.hw,y0:e.y-b.h,y1:e.y}:null;}
 export const CHAIN_REACH=220;
+// The Wolf's second leap in phase two gets this much warning (his first leap gets his full tell).
+export const POUNCE_TELL=.45;
 export function makeBoss(kind,id,garden=false){
  const def=BOSS_STATS[kind],hp=garden?90:def.hp;
  return {id,kind,boss:true,x:690,y:420,left:58,right:902,hp,max:hp,face:-1,state:'approach',
@@ -80,7 +82,14 @@ export function updateBoss(world,dt){
   if(b.pattern==='leap'){
    const p=Math.min(1,b.elapsed/.6);b.x=b.startX+(b.target-b.startX)*p;b.y=420-Math.sin(p*Math.PI)*130;
   }
-  if(b.elapsed>=b.duration){b.state='recover';b.timer=def.recovery*(b.garden?.85:1);b.y=420;b.wind=0;}
+  if(b.elapsed>=b.duration){
+   // Phase two: the Wolf lands and springs straight at Red again, with a shorter tell, before he rests.
+   if(b.pattern==='leap'&&b.phase===2&&!b.chained){
+    b.chained=true;b.y=420;b.state='windup';b.timer=POUNCE_TELL;b.wind=b.timer;b.target=clamp(world.x,75,885);b.targetY=world.y-22;
+    b.face=b.strikeDir=Math.sign(world.x-b.x)||b.face;warn(world,'landing',b.target,420,100,38,b.timer+.6);return;
+   }
+   b.chained=false;b.state='recover';b.timer=def.recovery*(b.garden?.85:1);b.y=420;b.wind=0;
+  }
  }
 }
 export function updateHazards(world,dt){

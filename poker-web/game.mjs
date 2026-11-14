@@ -39,6 +39,9 @@ loadImage('cards','./assets/cards.png');loadImage('dock-branch','./assets/ui/doc
 const total=tasks.length;let done=0;tasks.forEach(p=>p.then(()=>{$('loading').textContent=`Opening the forest · ${Math.round(++done/total*100)}%`},()=>{}));
 Promise.all(tasks).then(()=>{prepareScenery(images);loaded=true;$('begin').disabled=false;$('begin').textContent='Begin journey';$('continue').hidden=!savedJourney;$('continue').textContent=savedJourney?.complete?'Replay final encounter':'Continue journey';$('save-status').textContent=savedJourney?`Saved: ${CLEARINGS[savedJourney.stage].name} · this browser`:'';$('loading').textContent=(matchMedia('(pointer: coarse)').matches?'Touch controls':'Keyboard controls')+' · headphones welcome';updateUI(true)}).catch(err=>{$('begin').textContent='Reload to retry';$('loading').textContent=err.message;console.error(err)});
 function sound(name){if(!muted)music.sfx(name)}
+// Haptics on touch screens (where the browser supports them): getting hurt, a finisher, a kill, the bear's roar.
+const BUZZ={player_hurt:70,finisher:20,enemy_death:12,roar:[40,40,60]};
+function buzz(name){if(BUZZ[name]&&navigator.vibrate&&(document.body.classList.contains('touch-seen')||matchMedia('(pointer: coarse)').matches))try{navigator.vibrate(BUZZ[name])}catch{}}
 const music=createMusic();
 function syncMusic(){
  const silent=muted||!started||world.mode==='paused'||world.mode==='dead'||document.hidden;
@@ -85,6 +88,11 @@ function showSound(){$('sound').textContent=muted?'Sound off':'Sound on';$('soun
 $('sound').onclick=()=>{muted=!muted;showSound();try{storage.setItem('red.poker.sound',muted?'off':'on')}catch{}if(!muted){music.unlock();sound('meter_full')}focusGame()};
 function motion(){document.body.classList.toggle('reduced',reduced);$('motion').textContent=reduced?'Motion off':'Motion on';$('motion').setAttribute('aria-pressed',String(!reduced))}motion();
 $('motion').onclick=()=>{reduced=!reduced;motion();focusGame()};
+// Full screen (and landscape, where the browser allows locking it) for touch devices whose browser supports it.
+const fullscreen=$('fullscreen');fullscreen.hidden=!document.documentElement.requestFullscreen;
+fullscreen.onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else{await document.documentElement.requestFullscreen({navigationUI:'hide'});await screen.orientation?.lock?.('landscape').catch(()=>{});}}catch{}};
+document.addEventListener('fullscreenchange',()=>{fullscreen.textContent=document.fullscreenElement?'Exit full screen':'Full screen'});
+$('rotate').onclick=()=>document.body.classList.add('portrait-ok');
 $('deal').onclick=()=>{if(!loaded)return;world.practiceDeal(Number($('practice').value));enterWorld()};
 $('stage').addEventListener('pointerdown',event=>{if(world.mode!=='drafting'&&!event.target.closest('button,select,summary,a'))focusGame()});
 $('draft-left').onclick=()=>finishDraft(0);$('draft-right').onclick=()=>finishDraft(1);$('draft-skip').onclick=()=>finishDraft(null);
@@ -204,7 +212,7 @@ function updateStoryUI(){
   $('boss-health').setAttribute('aria-valuenow',String(Math.max(0,b.hp)));
   $('boss-health').setAttribute('aria-valuemax',String(b.max));
   $('boss-health').setAttribute('aria-label',b.kind==='rowan'?'Huntsman resolve':'Boss health');
-  $('boss-tell').textContent=b.state==='windup'?({charge:'ANTLERS DOWN · DODGE',roots:'ROOTS RISING · KEEP MOVING',chain:'CHAIN SWEEP · JUMP',slam:'HOOK RAISED · MOVE AWAY',cut:'AXE RAISED · DODGE BEHIND',axe:'AXE THROW · WATCH THE RETURN',silk:'FALLING SILK · LEAVE THE MARKS',rings:'BELL RINGS · JUMP',bite:'DRAWING BREATH · DODGE',leap:'LEAP · LEAVE THE MARK'}[b.pattern]):b.state==='recover'?'OPENING · STRIKE NOW':b.kind==='rowan'?'BAIT THE AXE · HIS GUARD IS UP':b.phase===2?'SECOND WIND · WATCH THE TELLS':'WATCH. DODGE. STRIKE.';
+  $('boss-tell').textContent=b.state==='windup'?({charge:'ANTLERS DOWN · DODGE',roots:'ROOTS RISING · KEEP MOVING',chain:'CHAIN SWEEP · JUMP',slam:'HOOK RAISED · MOVE AWAY',cut:'AXE RAISED · DODGE BEHIND',axe:'AXE THROW · WATCH THE RETURN',silk:'FALLING SILK · LEAVE THE MARKS',rings:'BELL RINGS · JUMP',bite:'DRAWING BREATH · DODGE',leap:b.chained?'HE LEAPS AGAIN · MOVE':'LEAP · LEAVE THE MARK'}[b.pattern]):b.state==='recover'?'OPENING · STRIKE NOW':b.kind==='rowan'?'BAIT THE AXE · HIS GUARD IS UP':b.phase===2?'SECOND WIND · WATCH THE TELLS':'WATCH. DODGE. STRIKE.';
  }
  if(!active){lastSceneLine='';return;}
  $('skip-progress').style.width=`${Math.min(1,skipHeld)*100}%`;
@@ -561,7 +569,7 @@ function draw(){
 }
 function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();holdTouch();if(loaded){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
   while(accumulator>=1/60){const input={axis:Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),sword:keys.has('KeyJ')};if(first&&world.hitStop<=0){input.jump=edges.has('Space');input.jumpRelease=releaseJump;input.dash=edges.has('ShiftLeft')||edges.has('ShiftRight');input.play=edges.has('KeyK');input.drop=edges.has('KeyS')||edges.has('ArrowDown');for(let i=0;i<5;i++)if(edges.has('Digit'+(i+1)))input.replace=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}
-  for(const event of world.events.splice(0))sound(event);
+  for(const event of world.events.splice(0)){sound(event);buzz(event);}
  }else accumulator=0;
  if(started&&world.mode==='cutscene')speak(dt);
  if(world.mode==='cutscene'&&skipStarted!==null){skipHeld=(now-skipStarted)/900;if(skipHeld>=1)finishDialogue(true);}

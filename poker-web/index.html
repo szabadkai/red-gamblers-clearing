@@ -4,7 +4,7 @@
 
 <section id="stage" tabindex="0" aria-label="Platforming game. A and D move, Space jumps, Shift dashes, J attacks, K plays poker hand.">
 <canvas id="game" width="960" height="540" aria-label="Forest platforming game"></canvas>
-<nav aria-label="Game settings"><button id="sound" aria-pressed="true">Sound on</button><button id="motion" aria-pressed="true">Motion on</button><button id="pause">Pause <kbd>P</kbd></button></nav><div class="hud"><div><span class="eyebrow">HEALTH</span><div id="health" aria-label="Health"></div></div><div class="quest"><span class="eyebrow">FOREST EMBERS</span><strong id="quest">0 / 3 embers</strong></div></div>
+<nav aria-label="Game settings"><button id="fullscreen" class="touch-only">Full screen</button><button id="sound" aria-pressed="true">Sound on</button><button id="motion" aria-pressed="true">Motion on</button><button id="pause">Pause <kbd>P</kbd></button></nav><div class="hud"><div><span class="eyebrow">HEALTH</span><div id="health" aria-label="Health"></div></div><div class="quest"><span class="eyebrow">FOREST EMBERS</span><strong id="quest">0 / 3 embers</strong></div></div>
 <div id="journey-hud"><span id="chapter-label">I · LANTERN WOOD</span><div id="trail-dots" aria-label="Journey progress"></div></div>
 <div id="objective" aria-live="polite"></div>
 <div id="boss-hud" hidden><strong id="boss-name"></strong><div id="boss-health" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i id="boss-fill"></i></div><small id="boss-tell"></small></div>
@@ -35,4 +35,5 @@
 </section>
 
 </section>
+<button id="rotate" aria-label="Turn your phone sideways to play, or tap to play anyway"><span class="phone" aria-hidden="true"></span><strong>Turn your phone sideways</strong><small>Tap to play upright anyway</small></button>
 </main><script type="module" src="./game.mjs"></script></body></html>

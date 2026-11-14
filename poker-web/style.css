@@ -96,3 +96,13 @@ body.touch-seen #touch{display:flex}
 body.at-title #touch,body.in-cutscene #touch,body.drafting #touch{display:none!important}
 body{touch-action:manipulation}
 @media not (pointer:coarse){body:not(.touch-seen) #touch{display:none}}
+/* Phones: a full-screen button in the settings bar, and a prompt to turn the phone sideways in portrait. */
+#stage>nav .touch-only{display:none}
+@media(pointer:coarse){#stage>nav .touch-only:not([hidden]){display:block}}
+body.touch-seen #stage>nav .touch-only:not([hidden]){display:block}
+#rotate{display:none;position:fixed;inset:0;z-index:100;place-items:center;align-content:center;gap:14px;border:0;background:#050b0ef2;color:#f0ead7;font:16px Silkscreen,monospace;text-align:center;padding:24px}
+#rotate small{font-size:11px;color:#91a39d}
+#rotate .phone{width:46px;height:78px;border:4px solid #e3be7f;border-radius:8px;margin:auto;animation:turn 2s steps(1) infinite}
+@keyframes turn{50%{transform:rotate(-90deg)}}
+@media(pointer:coarse) and (orientation:portrait){body:not(.portrait-ok) #rotate{display:grid}}
+body.reduced #rotate .phone{animation:none;transform:rotate(-90deg)}

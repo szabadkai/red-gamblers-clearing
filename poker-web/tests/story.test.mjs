@@ -208,3 +208,12 @@ test('a boss at half health takes one second-wind beat: hit stop, a dark burst a
  assert.equal(w.events.filter(name=>name==='transform_dark').length,1);
  tick(w,60);w.boss.hp-=1;tick(w,5);assert.equal(w.events.filter(name=>name==='transform_dark').length,1);
 });
+test('in phase two the Wolf lands and leaps once more at where Red has moved, with a fresh mark, then rests',()=>{
+ const w=new StoryWorld();w.practiceDeal(14);const b=w.boss;b.hp=b.max/2;b.rallied=true;b.state='approach';b.timer=0;b.cycle=1;w.x=b.x-120;
+ let n=0;while(b.state!=='strike'&&n++<300)tick(w,1);assert.equal(b.pattern,'leap');w.invincible=99;
+ n=0;while(!b.chained&&n++<120)tick(w,1);assert.equal(b.state,'windup');assert.ok(b.timer<=.45);
+ const marks=w.hazards.filter(h=>h.kind==='landing');assert.equal(marks.length,2);assert.equal(marks[1].x,Math.max(75,Math.min(885,w.x)));
+ n=0;while(b.state!=='recover'&&n++<200)tick(w,1);assert.equal(b.state,'recover');assert.equal(b.chained,false);assert.equal(b.y,420);
+ const calm=new StoryWorld();calm.practiceDeal(14);const c=calm.boss;c.state='approach';c.timer=0;c.cycle=1;calm.x=c.x-120;calm.invincible=99;
+ n=0;while(c.state!=='recover'&&n++<300)tick(calm,1);assert.equal(c.chained,false);assert.equal(calm.hazards.filter(h=>h.kind==='landing').length<=1,true);
+});
