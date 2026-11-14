@@ -69,6 +69,19 @@ function updateFlyer(world,e,def,dt,aware,dx){
  e.aloft=true;e.state='chase';e.face=Math.sign(dx)||e.face;
  if(there&&e.cool<=0){e.state='windup';e.wind=def.wind;e.strikeDir=e.face;e.aimX=world.x;e.aimY=floor;}
 }
+// One line of advice the first time each kind of foe notices Red on a journey (never in practice).
+export function hintFor(e){
+ return e.fly?['fly','RAVEN · SIDESTEP THE DIVE, STRIKE WHERE IT LANDS']:
+  e.kind==='charger'?['charger','STAG · JUMP THE CHARGE, STRIKE WHILE IT RECOVERS']:
+  e.phase?['phase','GHOST HUNTER · IT SLIPS THROUGH YOU AFTER A SHOT']:
+  e.blink?['blink','WISP · CATCH IT BEFORE IT BLINKS AWAY']:
+  e.hex?['hex','WITCH · LEAVE THE MARKED GROUND']:
+  e.cloud?['cloud','MUSHROOM · BACK OFF WHEN IT SWELLS']:
+  e.rooted?['rooted','BRAMBLES · STAY OUT OF THE LASH OR GET BEHIND IT']:
+  e.erupts?['erupts','TREE · LEAVE THE CRACKED GROUND']:
+  e.rage?['rage','BEAR · IT BRACES THROUGH SWORD HITS AND ROARS AT HALF HEALTH']:
+  e.tough?['tough','HEAVY FOE · IT BRACES THROUGH SWORD HITS, DODGE THE SLAM']:null;
+}
 // Seconds a wisp spends vanishing and reforming; it moves at the halfway point and cannot be hit meanwhile.
 export const BLINK=.5;
 // A wisp with Red in its face slips past her: 190 to her far side, on a ledge near the one she stands on.
@@ -115,6 +128,7 @@ export function updateEnemies(world,dt){
   const dx=world.x-e.x,dy=world.y-e.y;
   // world.calm: the trail's opening scene has not played yet, so nothing hunts Red at the trailhead.
   const visible=!beyond&&!world.calm&&Math.abs(dx)<360&&Math.abs(dy)<210;
+  if(visible&&!world.practice&&world.bannerTime<=0){const hint=hintFor(e);if(hint&&!world.hinted.has(hint[0])){world.hinted.add(hint[0]);world.banner=hint[1];world.bannerTime=3.2;}}
   e.alert=visible?5:Math.max(0,(e.alert||0)-dt);
   const aware=visible||e.alert>0;
   if(e.fly){updateFlyer(world,e,def,dt,aware,dx);continue;}

@@ -186,6 +186,14 @@ Four more creatures use the special row of their sheet:
 Patches (`world.patches`: the hex, the roots, the cloud) share one rule: a tell owned by a foe, cancelled if that
 foe is staggered or killed first, then a harmful area. Practice has Tree, Mushroom, Ghost hunter and Bear entries.
 
+On a journey, the first time each kind of foe notices Red a one-line hint names its counter (`hintFor` in
+`enemies.mjs`), and the first time Red is hurt holding a hand that would mend, a hint says so. Each hint shows once;
+the set is kept in this browser (`red.poker.hints`) and cleared by New journey. Practice never shows them.
+
+Each boss fight opens with a 2.2 s title card (name and role, under the hint line) and the boss waits 1.5 s before
+it starts. At half health every boss takes one second-wind beat: a short hit stop, a shake, a dark burst and
+"SECOND WIND", which marks the switch to its phase-two pattern.
+
 `tests/soak.test.mjs` sends an invulnerable hunter (`tests/support/hunter.mjs`) through every clearing: it follows the
 same ledge graph as the foes, swings at the nearest one and plays any pair. It checks that every foe can be reached
 and killed and every gate opens; it does not dodge, so it says nothing about difficulty. It found that a foe on a

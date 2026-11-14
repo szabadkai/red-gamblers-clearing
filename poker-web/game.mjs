@@ -19,6 +19,8 @@ let reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,cam=0,accumul
 let previousMode='ready',lastHand='',formClock=0,lastAnim='',cameraSnap=true,lastDraft=null;
 const images=new Map(),cards=new Map();
 const storage={getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)};
+// Advice already shown stays shown across visits; a new journey shows it again.
+let hintCount=0;try{for(const key of JSON.parse(storage.getItem('red.poker.hints')||'[]'))world.hinted.add(key);hintCount=world.hinted.size}catch{}
 // Sound is on unless this browser was told otherwise; it starts with the first click or key press.
 try{muted=storage.getItem('red.poker.sound')==='off'}catch{}
 let savedJourney=loadStory(storage),persistedCompletion=false,lastStoryRevision=-1,lastSceneLine="",skipHeld=0,skipStarted=null;
@@ -46,7 +48,7 @@ function focusGame(){if(!['drafting','cutscene'].includes(world.mode))$('stage')
 function clearInput(){skipStarted=null;skipHeld=0;keys.clear();edges.clear();releaseJump=false;accumulator=0}
 function enterWorld(){lastAnim='';lastHand='';formClock=0;cam=0;cameraSnap=true;cardPositions.clear();departing.length=0;clearInput();started=true;persistedCompletion=false;$('overlay').hidden=true;updateUI(true);focusGame()}
 function persistJourney(){if(world.practice){$('save-status').textContent='Practice leaves your saved journey untouched';return;}const ok=saveStory(storage,world);if(ok)savedJourney=loadStory(storage);lastStoryRevision=world.storyRevision;$('save-status').textContent=ok?'Story checkpoint saved · this browser':'Saving unavailable · keep this tab open';}
-function reset(fresh=false){if(fresh)world.reset();else if(world.practice&&world.bossPractice){world.practiceDeal(world.stageIndex+10)}else if(world.practice){world.reset(savedJourney?.stage||0,savedJourney)}else world.retry();enterWorld();persistJourney()}
+function reset(fresh=false){if(fresh){world.hinted.clear();cardSeen.clear();world.reset();}else if(world.practice&&world.bossPractice){world.practiceDeal(world.stageIndex+10)}else if(world.practice){world.reset(savedJourney?.stage||0,savedJourney)}else world.retry();enterWorld();persistJourney()}
 function nextClearing(){if(world.advance()){enterWorld();persistJourney();sound('checkpoint')}}
 function pause(){if(!started)return;clearInput();if(world.mode==='playing')world.mode='paused';else if(world.mode==='paused')world.mode='playing';updateUI(true)}
 function press(code){if(keys.has(code))return;keys.add(code);edges.add(code)}
@@ -276,6 +278,21 @@ function drawStoryPlatforms(){
   if(!p.ground){rect(p.x+10,p.y+depth,8,8,inside?'#494055':'#3c3030');rect(p.x+p.w-18,p.y+depth,8,8,inside?'#494055':'#3c3030');}
  }
  return true;
+}
+// Boss title card: a band across the arena with the boss's name and role, the first time each fight begins.
+const cardSeen=new Set();let cardStart=-9;
+function drawBossCard(){
+ const b=world.boss;if(!b||world.mode!=='playing')return;
+ const key=world.stageIndex+(b.garden?':garden':'');
+ if(!cardSeen.has(key)){cardSeen.add(key);cardStart=visual;}
+ const age=visual-cardStart,LENGTH=2.2;if(age>LENGTH)return;
+ const open=reduced?1:Math.min(1,age/.2,(LENGTH-age)/.25),half=snap(480*open);
+ // Sits under the boss hint banner (the HTML toast) and above the fighters' heads.
+ const top=272;rect(480-half,top,half*2,62,'#0b0a12e6');rect(480-half,top,half*2,2,'#e3be7f');rect(480-half,top+60,half*2,2,'#e3be7f');
+ if(open<1)return;
+ const actor=CAST[b.kind];ctx.textAlign='center';
+ text((STAGES[world.stageIndex].title+(b.garden?' · the last shadow':'')).toUpperCase(),480,top+34,28,'#fff2bf');
+ text(actor.role.toUpperCase(),480,top+53,12,actor.color);ctx.textAlign='left';
 }
 const SHOT_COLORS={orb:['#111d2b','#8de0cf','#fff0c2'],hex:['#1d1230','#b46bfa','#f3dcff'],spore:['#3a2a2a','#d9a98c','#f2d7c0']};
 // Patches: a tell on the ground (or around a mushroom) while their owner winds up, then the harmful part.
@@ -508,7 +525,7 @@ function draw(){
  if(!reduced)for(const d of world.dust)drawDust(d);
  for(const p of world.particles)rect(p.x,p.y,3,3,'#eacd88');for(const n of world.texts)text(n.text,n.x,n.y,20,'#ffe4a2');
  // Depth foreground around the floor rather than across landing surfaces.
- ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else if(!storyFloor())drawForeground(ctx,images,cam,world,reduced);if(world.dying>0||world.mode==='dead'){ctx.fillStyle=`rgba(11,8,16,${(world.mode==='dead'?1:1-world.dying/DEATH_TIME)*.55})`;ctx.fillRect(0,0,960,480);}ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
+ ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else if(!storyFloor())drawForeground(ctx,images,cam,world,reduced);drawBossCard();if(world.dying>0||world.mode==='dead'){ctx.fillStyle=`rgba(11,8,16,${(world.mode==='dead'?1:1-world.dying/DEATH_TIME)*.55})`;ctx.fillRect(0,0,960,480);}ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
 }
 function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();if(loaded){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
   while(accumulator>=1/60){const input={axis:Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),sword:keys.has('KeyJ')};if(first&&world.hitStop<=0){input.jump=edges.has('Space');input.jumpRelease=releaseJump;input.dash=edges.has('ShiftLeft')||edges.has('ShiftRight');input.play=edges.has('KeyK');input.drop=edges.has('KeyS')||edges.has('ArrowDown');for(let i=0;i<5;i++)if(edges.has('Digit'+(i+1)))input.replace=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}
@@ -517,6 +534,7 @@ function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepa
  if(started&&world.mode==='cutscene')speak(dt);
  if(world.mode==='cutscene'&&skipStarted!==null){skipHeld=(now-skipStarted)/900;if(skipHeld>=1)finishDialogue(true);}
  if(started&&!world.practice&&lastStoryRevision!==world.storyRevision)persistJourney();
+ if(world.hinted.size!==hintCount){hintCount=world.hinted.size;try{storage.setItem('red.poker.hints',JSON.stringify([...world.hinted]))}catch{}}
  const target=Math.max(0,Math.min((world.worldWidth||WIDTH)-960,world.x-340));cam=cameraSnap?target:cam+(target-cam)*(1-Math.exp(-dt*8));cameraSnap=false;
  draw();updateUI();for(const [id,el] of cards){let i=Number(el.dataset.slot),match=el.classList.contains('match'),active=hover===id;
  const t=visual,wiggle=reduced?0:Math.sin(t*2.3+id)*1.4+Math.sin(t*18)*Math.pow(Math.max(0,Math.sin(t*1.5+i*1.7)),12)*5;

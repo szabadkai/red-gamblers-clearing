@@ -192,3 +192,19 @@ test('a trail save resumes at the last opened gate with its embers; malformed ga
   s.setItem(STORY_SAVE_KEY,JSON.stringify({...raw,...bad}));assert.equal(loadStory(s),null,JSON.stringify(bad));
  }
 });
+test('each kind of foe gets one line of advice the first time it notices Red on a journey, never in practice',()=>{
+ const w=new StoryWorld();w.reset(1,{phase:'trail',seen:['prologue','stranger','pip']});
+ w.enemies=w.enemies.filter(e=>e.kind==='charger'||e.hex);w.enemies.forEach(e=>e.rest=0);w.x=300;tick(w,2);
+ assert.match(w.banner,/^STAG · /);assert.ok(w.hinted.has('charger'));
+ w.bannerTime=0;w.x=560;w.y=300;tick(w,2);assert.match(w.banner,/^WITCH · /);
+ w.retry();w.enemies=w.enemies.filter(e=>e.kind==='charger');w.enemies.forEach(e=>e.rest=0);w.banner='';w.bannerTime=0;w.x=300;tick(w,2);assert.ok(w.enemies[0].alert>0);assert.equal(w.banner,'');
+ w.health=3;w.deck.preset([5,44,2,9,24]);tick(w,1);assert.match(w.banner,/^HEARTS MEND/);
+ const p=new StoryWorld();p.practiceDeal(16);tick(p,300);assert.equal(p.hinted.size,0);
+});
+test('a boss at half health takes one second-wind beat: hit stop, a dark burst and its cue, once',()=>{
+ const w=new StoryWorld();w.practiceDeal(10);assert.ok(w.boss.timer>=1.4,'the opening leaves room for the title card');
+ tick(w,5);w.events.length=0;w.boss.hp=w.boss.max/2;tick(w,1);
+ assert.equal(w.boss.rallied,true);assert.ok(w.hitStop>.1);assert.ok(w.rings.some(r=>r.dark));assert.equal(w.banner,'SECOND WIND');
+ assert.equal(w.events.filter(name=>name==='transform_dark').length,1);
+ tick(w,60);w.boss.hp-=1;tick(w,5);assert.equal(w.events.filter(name=>name==='transform_dark').length,1);
+});

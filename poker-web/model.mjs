@@ -62,7 +62,8 @@ const approach=(a,b,n)=>a<b?Math.min(a+n,b):Math.max(a-n,b);
 export const WIDTH=2400;
 export function level(){return platformsFor(0)}
 export class World{
- constructor(random=Math.random){this.deck=new Deck(random);this.reset()}
+ // hinted: advice already shown this session; it survives resets so a retry does not repeat it.
+ constructor(random=Math.random){this.deck=new Deck(random);this.hinted=new Set();this.reset()}
  reset(stageIndex=0){
   this.stageIndex=stageIndex;this.clearing=CLEARINGS[stageIndex];this.arena=false;this.width=TRAIL_WIDTH;
   // Briar gates split the trail into sections; each opens once every foe before it has fallen.
@@ -236,6 +237,7 @@ export class World{
    if(this.bannerTime<=0){this.banner='FOES STILL ROAM THE CLEARING';this.bannerTime=1.6;}
   }
   updateEnemies(this,dt);updateEnemyShots(this,dt);updatePatches(this,dt);
+  if(!this.practice&&this.health<5&&this.bannerTime<=0&&!this.hinted.has('heal')&&evaluate(this.deck.hand).heal){this.hinted.add('heal');this.banner='HEARTS MEND · PLAY THIS HAND TO HEAL';this.bannerTime=3.2;}
   for(const b of this.bolts){let old=b.x;b.x+=b.dir*680*dt;b.life-=dt;if(this.wall&&b.x>this.wall.x-8){b.life=0;continue}for(const e of this.enemies){const box=e.boss&&bossBox(e),lo=Math.min(old,b.x),hi=Math.max(old,b.x),reach=b.tier>=5?65:30;
    const miss=box?hi+6<box.x0||lo-6>box.x1||b.y<box.y0-reach/2||b.y>box.y1+4:e.x<lo-22||e.x>hi+22||Math.abs(e.y-23-b.y)>reach;
    if(miss||b.hit.has(e.id))continue;b.hit.add(e.id);if(b.tier===2)this.blast(e.x,e.y-22,100,b.damage,false,b.impact);else{this.damage(e,b.damage,b.dir*(30+b.tier*5));this.pokerImpact(b.impact,e.hp<=0)}if(b.tier<3){b.life=0;break}}}
