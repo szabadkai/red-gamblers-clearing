@@ -20,7 +20,14 @@ function transfers(platforms){
   if(a===b||a.y-b.y>65)continue;
   let best=null;
   for(const launch of [a.x+18,a.x+a.w-18,clamp(b.x+b.w/2,a.x+18,a.x+a.w-18)]){
-   const target=clamp(launch,b.x+18,b.x+b.w-18),drop=b.y>a.y&&target===launch;
+   let target=clamp(launch,b.x+18,b.x+b.w-18);const drop=b.y>a.y&&target===launch;
+   if(b.y>a.y&&!drop&&target>a.x-10&&target<a.x+a.w+10){
+    // A hop down that would land back on its own ledge is aimed so the foe is already clear of the
+    // ledge's end when it falls back through the height it jumped from.
+    const fall=(430+Math.sqrt(430*430-2*1300*(a.y-b.y)))/1300,level=2*430/1300;
+    target=[a.x+a.w+12,a.x-12].map(edge=>launch+(edge-launch)*fall/level).filter(x=>x>=b.x+18&&x<=b.x+b.w-18).sort((p,q)=>Math.abs(p-launch)-Math.abs(q-launch))[0];
+    if(target===undefined)continue;
+   }
    const flight=drop?Math.sqrt(2*(b.y-a.y)/1300):(430+Math.sqrt(430*430-2*1300*(a.y-b.y)))/1300;
    if(Math.abs(target-launch)>250*flight)continue;
    const edge={to:b.id,launch,target,flight,drop};
@@ -110,7 +117,14 @@ export function updateEnemies(world,dt){
    if(e.wind<=0){e.wind=0;
     if(e.kind==='mage'){
      const length=Math.hypot(e.aimX,e.aimY)||1;
-     world.enemyShots.push({x:e.x+e.strikeDir*16,y:e.y-24,vx:e.aimX/length*220,vy:e.aimY/length*220,life:2.2,arrow:!!e.arrow});e.rest=def.recovery;e.state='recover';e.cast=true;
+     // A hex has no projectile: its flames rise from the patch marked when the tell began.
+     const patch=e.hexing&&world.patches.find(p=>p.owner===e.id&&p.delay>0);
+     if(patch)patch.delay=0;else world.enemyShots.push({x:e.x+e.strikeDir*16,y:e.y-24,vx:e.aimX/length*220,vy:e.aimY/length*220,life:2.2,arrow:!!e.arrow,look:e.look});
+     e.hexed=!!e.hexing;e.hexing=false;e.rest=def.recovery;e.state='recover';e.cast=true;
+    }else if(e.rooted){
+     // Brambles lash one way, further than a slam: get behind them or stay out of reach.
+     const ahead=dx*e.strikeDir;if(ahead>-24&&ahead<120&&Math.abs(dy)<34)world.hurt(e.x);
+     world.rings.push({x:e.x+e.strikeDir*84,y:e.y-4,radius:40,dark:false,physical:true,life:.25});e.rest=def.recovery;e.state='recover';
     }else if(e.tough){if(Math.abs(dx)<90&&Math.abs(dy)<30)world.hurt(e.x);world.rings.push({x:e.x,y:e.y-4,radius:90,dark:false,physical:true,life:.25});e.rest=def.recovery;e.state='recover'}else{e.state='lunge';e.action=def.action||.17;e.connected=false}
    }
    continue;
@@ -128,11 +142,16 @@ export function updateEnemies(world,dt){
   if(e.kind==='mage'&&aware&&Math.abs(dx)<310&&Math.abs(dy)<110){
    e.state='windup';e.wind=def.wind;e.strikeDir=Math.sign(dx)||e.face;e.face=e.strikeDir;
    // Aim is committed at the beginning of the tell, so movement can evade it.
-   e.aimX=dx;e.aimY=dy+2;continue;
+   e.aimX=dx;e.aimY=dy+2;
+   // Every other spell from a witch is a hex on the ground Red stands on as the tell begins.
+   e.hexing=!!e.hex&&!!destination&&(e.spells=(e.spells||0)+1)%2===0;e.hexed=false;
+   if(e.hexing){e.wind=HEX_TELL;world.patches.push({owner:e.id,x:world.x,y:destination.y,w:56,delay:HEX_TELL,life:HEX_BURN});}
+   continue;
   }
-  if(aware&&sameSurface&&Math.abs(dx)<(def.reach||(e.tough?80:88))&&Math.abs(dy)<32){
+  if(aware&&sameSurface&&Math.abs(dx)<(e.rooted?112:def.reach||(e.tough?80:88))&&Math.abs(dy)<32){
    e.state='windup';e.wind=def.wind;e.strikeDir=Math.sign(dx)||e.face;e.face=e.strikeDir;continue;
   }
+  if(e.rooted){e.state='idle';if(aware)e.face=Math.sign(dx)||e.face;continue;}
   if(!aware){e.idleClock=(e.idleClock||0)+dt;if(e.idleClock>2.2){e.state='idle';if(e.idleClock>3.1)e.idleClock=0;continue;}}else e.idleClock=0;
   e.state=aware?'chase':'patrol';
   let route=null;
@@ -153,6 +172,19 @@ export function updateEnemies(world,dt){
  }
 }
 
+// A hex: marked for HEX_TELL seconds while the witch holds her tell, then it burns for HEX_BURN.
+export const HEX_TELL=1,HEX_BURN=.5;
+export function updatePatches(world,dt){
+ for(const p of world.patches){
+  if(p.delay>0){
+   // Interrupting or killing the witch before the flames rise cancels them.
+   const owner=world.enemies.find(e=>e.id===p.owner);if(!owner||owner.state!=='windup')p.life=0;
+   continue;
+  }
+  p.life-=dt;if(Math.abs(world.x-p.x)<p.w/2&&Math.abs(world.y-p.y)<34)world.hurt(p.x);
+ }
+ world.patches=world.patches.filter(p=>p.life>0);
+}
 export function updateEnemyShots(world,dt){
  for(const b of world.enemyShots){
   const x=b.x,y=b.y;b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;

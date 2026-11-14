@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {World} from '../model.mjs';
-import {updateEnemies} from '../enemies.mjs';
+import {updateEnemies,nextTransfer} from '../enemies.mjs';
 const tick=(w,n)=>{for(let i=0;i<n;i++)updateEnemies(w,1/60)};
 test('scouts patrol outside awareness and chase nearby players',()=>{
  const w=new World();w.enemies=[];w.spawn(500,0);const e=w.enemies[0];e.rest=0;w.x=30;tick(w,1);assert.equal(e.state,'patrol');assert.ok(e.x>=e.left&&e.x<=e.right);
@@ -102,4 +102,28 @@ test('a wisp casts, then blinks past Red when she closes in; it cannot be hit mi
  w.x=150;tick(w,1);assert.equal(e.state,'windup');
  const far=new World();far.practiceDeal(17);const f=far.enemies[0];f.rest=0;tick(far,400);assert.equal(f.x,400);assert.ok(far.enemyShots.length>=0&&f.state!=='blink');
  const boxed=new World();boxed.practiceDeal(17);boxed.platforms=[{id:0,x:150,y:420,w:300,ground:true}];const b=boxed.enemies[0];b.rest=0;b.left=166;b.right=434;b.cast=true;boxed.x=320;tick(boxed,1);assert.equal(b.state,'windup');
+});
+test('a foe on a ledge that overhangs lower ground hops past the ledge end instead of back onto it',()=>{
+ const w=new World();w.reset(4);const hop=nextTransfer(w.platforms,19,14),ledge=w.platforms[19];
+ assert.ok(hop.target>ledge.x+ledge.w+8,'lands clear of its own ledge');
+ w.enemies=[];w.gates.forEach(g=>g.open=true);w.spawn(3040,19);const e=w.enemies[0];e.rest=0;w.x=3300;w.y=420;tick(w,400);assert.equal(e.surface,14);assert.equal(e.y,420);
+});
+test('a witch alternates a bolt with a hex: marked ground that burns unless Red leaves it or interrupts her',()=>{
+ const run=(w,n)=>{for(let i=0;i<n;i++)w.step(1/60)};
+ const hexing=()=>{const w=new World();w.practiceDeal(18);const e=w.enemies[0];e.rest=0;
+  let n=0;while(!w.enemyShots.length&&n++<120)run(w,1);assert.equal(w.enemyShots[0].look,'hex');w.enemyShots=[];
+  n=0;while(!e.hexing&&n++<200)run(w,1);return [w,e];};
+ let [w,e]=hexing();assert.equal(e.state,'windup');assert.equal(w.patches.length,1);assert.deepEqual([w.patches[0].x,w.patches[0].y],[w.x,420]);assert.equal(w.enemyShots.length,0);
+ run(w,50);assert.equal(w.health,5);run(w,20);assert.equal(w.health,4);assert.equal(w.enemyShots.length,0);run(w,40);assert.equal(w.patches.length,0);
+ [w,e]=hexing();w.x+=90;run(w,100);assert.equal(w.health,5);assert.equal(w.patches.length,0);
+ [w,e]=hexing();w.damage(e,2,0);run(w,2);assert.equal(w.patches.length,0);run(w,80);assert.equal(w.health,5);
+ const spore=new World();spore.practiceDeal(18);Object.assign(spore.enemies[0],{skin:'spore_mushroom',hex:false,look:'spore',rest:0});
+ run(spore,60);assert.equal(spore.enemyShots[0].look,'spore');spore.enemyShots=[];run(spore,200);assert.equal(spore.patches.length,0);
+});
+test('brambles stay rooted and lash one way: out of reach or behind them is safe',()=>{
+ const lash=x=>{const w=new World();w.practiceDeal(19);const e=w.enemies[0];e.rest=0;w.x=250;tick(w,1);assert.equal(e.state,'windup');assert.equal(e.strikeDir,-1);w.x=x;tick(w,60);return [w,e];};
+ const still=new World();still.practiceDeal(19);const b=still.enemies[0];b.rest=0;assert.equal(b.rooted,true);tick(still,300);assert.equal(b.x,330);assert.equal(b.state,'idle');
+ still.y=360;still.x=250;tick(still,300);assert.equal(b.x,330);assert.equal(b.air,false);
+ assert.equal(lash(250)[0].health,4);assert.equal(lash(225)[0].health,4);assert.equal(lash(200)[0].health,5);assert.equal(lash(370)[0].health,5);
+ const [w,e]=lash(200);assert.equal(e.state,'recover');assert.ok(e.rest>.9);assert.equal(e.x,330);
 });

@@ -14,6 +14,13 @@ export const castTop=skin=>CAST[skin]??0;
 export const ARCHERS=new Set(['rogue_hunter','ghost_hunter']);
 // Wisps cast on the attack row (the orb leaves their mouth) and vanish and reform on the special row.
 export const BLINKERS=new Set(['will_o_wisp','lost_wisp']);
+// Witches alternate their bolt with a hex (flames from the ground, special row); brambles are rooted and lash.
+export const HEXERS=new Set(['forest_witch']);
+export const ROOTED=new Set(['thorn_brambles']);
+// What a caster's shot looks like; anything else throws the wisps' teal orb.
+export const SHOT_LOOK={forest_witch:'hex',spore_mushroom:'spore'};
+// Skin-specific behaviour flags, set when a foe is spawned or re-dressed.
+export const traits=skin=>({skin,arrow:ARCHERS.has(skin),blink:BLINKERS.has(skin),hex:HEXERS.has(skin),rooted:ROOTED.has(skin),look:SHOT_LOOK[skin]||'orb'});
 // Each clearing dresses its enemy behaviours in local wildlife. Every flyer uses the raven sheet: the older
 // forest_crow sheet has no hover or dive pose and reads poorly against the dark backdrops, so it is unused.
 const DEFAULT={scout:['big_bad_wolf'],brute:['brown_bear'],runner:['wild_boar'],flyer:['raven'],charger:['forest_stag'],mage:['forest_witch','will_o_wisp'],guard:['living_tree']};
@@ -39,17 +46,20 @@ export function castFrame(e,time){
   return e.aloft?cell('run',Math.floor(time*10+(e.id||0))):cell('idle',Math.floor(time*5+(e.id||0)));
  }
  if(e.state==='blink')return cell('special',1+Math.min(5,Math.floor((1-Math.max(0,e.action||0)/.5)*6)));
- const archer=e.kind==='mage'&&(ARCHERS.has(e.skin)||BLINKERS.has(e.skin));
+ const caster=e.kind==='mage';
  if(e.state==='windup'){
+  // Every tell is the first half of the attack row; a witch's hex raises the staff on her special row.
+  if(e.hexing)return cell('special',Math.min(5,Math.floor((1-Math.max(0,e.wind||0))*6)));
   const total=(ENEMY_TYPES[e.kind]||ENEMY_TYPES.scout).wind,progress=1-Math.max(0,e.wind||0)/total;
-  if(archer)return cell('attack',Math.min(2,Math.floor(progress*3)));
-  return e.kind==='mage'?cell('special',Math.min(7,Math.floor(progress*8))):cell('attack',Math.min(2,Math.floor(progress*3)));
+  return cell('attack',Math.min(2,Math.floor(progress*3)));
  }
  // A stag's charge is the leap on its special row.
  if(e.state==='lunge'&&e.kind==='charger')return cell('special',2+Math.floor(time*12)%3);
  if(e.state==='lunge')return cell('attack',3+Math.min(2,Math.floor((.17-(e.action||0))/.06)));
  if(e.air)return cell('run',e.vy<0?1:3);
- if(archer&&e.state==='recover'){const since=ENEMY_TYPES.mage.recovery-(e.rest||0);if(since<.14)return cell('attack',3);if(since<.4)return cell('attack',5);}
+ // Follow-through: the shot leaving, the hex burning out, the bramble's vine coming down.
+ if(caster&&e.state==='recover'){const since=ENEMY_TYPES.mage.recovery-(e.rest||0);if(e.hexed){if(since<.5)return cell('special',since<.25?6:7);}else{if(since<.14)return cell('attack',3);if(since<.4)return cell('attack',5);}}
+ if(e.rooted&&e.state==='recover'){const since=ENEMY_TYPES.guard.recovery-(e.rest||0);if(since<.3)return cell('attack',since<.12?3:4);}
  if(['chase','patrol','jump','drop'].includes(e.state))return cell('run',Math.floor((e.walk||0)*10+(e.id||0)));
  return cell('idle',Math.floor(time*5+(e.id||0)));
 }

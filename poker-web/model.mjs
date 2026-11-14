@@ -1,6 +1,6 @@
-import {updateEnemies,updateEnemyShots,ENEMY_TYPES} from './enemies.mjs';
+import {updateEnemies,updateEnemyShots,updatePatches,ENEMY_TYPES} from './enemies.mjs';
 import {CLEARINGS,TRAIL_WIDTH,platformsFor} from './journey.mjs';
-import {skinFor,ARCHERS,BLINKERS} from './cast.mjs';
+import {skinFor,traits} from './cast.mjs';
 import {bossBox} from './bosses.mjs';
 export const CORPSE_LIFE=1.2;
 // Enemy hit reaction: a white flash, then the hit row, readable at the game's speed.
@@ -76,7 +76,7 @@ export class World{
   this.cardDrops=[];this.activeDraft=null;this.lastPicked=null;this.dying=0;this.combo=0;this.comboTime=0;
   this.platforms=platformsFor(stageIndex);this.embers=this.clearing.embers.map(([x,y])=>({x,y}));this.collected=0;
   this.checkpoint={x:60,y:420};this.checkpointId=0;this.mode='playing';this.practice=false;this.kills=0;
-  this.impacts=[];this.corpses=[];this.bolts=[];this.enemyShots=[];this.rings=[];this.texts=[];this.particles=[];this.dust=[];this.events=[];this.banner='';this.bannerTime=0;this.nextId=0;
+  this.impacts=[];this.corpses=[];this.bolts=[];this.enemyShots=[];this.patches=[];this.rings=[];this.texts=[];this.particles=[];this.dust=[];this.events=[];this.banner='';this.bannerTime=0;this.nextId=0;
   this.npcs=(this.clearing.npcs||[]).map(([x,s,skin,line])=>({x,y:this.platforms[s].y,skin,line}));
   this.enemies=[];
   for(const [x,s,t] of this.clearing.enemies)this.spawn(x,s,t||false);
@@ -112,12 +112,12 @@ export class World{
  spawn(x,s,type=false){const platform=this.platforms[s];if(!platform)return;const kind=typeof type==='string'?type:type?'brute':'scout',def=ENEMY_TYPES[kind];if(!def)return;const tough=kind==='brute'||kind==='guard',section=this.gates.filter(g=>g.x<x).length;const slot=this.enemies.filter(e=>e.kind===kind).length,skin=skinFor(kind,this.clearing.id,slot);
   // Flyers roam their whole gated section and remember the perch they started on.
   const fly=kind==='flyer',from=this.gates[section-1]?.x,to=this.gates[section]?.x,roam=fly?{fly,home:{x,y:platform.y},left:from===undefined?16:from+26,right:to===undefined?this.width-16:to-26}:{left:platform.x+16,right:platform.x+platform.w-16};
-  this.enemies.push({id:this.nextId++,kind,skin,section,arrow:ARCHERS.has(skin),blink:BLINKERS.has(skin),x,y:platform.y,...roam,hp:def.hp,max:def.hp,tough,wind:0,rest:.3,flash:0,walk:0,face:-1,state:'patrol',surface:s,patrolDir:this.nextId%2?1:-1,air:false,airVX:0,vy:0,hopCD:0,action:0,strikeDir:-1,connected:false})}
+  this.enemies.push({id:this.nextId++,kind,...traits(skin),section,x,y:platform.y,...roam,hp:def.hp,max:def.hp,tough,wind:0,rest:.3,flash:0,walk:0,face:-1,state:'patrol',surface:s,patrolDir:this.nextId%2?1:-1,air:false,airVX:0,vy:0,hopCD:0,action:0,strikeDir:-1,connected:false})}
  practiceDeal(kind){
   // Extra single-foe practices: [behaviour, spawn x, banner, skin]
-  const extra={15:['flyer',420,'CROW · SIDESTEP THE DIVE, STRIKE WHERE IT LANDS'],16:['charger',520,'STAG · JUMP THE CHARGE, STRIKE WHILE IT RECOVERS'],17:['mage',400,'WISP · CATCH IT BEFORE IT BLINKS AWAY','will_o_wisp']}[kind];if(extra)kind=4;
+  const extra={15:['flyer',420,'CROW · SIDESTEP THE DIVE, STRIKE WHERE IT LANDS'],16:['charger',520,'STAG · JUMP THE CHARGE, STRIKE WHILE IT RECOVERS'],17:['mage',400,'WISP · CATCH IT BEFORE IT BLINKS AWAY','will_o_wisp'],18:['mage',400,'WITCH · LEAVE THE MARKED GROUND','forest_witch'],19:['guard',330,'BRAMBLES · STAY OUT OF THE LASH OR GET BEHIND IT','thorn_brambles']}[kind];if(extra)kind=4;
   if(kind>=7){this.reset(kind===9?1:kind===7?2:3);this.practice=true;this.banner='EXPLORE · '+this.clearing.name.toUpperCase();this.bannerTime=3;return;}this.reset();this.practice=true;this.arena=true;this.width=WIDTH;this.gates=[];this.platforms=[{id:0,x:0,y:420,w:2400,ground:true}];this.embers=[];this.npcs=[];this.x=180;this.enemies=[];this.deck.preset([[5,18,2,9,24],[0,2,5,8,11],[5,18,31,44,8]][kind]||[5,18,2,9,24]);for(let i=0;i<3;i++)this.spawn(300+i*100,0,i===2);this.banner='PRACTICE · '+evaluate(this.deck.hand).name;this.bannerTime=2;if(kind===3){this.deck.pile=this.deck.pile.filter(c=>c!==31&&c!==12);this.deck.pile.push(12,31);this.deck.hit();this.deck.hit();this.spawnCardDrop(this.deck.hit(),{x:240,y:420});this.banner='TOUCH THE CARD · CHOOSE YOUR DRAW'}if(kind>=4){this.enemies=[];this.spawn(extra?extra[1]:330,0,extra?extra[0]:['runner','mage','guard'][kind-4]);this.banner=extra?extra[2]:['GOBLIN RUNNER · DODGE THE LUNGE','LANTERN MAGE · JUMP OR SLASH ITS SHOT','IRON GUARD · BAIT THE SLAM'][kind-4];
-   if(extra?.[3])Object.assign(this.enemies[0],{skin:extra[3],arrow:ARCHERS.has(extra[3]),blink:BLINKERS.has(extra[3])});this.bannerTime=4;}}
+   if(extra?.[3])Object.assign(this.enemies[0],traits(extra[3]));this.bannerTime=4;}}
  emit(type){this.events.push(type)}
  puff(kind){this.dust.push({x:this.x,y:this.y,dir:this.facing,kind,life:DUST_LIFE})}
  jump(){this.buffer=.14;this.tryJump()}
@@ -235,7 +235,7 @@ export class World{
    if(!this.foesAhead){this.mode='won';return}
    if(this.bannerTime<=0){this.banner='FOES STILL ROAM THE CLEARING';this.bannerTime=1.6;}
   }
-  updateEnemies(this,dt);updateEnemyShots(this,dt);
+  updateEnemies(this,dt);updateEnemyShots(this,dt);updatePatches(this,dt);
   for(const b of this.bolts){let old=b.x;b.x+=b.dir*680*dt;b.life-=dt;if(this.wall&&b.x>this.wall.x-8){b.life=0;continue}for(const e of this.enemies){const box=e.boss&&bossBox(e),lo=Math.min(old,b.x),hi=Math.max(old,b.x),reach=b.tier>=5?65:30;
    const miss=box?hi+6<box.x0||lo-6>box.x1||b.y<box.y0-reach/2||b.y>box.y1+4:e.x<lo-22||e.x>hi+22||Math.abs(e.y-23-b.y)>reach;
    if(miss||b.hit.has(e.id))continue;b.hit.add(e.id);if(b.tier===2)this.blast(e.x,e.y-22,100,b.damage,false,b.impact);else{this.damage(e,b.damage,b.dir*(30+b.tier*5));this.pokerImpact(b.impact,e.hp<=0)}if(b.tier<3){b.life=0;break}}}

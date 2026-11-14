@@ -165,6 +165,20 @@ within 170 when it is next free to act it blinks instead: 0.5 s on its special r
 reappearing 190 past her on a ledge near hers. It always casts again before it can blink again, so the opening is
 the 1.35 s after a shot. Practice has Stag and Wisp entries.
 
+Every caster's tell is now the first half of its attack row, and its shot matches it: witches throw a violet bolt,
+mushrooms a spore puff, wisps the teal orb, hunters arrows (`SHOT_LOOK` in `cast.mjs`). A witch alternates her bolt
+with a hex: for a 1 s tell on her special row the ground Red stood on is marked violet, then flames burn there for
+0.5 s. Leaving the mark avoids it; staggering or killing her during the tell cancels it.
+
+Brambles are rooted: they never walk or hop. From within 112 they raise a vine for 0.85 s and lash 120 ahead of
+themselves only, so being out of reach or behind them is safe. Like other heavies they brace through sword hits
+during the tell and are open for 1.1 s after. Practice has Witch and Brambles entries.
+
+`tests/soak.test.mjs` sends an invulnerable hunter (`tests/support/hunter.mjs`) through every clearing: it follows the
+same ledge graph as the foes, swings at the nearest one and plays any pair. It checks that every foe can be reached
+and killed and every gate opens; it does not dodge, so it says nothing about difficulty. It found that a foe on a
+ledge overhanging lower ground hopped back onto its own ledge forever; hops down now clear the ledge's end.
+
 The environment reuses the generated forest and stone from the earlier Red web
 prototype. Generated
 paintings are reduced once and then drawn into the same 480×270 raster as the

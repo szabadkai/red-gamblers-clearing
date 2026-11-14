@@ -57,7 +57,7 @@ export class StoryWorld extends World{
   this.platforms=arenaPlatforms(this.stageIndex,location);this.x=210;this.y=420;this.surface=0;
   this.vx=0;this.vy=0;this.grounded=true;this.coyote=.12;this.buffer=0;
   this.checkpoint={x:210,y:420};this.health=5;this.invincible=1;
-  this.deck.reset();this.bolts=[];this.enemyShots=[];this.cardDrops=[];this.activeDraft=null;
+  this.deck.reset();this.bolts=[];this.enemyShots=[];this.patches=[];this.cardDrops=[];this.activeDraft=null;
   this.enemies=[];this.embers=[];this.hazards=[];this.impacts=[];this.corpses=[];this.rings=[];this.dust=[];
   this.dark=0;this.transform=0;this.dash=0;this.attack=0;this.swordPending=0;this.cast=0;
   this.hitStop=0;this.shakeTime=0;this.dying=0;this.banner='';this.bannerTime=0;this.boss=null;this.bossCorpse=null;this.victoryDelay=0;

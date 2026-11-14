@@ -19,7 +19,7 @@ test('enemy states map onto the roster rows', () => {
  assert.equal(row(castFrame({...base,state:'idle'},0)),0);
  assert.equal(row(castFrame({...base,state:'chase'},0)),1);
  assert.equal(row(castFrame({...base,state:'windup',wind:.2},0)),2);
- assert.equal(row(castFrame({...base,kind:'mage',state:'windup',wind:.4},0)),3);
+ assert.equal(row(castFrame({...base,kind:'mage',state:'windup',wind:.4},0)),2);assert.equal(row(castFrame({...base,kind:'mage',state:'windup',wind:.4,hexing:true},0)),3);
  assert.equal(row(castFrame({...base,state:'stagger',flash:.1},0)),4);
  assert.equal(row(deathFrame(.3,1.2)),5);assert.equal(deathFrame(1.2,1.2).x,0);assert.equal(deathFrame(.4,1.2).x,7*32);
 });
