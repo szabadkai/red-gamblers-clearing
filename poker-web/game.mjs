@@ -10,7 +10,7 @@ import {prepareScenery,drawBackdrop,drawLandmarks,drawTrailGate,drawGates,drawFo
 import {PLAYER_CLIPS,playerClip,playerFrame} from './animation.mjs';
 import {drawTerrain,drawHome} from './environment.mjs';
 import {snap,characterSize,playerOffset,castShape,shakeOffset} from './art.mjs';
-import {World,evaluate,EFFECTS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE,DEATH_TIME} from './model.mjs';
+import {World,evaluate,EFFECTS,HANDS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE,DEATH_TIME} from './model.mjs';
 import {CAST as ROSTER,CELL,castFrame,castTop,deathFrame,idleFrame} from './cast.mjs';
 const $=id=>document.getElementById(id),canvas=$('game'),screen=canvas.getContext('2d'),raster=document.createElement('canvas');
 raster.width=960;raster.height=540;const ctx=raster.getContext('2d');
@@ -434,7 +434,8 @@ function updateUI(force=false){
    $('story-title').textContent=won?(final?'Room for one more.':'A light in the dark.'):world.mode==='dead'?'One more hand?':'By the lantern.';
    $('story-copy').textContent=won?(world.practice?'Practice complete. Your journey is safe.':final?'Grandmother is safe. The voices are free. There is enough bread to share.':'The way is clear. '+CLEARINGS[world.stageIndex+1]?.name+' lies ahead.'):world.mode==='dead'?(world.arena?'Return to the encounter with full health and a fresh hand.':'Take a fresh hand and try this clearing again.'):'Your hand and the forest will wait right here.';
    $('begin').textContent=won?(world.practice?(world.bossPractice?'Retry encounter':'Back to journey'):final?'Play a new journey':'On to '+CLEARINGS[world.stageIndex+1]?.name):world.mode==='paused'?'Back to the forest':(world.arena?'Retry encounter':'Retry clearing');
-   $('loading').textContent=won?`${world.kills} foes defeated · ${world.fallCount} falls · ${world.collected} flames returned`:'P / Esc resumes · R retries this clearing';
+   const clock=`${Math.floor(world.time/60)}:${String(Math.floor(world.time%60)).padStart(2,'0')}`,best=world.bestHand>=0?' · best hand: '+HANDS[world.bestHand]:'';
+   $('loading').textContent=won?`${world.kills} foes defeated · ${world.fallCount} falls · ${clock}${best}`:'P / Esc resumes · R retries this clearing';
    if(won&&!persistedCompletion){persistedCompletion=true;persistJourney();}
   }
  }

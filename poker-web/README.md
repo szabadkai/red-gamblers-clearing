@@ -222,6 +222,8 @@ Boss warnings have a shape per attack and brighten and pulse as the hit nears: a
 the Wolf will land, a silk thread and shadow for each of the Widow's drops, a cracked band with green tips pushing up for
 the Hart's roots, a scorched band with sparks for the Tollkeeper's slam (and the shadows inside the Wolf).
 
+The clearing-complete screen lists foes defeated, falls, the clearing's time and the best poker hand played.
+
 Each boss fight opens with a 2.2 s title card (name and role, under the hint line) and the boss waits 1.5 s before
 it starts. At half health every boss takes one second-wind beat: a short hit stop, a shake, a dark burst and
 "SECOND WIND", which marks the switch to its phase-two pattern.

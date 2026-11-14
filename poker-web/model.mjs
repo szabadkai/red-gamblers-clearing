@@ -76,7 +76,7 @@ export class World{
   this.hitStop=0;this.shakeTime=0;this.shakeDuration=0;this.shakePower=0;
   this.cardDrops=[];this.activeDraft=null;this.lastPicked=null;this.dying=0;this.combo=0;this.comboTime=0;
   this.platforms=platformsFor(stageIndex);this.embers=this.clearing.embers.map(([x,y])=>({x,y}));this.collected=0;
-  this.checkpoint={x:60,y:420};this.checkpointId=0;this.mode='playing';this.practice=false;this.kills=0;
+  this.checkpoint={x:60,y:420};this.checkpointId=0;this.mode='playing';this.practice=false;this.kills=0;this.bestHand=-1;
   this.impacts=[];this.corpses=[];this.bolts=[];this.enemyShots=[];this.patches=[];this.rings=[];this.texts=[];this.particles=[];this.dust=[];this.events=[];this.banner='';this.bannerTime=0;this.nextId=0;
   this.npcs=(this.clearing.npcs||[]).map(([x,s,skin,line])=>({x,y:this.platforms[s].y,skin,line}));
   this.enemies=[];
@@ -172,7 +172,7 @@ export class World{
   this.activeDraft=null;this.mode='playing';
  }
  suppressNearbyDrops(){for(const drop of this.cardDrops)if(Math.abs(drop.x-this.x)<32&&Math.abs(drop.y-this.y)<40)drop.blocked=true;}
- play(){if(this.cast>0||!this.deck.hand.length||this.mode!=='playing')return;const r=this.deck.play();this.cast=.36;this.banner=r.name.toUpperCase();this.bannerTime=1.5;this.emit('attack3');
+ play(){if(this.cast>0||!this.deck.hand.length||this.mode!=='playing')return;const r=this.deck.play();this.bestHand=Math.max(this.bestHand??-1,r.tier);this.cast=.36;this.banner=r.name.toUpperCase();this.bannerTime=1.5;this.emit('attack3');
   if(r.heal&&this.health<5){this.health++;this.banner+=' · +1 HEART';this.bannerTime=2;this.emit('pickup_essence');}
   if(r.tier>=5){if(this.dark<=0)this.startMorph('light',.75);this.dark=6;this.invincible=Math.max(this.invincible,.75);this.emit('transform_dark')}
   this.castForm=this.dark>0?'dark':'light';this.castFacing=this.facing;
