@@ -25,6 +25,7 @@ export class StoryWorld extends World{
   else if(phase==='trail'&&stageIndex===0&&!this.seen.has('prologue'))this.startScene('prologue');
  }
  get stageStory(){return STAGES[this.stageIndex];}
+ get calm(){return !this.practice&&this.storyPhase==='trail'&&!this.seen.has(this.stageStory.encounter);}
  get objective(){
   if(this.practice)return this.arena?'Practice arena':`Find the three embers · ${this.collected}/3`;
   if(this.dialogue)return SCENES[this.dialogue.id].title;
@@ -55,7 +56,7 @@ export class StoryWorld extends World{
   this.vx=0;this.vy=0;this.grounded=true;this.coyote=.12;this.buffer=0;
   this.checkpoint={x:210,y:420};this.health=5;this.invincible=1;
   this.deck.reset();this.bolts=[];this.enemyShots=[];this.cardDrops=[];this.activeDraft=null;
-  this.enemies=[];this.embers=[];this.hazards=[];this.impacts=[];this.corpses=[];this.rings=[];
+  this.enemies=[];this.embers=[];this.hazards=[];this.impacts=[];this.corpses=[];this.rings=[];this.dust=[];
   this.dark=0;this.transform=0;this.dash=0;this.attack=0;this.swordPending=0;this.cast=0;
   this.hitStop=0;this.shakeTime=0;this.banner='';this.bannerTime=0;this.boss=null;this.bossCorpse=null;this.victoryDelay=0;
   this.mode='playing';this.storyRevision++;
@@ -89,10 +90,10 @@ export class StoryWorld extends World{
   }
   super.practiceDeal(kind);this.worldWidth=this.width;this.dialogue=null;this.mode='playing';this.bossPractice=false;this.storyLocation='trail';
  }
- damage(e,amount,push){
+ damage(e,amount,push,sword){
   if(e.boss)return damageBoss(this,e,amount);
   if(e.storyTarget){e.hp-=amount;e.flash=.16;this.impacts.push({x:e.x,y:e.y-20,amount,life:.25});return true;}
-  return super.damage(e,amount,push)!==false;
+  return super.damage(e,amount,push,sword)!==false;
  }
  removeDead(){
   const boss=this.enemies.find(e=>e.boss&&e.hp<=0);

@@ -45,7 +45,7 @@ export function updateEnemies(world,dt){
   const beyond=wall&&e.section>held;
   if(wall){const side=beyond?1:-1;if((e.x-wall.x)*side<26){e.x=wall.x+side*26;if(e.air)e.airVX=0;}}
   const def=ENEMY_TYPES[e.kind]||ENEMY_TYPES[e.tough?'brute':'scout'];
-  e.flash=Math.max(0,e.flash-dt);e.hurt=Math.max(0,(e.hurt||0)-dt);e.hopCD=Math.max(0,(e.hopCD||0)-dt);
+  e.flash=Math.max(0,e.flash-dt);e.hurt=Math.max(0,(e.hurt||0)-dt);e.brace=Math.max(0,(e.brace||0)-dt);e.hopCD=Math.max(0,(e.hopCD||0)-dt);
   if(e.air){const oldY=e.y;e.vy+=1300*dt;e.x+=e.airVX*dt;e.y+=e.vy*dt;let landing=null;
    if(e.vy>=0)for(const p of world.platforms){if(e.x+8>p.x&&e.x-8<p.x+p.w&&oldY<=p.y+.5&&e.y>=p.y&&(!landing||p.y<landing.y))landing=p}
    if(landing){e.air=false;e.y=landing.y;e.vy=0;e.surface=landing.id;e.left=landing.x+14;e.right=landing.x+landing.w-14;e.x=clamp(e.x,e.left,e.right);e.rest=.16;e.state='recover'}
@@ -54,7 +54,8 @@ export function updateEnemies(world,dt){
   }
   if(e.rest>0){e.rest=Math.max(0,e.rest-dt);e.state=e.flash>0?'stagger':'recover';e.wind=0;continue}
   const dx=world.x-e.x,dy=world.y-e.y;
-  const visible=!beyond&&Math.abs(dx)<360&&Math.abs(dy)<210;
+  // world.calm: the trail's opening scene has not played yet, so nothing hunts Red at the trailhead.
+  const visible=!beyond&&!world.calm&&Math.abs(dx)<360&&Math.abs(dy)<210;
   e.alert=visible?5:Math.max(0,(e.alert||0)-dt);
   const aware=visible||e.alert>0;
   const destination=playerSurface(world);

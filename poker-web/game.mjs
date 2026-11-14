@@ -10,7 +10,7 @@ import {prepareScenery,drawBackdrop,drawLandmarks,drawTrailGate,drawGates,drawFo
 import {PLAYER_CLIPS,playerClip,playerFrame} from './animation.mjs';
 import {drawTerrain,drawHome} from './environment.mjs';
 import {snap,characterSize,playerOffset,castShape,shakeOffset} from './art.mjs';
-import {World,evaluate,EFFECTS,WIDTH,cardName,CORPSE_LIFE} from './model.mjs';
+import {World,evaluate,EFFECTS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE} from './model.mjs';
 import {CAST as ROSTER,CELL,castFrame,castTop,deathFrame,idleFrame} from './cast.mjs';
 const $=id=>document.getElementById(id),canvas=$('game'),screen=canvas.getContext('2d'),raster=document.createElement('canvas');
 raster.width=960;raster.height=540;const ctx=raster.getContext('2d');
@@ -84,6 +84,29 @@ $('deal').onclick=()=>{if(!loaded)return;world.practiceDeal(Number($('practice')
 $('stage').addEventListener('pointerdown',event=>{if(world.mode!=='drafting'&&!event.target.closest('button,select,summary,a'))focusGame()});
 $('draft-left').onclick=()=>finishDraft(0);$('draft-right').onclick=()=>finishDraft(1);$('draft-skip').onclick=()=>finishDraft(null);
 for(const button of document.querySelectorAll('[data-hold]')){button.onpointerdown=e=>{e.preventDefault();button.setPointerCapture(e.pointerId);if(started&&world.mode==='playing')press(button.dataset.hold)};button.onpointerup=button.onpointercancel=button.onlostpointercapture=()=>release(button.dataset.hold)}
+// Gamepad (standard mapping): stick or d-pad moves, A jumps, X swings, Y plays the hand, B/RB/RT dash, Start pauses.
+const PAD_BUTTONS={0:'Space',1:'ShiftLeft',2:'KeyJ',3:'KeyK',5:'ShiftLeft',7:'ShiftLeft',9:'KeyP',13:'KeyS',14:'KeyA',15:'KeyD'};
+const padHeld=new Set();
+function padDown(code){
+ if(!loaded)return;
+ if(!started||!$('overlay').hidden){if(code==='Space')($('continue').hidden?$('begin'):$('continue')).click();else if(code==='KeyP')pause();return;}
+ if(world.mode==='cutscene'){if(code==='Space')finishDialogue(false);else if(code==='KeyP')finishDialogue(true);return;}
+ if(world.mode==='drafting'){if(code==='KeyA')finishDraft(0);else if(code==='KeyD')finishDraft(1);else if(code==='ShiftLeft')finishDraft(null);return;}
+ if(code==='KeyP')pause();else if(world.mode==='playing')press(code);
+}
+function pollGamepad(){
+ const pad=[...(navigator.getGamepads?.()||[])].find(p=>p?.connected),now=new Set();
+ if(pad){
+  for(const [i,code] of Object.entries(PAD_BUTTONS))if(pad.buttons[i]?.pressed)now.add(code);
+  const [x=0,y=0]=pad.axes;if(x<-.4)now.add('KeyA');if(x>.4)now.add('KeyD');if(y>.7)now.add('KeyS');
+ }
+ for(const code of now)if(!padHeld.has(code))padDown(code);
+ for(const code of padHeld)if(!now.has(code))release(code);
+ padHeld.clear();for(const code of now)padHeld.add(code);
+ // Held directions and the sword survive a pause or scene that cleared the keyboard state.
+ if(started&&world.mode==='playing')for(const code of ['KeyA','KeyD','KeyJ'])if(now.has(code))keys.add(code);
+}
+window.addEventListener('gamepadconnected',()=>{if(!started)$('loading').textContent='Gamepad ready · A jump · X sword · Y hand · B dash'});
 function finishDraft(index){
  if(world.mode!=='drafting')return;
  if(index===null)world.dismissDraft();else if(!world.chooseDraft(index))return;
@@ -312,6 +335,14 @@ function drawEmber(e){
  };
  spark(x-16,y-14,frame<2?6:4);spark(x+16,y+10,frame>=2?6:4);
 }
+// Dust: ink-edged puffs that drift out from Red's feet, shrink and rise as they settle.
+function drawDust(d){
+ const p=1-d.life/DUST_LIFE,r=p<.35?8:p<.7?6:4,rise=p*8;
+ const puff=(x,y,size)=>{if(size<2)return;circle(x,y,size+2,'#4f4a40');circle(x,y,size,'#cfc4a6');if(size>=6)circle(x-2,y-2,size-4,'#efe7cf');};
+ if(d.kind==='dash'){for(let i=0;i<3;i++)puff(d.x-d.dir*(i*14+p*10),d.y-6-rise-i*2,r-i*2);return;}
+ const reach=d.kind==='land'?18:8,size=d.kind==='land'?r:r-2;
+ for(const side of [-1,1]){puff(d.x+side*(10+p*reach),d.y-6-rise,size);puff(d.x+side*(4+p*reach/2),d.y-4-rise/2,size-2);}
+}
 const cardPositions=new Map(),departing=[];
 function drawDock(){
  drawBriarDock(ctx,images);
@@ -355,7 +386,10 @@ function draw(){
  }
  for(const n of (world.practice&&!world.arena&&!world.dialogue?world.npcs:[])||[]){const f=idleFrame(visual,n.x),{w,h}=characterSize(CELL,CELL),near=Math.abs(world.x-n.x)<110&&Math.abs(world.y-n.y)<80;ctx.save();ctx.translate(snap(n.x),snap(n.y));ctx.scale(world.x<n.x?-1:1,1);ctx.drawImage(images.get('cast/'+n.skin),f.x,f.y,f.w,f.h,snap(-w/2),-h,w,h);ctx.restore();if(near&&n.line){ctx.font='12px Silkscreen, monospace';const tw=snap(ctx.measureText(n.line).width+12),top=n.y-h+castTop(n.skin)*2,bx=snap(Math.max(cam+8,Math.min(cam+952-tw,n.x-tw/2)));rect(bx,top-26,tw,20,'#101226d8');text(n.line,bx+6,top-11,12,'#fff2bf');}}
  if(world.bossCorpse){const c=world.bossCorpse;ctx.save();ctx.globalAlpha=Math.min(1,(BOSS_DEATH-c.time)/.4);drawStoryActor(ctx,images,c.kind,c.x,c.y,visual,{facing:c.face,state:'dead',boss:{deadTime:c.time}});ctx.restore();}
- for(const e of world.enemies){if(e.boss||e.storyTarget){if(world.dialogue?.id!=='wolfIntro')drawStoryActor(ctx,images,e.kind,e.x,e.y,visual,{facing:e.face,state:e.state,flash:e.flash,boss:e});continue;}const img=images.get('cast/'+e.skin);const frame=castFrame(e,world.time);ctx.save();ctx.translate(snap(e.x),snap(e.y));ctx.scale(e.face,1);const {w}=characterSize(frame.w,frame.h),h=(CELL-castTop(e.skin))*2;ctx.drawImage(img,frame.x,frame.y,frame.w,frame.h,snap(-w/2),-w,w,w);ctx.restore();rect(e.x-16,e.y-h-8,32,3,'#26322e');rect(e.x-16,e.y-h-8,32*e.hp/e.max,3,e.tough?'#bd8fe0':'#ca8072');if(e.wind>0){text(e.arrow?'AIM':e.kind==='mage'?'CAST':e.tough?'SLAM':'!',e.x-(e.tough||e.arrow?14:3),e.y-h-20,12,'#ffbf80');
+ for(const e of world.enemies){if(e.boss||e.storyTarget){if(world.dialogue?.id!=='wolfIntro')drawStoryActor(ctx,images,e.kind,e.x,e.y,visual,{facing:e.face,state:e.state,flash:e.flash,boss:e});continue;}const img=images.get('cast/'+e.skin);const frame=castFrame(e,world.time);ctx.save();ctx.translate(snap(e.x),snap(e.y));ctx.scale(e.face,1);const {w}=characterSize(frame.w,frame.h),h=(CELL-castTop(e.skin))*2;ctx.drawImage(img,frame.x,frame.y,frame.w,frame.h,snap(-w/2),-w,w,w);
+  // A braced heavy keeps its slam pose and only flashes: the hit landed, the slam is still coming.
+  if(e.brace>0)ctx.drawImage(tinted(img,'#fff4ee'),frame.x,frame.y,frame.w,frame.h,snap(-w/2),-w,w,w);
+  ctx.restore();rect(e.x-16,e.y-h-8,32,3,'#26322e');rect(e.x-16,e.y-h-8,32*e.hp/e.max,3,e.tough?'#bd8fe0':'#ca8072');if(e.wind>0){text(e.arrow?'AIM':e.kind==='mage'?'CAST':e.tough?'SLAM':'!',e.x-(e.tough||e.arrow?14:3),e.y-h-20,12,'#ffbf80');
  if(e.arrow){}else if(e.kind==='mage'){diamond(e.x+e.face*18,e.y-24,8,'#172637');diamond(e.x+e.face*18,e.y-24,4,'#9ce6cf')}else rect(e.tough?e.x-90:e.x,e.y-3,e.tough?180:88*e.strikeDir,3,'#e58955');}
  if(e.state==='lunge'){rect(e.x-e.strikeDir*30,e.y-20,e.strikeDir*28,3,'#f1c17d')}
  if(e.state==='chase'&&e.hopCD<.1)text('•',e.x-2,e.y-h-18,10,'#caa16d');}
@@ -398,11 +432,12 @@ function draw(){
   if(hit.amount>=14){const word=hit.knockout?'K.O.!':hit.amount>=40?'KRAK!':'WHAM!',x=snap(hit.x-34),y=snap(hit.y-54-progress*10);for(const [dx,dy] of [[-2,0],[2,0],[0,-2],[0,2]])text(word,x+dx,y+dy,24,'#101226');text(word,x,y,24,'#fff2bf');}
  }
  for(const dead of world.corpses){ctx.save();ctx.translate(snap(dead.x),snap(dead.y));ctx.scale(dead.face,1);ctx.globalAlpha=Math.min(1,dead.life/CORPSE_LIFE*3);const f=deathFrame(dead.life,CORPSE_LIFE),{w,h}=characterSize(f.w,f.h);ctx.drawImage(images.get('cast/'+dead.skin),f.x,f.y,f.w,f.h,snap(-w/2),-h,w,h);ctx.restore();}
+ if(!reduced)for(const d of world.dust)drawDust(d);
  for(const p of world.particles)rect(p.x,p.y,3,3,'#eacd88');for(const n of world.texts)text(n.text,n.x,n.y,20,'#ffe4a2');
  // Depth foreground around the floor rather than across landing surfaces.
  ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else if(!storyFloor())drawForeground(ctx,images,cam,world,reduced);ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
 }
-function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;if(loaded){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
+function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();if(loaded){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
   while(accumulator>=1/60){const input={axis:Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),sword:keys.has('KeyJ')};if(first&&world.hitStop<=0){input.jump=edges.has('Space');input.jumpRelease=releaseJump;input.dash=edges.has('ShiftLeft')||edges.has('ShiftRight');input.play=edges.has('KeyK');input.drop=edges.has('KeyS')||edges.has('ArrowDown');for(let i=0;i<5;i++)if(edges.has('Digit'+(i+1)))input.replace=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}
   for(const event of world.events.splice(0))sound(event);
  }else accumulator=0;

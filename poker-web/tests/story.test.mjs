@@ -172,3 +172,9 @@ test('a beaten boss stays down for its death row before the outro',()=>{
  tick(w,90);
  assert.equal(w.bossCorpse,null);assert.notEqual(w.mode,'playing');
 });
+test('trail foes leave Red alone until the opening encounter has played',()=>{
+ const w=new StoryWorld();skip(w);tick(w,600);
+ assert.equal(w.health,5);assert.equal(w.enemyShots.length,0);assert.ok(w.enemies.every(e=>!e.alert&&['patrol','idle','recover'].includes(e.state)));
+ tick(w,60,{axis:1});assert.equal(w.dialogue?.id,STAGES[0].encounter);skip(w);
+ w.x=w.enemies[0].x-120;tick(w,30);assert.ok(w.enemies[0].alert>0);
+});

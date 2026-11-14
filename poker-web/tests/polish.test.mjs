@@ -55,3 +55,10 @@ test('all characters share native pixel pitch and scouts use the smaller body',(
  assert.equal(enemySprite({kind:'scout',id:0,state:'idle'},0).y,202);
  assert.deepEqual(characterSize(15,18),{w:30,h:36});
 });
+test('a jump, its landing and a ground dash each kick up dust that settles',()=>{
+ const w=new World();w.practiceDeal(0);w.enemies=[];const kinds=[];
+ const run=(n,input)=>{for(let i=0;i<n;i++){const before=w.dust.length;w.step(1/60,i?{}:input);if(w.dust.length>before)kinds.push(w.dust.at(-1).kind);}};
+ run(80,{jump:true});assert.deepEqual(kinds,['jump','land']);assert.equal(w.dust.length,0);
+ run(1,{dash:true});assert.deepEqual(kinds,['jump','land','dash']);
+ run(1,{jump:true});w.dashCD=0;run(1,{dash:true});assert.equal(kinds.filter(k=>k==='dash').length,1);
+});

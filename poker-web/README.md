@@ -87,7 +87,10 @@ A/D or arrows move. Hold Space for a higher jump; release for a short hop.
 Shift dashes; hold J for sword attacks; K plays the best poker combination.
 S or Down drops through raised platforms. P/Escape pauses. R retries the current clearing.
 New journey in the menu starts from Lantern Wood.
-Keyboard controls only; no touch control buttons or gamepad implementation yet.
+A gamepad with the standard mapping also works: stick or d-pad moves (down drops through), A jumps, X swings,
+Y plays the hand, B/RB/RT dash, Start pauses. In scenes A advances and Start skips; at a card drop, left/right
+take that card and B leaves it; A confirms the menu button. A saved card cannot be slotted from the pad (it still
+fills a slot when a hand is played). Checked against a simulated pad only, not real hardware. No touch controls yet.
 The card dock, health, settings and pause/help menus stay inside one 16:9 viewport.
 
 Cross five authored clearings: Lantern Wood, Broken Crossing, Moss Cavern, Ruined Chapel, and Thorn House.
@@ -124,8 +127,10 @@ ace of spades, demonstrating immediate trips versus building toward a flush.
 
 Scouts use the smaller teal 19-pixel body from the dungeon sheet (the old 26-pixel orc is reserved for brutes). Player, living enemies, and corpses use the same shared native-pixel scale. Scouts patrol until aware of Red, chase, leap to reachable higher ledges, then
 telegraph a committed lunge. A separate four-frame idle loop plays during patrol pauses. Brutes telegraph a wider slam and can also traverse reachable platforms.
-Both expose recovery time and can be interrupted by hits. Brutes can be jumped
-over; scouts can be dodged behind. A platform graph plans multi-hop routes, including climbing, same-height gaps,
+Both expose recovery time. Sword hits interrupt scouts, runners and mages, but a brute or guard that has begun
+its slam braces through them: it flashes white, takes the damage and still slams, so leave its reach and punish
+the recovery. A played poker hand does break the slam. Brutes can be jumped
+over; scouts can be dodged behind. On a story trail, foes ignore Red until that clearing's opening scene has played. A platform graph plans multi-hop routes, including climbing, same-height gaps,
 and dropping through one-way ledges. Every transfer obeys measured jump reach;
 unreachable surfaces do not cause teleportation.
 
@@ -227,7 +232,7 @@ and WHAM / KRAK / K.O. markers emphasize heavy hits. Poker hits add 2–5 frames
 (33–83 ms) of hit stop and a short, decaying camera shake. Feedback triggers once
 per played hand on contact, including multi-target and twin-wave attacks. The
 HUD stays still, pending input survives the freeze, and Motion Off disables shake.
-Enemy slams use physical dust.
+Enemy slams use physical dust. Red's jumps, landings and ground dashes kick up small dust puffs (hidden with Motion Off).
 Collectible embers have a larger ink-outlined gold orb, a steady white core, and
 a four-pose sparkle/bob animation at six frames per second. Motion Off holds a
 static pose; pickup positions and collection radius are unchanged.

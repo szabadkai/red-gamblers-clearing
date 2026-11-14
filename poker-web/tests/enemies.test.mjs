@@ -59,3 +59,9 @@ test('all new enemy types can route over a ground gap',()=>{
   tick(w,2400);assert.ok(w.enemies[0].surface!==0,kind+' must leave its original ground');
  }
 });
+test('a guard braces through sword hits once its slam has begun; a played hand still breaks it',()=>{
+ const w=new World();w.practiceDeal(6);const e=w.enemies[0];e.rest=0;w.x=e.x-60;tick(w,1);assert.equal(e.state,'windup');const wind=e.wind,x=e.x;
+ w.sword();for(let i=0;i<7;i++)w.step(1/60);
+ assert.equal(e.hp,e.max-2);assert.equal(e.state,'windup');assert.ok(e.wind>0&&e.wind<wind);assert.equal(e.x,x);assert.ok(e.brace>0);assert.equal(w.deck.hits,1);
+ w.play();for(let i=0;i<12;i++)w.step(1/60);assert.equal(e.hp,e.max-16);assert.equal(e.wind,0);assert.ok(e.rest>0);assert.ok(e.x>x);
+});
