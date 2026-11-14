@@ -60,7 +60,7 @@ export class StoryWorld extends World{
   this.deck.reset();this.bolts=[];this.enemyShots=[];this.cardDrops=[];this.activeDraft=null;
   this.enemies=[];this.embers=[];this.hazards=[];this.impacts=[];this.corpses=[];this.rings=[];this.dust=[];
   this.dark=0;this.transform=0;this.dash=0;this.attack=0;this.swordPending=0;this.cast=0;
-  this.hitStop=0;this.shakeTime=0;this.banner='';this.bannerTime=0;this.boss=null;this.bossCorpse=null;this.victoryDelay=0;
+  this.hitStop=0;this.shakeTime=0;this.dying=0;this.banner='';this.bannerTime=0;this.boss=null;this.bossCorpse=null;this.victoryDelay=0;
   this.mode='playing';this.storyRevision++;
  }
  setupArena(phase='boss'){
@@ -86,7 +86,7 @@ export class StoryWorld extends World{
   const seen=[...this.seen];this.reset(this.stageIndex+1,{phase:'trail',seen});return true;
  }
  practiceDeal(kind){
-  if(kind>=10){
+  if(kind>=10&&kind<15){
    const stage=clamp(kind-10,0,4);this.reset(stage,{phase:'boss',seen:['prologue']});
    this.practice=true;this.bossPractice=true;this.banner=this.stageStory.hint;this.bannerTime=5;return;
   }
@@ -124,7 +124,7 @@ export class StoryWorld extends World{
   super.step(dt,input);
   if(this.storyPhase==='trail'&&(this.collected!==held||this.gates.filter(g=>g.open).length!==opened))this.storyRevision++;
   if(this.practice&&!this.bossPractice)return;
-  if(this.mode==='dead'||stopped)return;
+  if(this.mode==='dead'||stopped||this.dying>0)return;
   if(this.storyLocation!=='trail')this.x=clamp(this.x,24,936);
   if(this.bossCorpse)this.bossCorpse.time+=dt;
   if(this.pendingVictory&&this.victoryDelay>0){this.victoryDelay=Math.max(0,this.victoryDelay-dt);if(this.victoryDelay>0)return;}

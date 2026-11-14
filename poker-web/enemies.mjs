@@ -5,7 +5,9 @@ export const ENEMY_TYPES={
  brute:{hp:56,speed:40,wind:.75,lunge:0,recovery:.95},
  runner:{hp:10,speed:145,wind:.3,lunge:390,recovery:.8},
  mage:{hp:18,speed:55,wind:.8,lunge:0,recovery:1.35},
- guard:{hp:42,speed:48,wind:.85,lunge:0,recovery:1.1}
+ guard:{hp:42,speed:48,wind:.85,lunge:0,recovery:1.1},
+ // speed is flight speed, lunge the dive speed
+ flyer:{hp:8,speed:190,wind:.45,lunge:430,recovery:.9}
 };
 // Build a graph of physically reachable surface transfers, then route one hop at a time.
 const graphCache=new WeakMap();
@@ -37,6 +39,27 @@ function playerSurface(world){
  return world.platforms.filter(p=>world.x+9>p.x&&world.x-9<p.x+p.w&&p.y>=world.y-.5)
   .sort((a,b)=>a.y-b.y)[0];
 }
+// Crows and ravens: perch until they notice Red, hover above and to one side, then dive at the ground
+// under her. The dive is aimed when its tell begins; the bird sits where it lands until it recovers.
+function updateFlyer(world,e,def,dt,aware,dx){
+ const flyTo=(x,y,speed)=>{
+  const ox=x-e.x,oy=y-e.y,d=Math.hypot(ox,oy);if(d<=speed*dt){e.x=x;e.y=y;return true;}
+  e.x+=ox/d*speed*dt;e.y+=oy/d*speed*dt;if(Math.abs(ox)>1)e.face=Math.sign(ox);return false;
+ };
+ e.cool=Math.max(0,(e.cool||0)-dt);
+ if(e.state==='windup'){e.wind-=dt;if(e.wind<=0){e.wind=0;e.state='lunge';e.connected=false;}return;}
+ if(e.state==='lunge'){
+  const landed=flyTo(e.aimX,e.aimY,def.lunge);
+  if(!e.connected&&Math.abs(world.x-e.x)<26&&Math.abs(world.y-e.y)<34){world.hurt(e.x);e.connected=true;}
+  if(landed){e.aloft=false;e.rest=def.recovery;e.cool=.5;e.state='recover';}
+  return;
+ }
+ if(!aware){const home=flyTo(e.home.x,e.home.y,def.speed);e.aloft=!home;e.state=home?'idle':'chase';return;}
+ const floor=playerSurface(world)?.y??world.y,side=Math.sign(e.x-world.x)||e.face||1;
+ const there=flyTo(clamp(world.x+side*100,e.left,e.right),floor-92,def.speed);
+ e.aloft=true;e.state='chase';e.face=Math.sign(dx)||e.face;
+ if(there&&e.cool<=0){e.state='windup';e.wind=def.wind;e.strikeDir=e.face;e.aimX=world.x;e.aimY=floor;}
+}
 export function updateEnemies(world,dt){
  // Foes beyond a closed briar gate keep to their side and ignore Red until it opens.
  const wall=world.wall,held=wall?world.gates.indexOf(wall):-1;
@@ -58,6 +81,7 @@ export function updateEnemies(world,dt){
   const visible=!beyond&&!world.calm&&Math.abs(dx)<360&&Math.abs(dy)<210;
   e.alert=visible?5:Math.max(0,(e.alert||0)-dt);
   const aware=visible||e.alert>0;
+  if(e.fly){updateFlyer(world,e,def,dt,aware,dx);continue;}
   const destination=playerSurface(world);
   const sameSurface=destination?.id===e.surface;
   if(e.state==='windup'){

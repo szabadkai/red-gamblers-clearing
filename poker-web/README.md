@@ -113,6 +113,8 @@ Hearts mend: playing a pair or better that spends at least one heart card restor
 high cards do not count, and nothing is gained at full health). The hand panel says so, the heart it would
 restore is shown dim red, and card-drop hints mark choices that would make a mending hand.
 The health display blinks at one heart (not with Motion Off).
+The last hit plays out as a 0.9 s slowed death beat (Red's silhouette burns red, the scene dims) before the retry
+screen; falling into a pit skips it.
 
 Five unique cards are dealt initially. Three landed sword swings drop one
 face-down card near the enemy. Touch it to pause combat and reveal two choices.
@@ -146,6 +148,13 @@ In the story journey, each clearing's three embers unlock a dedicated boss room.
 
 Three additional characters use their own idle and movement frames from the dungeon sheet: Goblin Runner (fast committed lunge, 10 HP), Lantern Mage (0.8-second tell followed by a fixed aimed shot, 18 HP), and Iron Guard (0.85-second slam tell and long recovery, 42 HP). Shots can be jumped, dashed through, or cut with a sword; parries earn no draw credit. All three use the same platform-routing graph as scouts. The practice menu offers isolated fights plus direct exploration of the two new environments.
 
+Ravens fly (`flyer`, 8 HP; every flyer uses the `raven` sheet, the older `forest_crow` sheet is bundled but unused): they perch until they notice Red, hover above and to one side, then dive
+along a dotted tell at the ground under her. The dive is aimed when the tell begins, so stepping aside evades it;
+the bird then sits where it landed for 0.9 s, which is the moment to strike. They ignore ledges, roam their whole
+gated section, return to their perch when Red is out of sight, and fall to the ground when killed in the air.
+Thirteen former ground runners on the Huntsman's Bridge, in Moss Cavern and in the Ruined Chapel are now flyers;
+the remaining runners there are boars. Practice has a Crow entry.
+
 The environment reuses the generated forest and stone from the earlier Red web
 prototype. Generated
 paintings are reduced once and then drawn into the same 480×270 raster as the
@@ -166,7 +175,7 @@ setting is remembered in this browser. Music stops when paused or away.
 Enemies and townsfolk use the Little Red Riding Hood roster from the Aseprite project
 (`assets/cast/<name>_sheet.png`: 32×32 cells, rows idle/run/attack/special/hit/death).
 `cast.mjs` keeps each behaviour (scout, brute, runner, mage, guard) and dresses it per clearing:
-wolves, hunters and boars in Lantern Wood; stag, witch and crows on the bridge; ravens, mushrooms and
+wolves, hunters and boars in Lantern Wood; stag, witch, boars and ravens on the bridge; ravens, boars, mushrooms and
 wisps in the cavern; brambles, trees and the ghost hunter in the chapel; the wolf in disguise at Thorn House.
 Windups play the attack row (mages the special row), hits flash, and corpses play the death row.
 Bowmen (rogue hunter, ghost hunter) use the ranged behaviour: they draw on the attack row and loose arrows.

@@ -10,7 +10,7 @@ import {prepareScenery,drawBackdrop,drawLandmarks,drawTrailGate,drawGates,drawFo
 import {PLAYER_CLIPS,playerClip,playerFrame} from './animation.mjs';
 import {drawTerrain,drawHome} from './environment.mjs';
 import {snap,characterSize,playerOffset,castShape,shakeOffset} from './art.mjs';
-import {World,evaluate,EFFECTS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE} from './model.mjs';
+import {World,evaluate,EFFECTS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE,DEATH_TIME} from './model.mjs';
 import {CAST as ROSTER,CELL,castFrame,castTop,deathFrame,idleFrame} from './cast.mjs';
 const $=id=>document.getElementById(id),canvas=$('game'),screen=canvas.getContext('2d'),raster=document.createElement('canvas');
 raster.width=960;raster.height=540;const ctx=raster.getContext('2d');
@@ -417,9 +417,9 @@ function draw(){
   // A braced heavy keeps its slam pose and only flashes: the hit landed, the slam is still coming.
   if(e.brace>0)ctx.drawImage(tinted(img,'#fff4ee'),frame.x,frame.y,frame.w,frame.h,snap(-w/2),-w,w,w);
   ctx.restore();rect(e.x-16,e.y-h-8,32,3,'#26322e');rect(e.x-16,e.y-h-8,32*e.hp/e.max,3,e.tough?'#bd8fe0':'#ca8072');if(e.wind>0){text(e.arrow?'AIM':e.kind==='mage'?'CAST':e.tough?'SLAM':'!',e.x-(e.tough||e.arrow?14:3),e.y-h-20,12,'#ffbf80');
- if(e.arrow){}else if(e.kind==='mage'){diamond(e.x+e.face*18,e.y-24,8,'#172637');diamond(e.x+e.face*18,e.y-24,4,'#9ce6cf')}else rect(e.tough?e.x-90:e.x,e.y-3,e.tough?180:88*e.strikeDir,3,'#e58955');}
- if(e.state==='lunge'){rect(e.x-e.strikeDir*30,e.y-20,e.strikeDir*28,3,'#f1c17d')}
- if(e.state==='chase'&&e.hopCD<.1)text('•',e.x-2,e.y-h-18,10,'#caa16d');}
+ if(e.arrow){}else if(e.fly){for(let t=.2;t<1;t+=.16)rect(e.x+(e.aimX-e.x)*t-2,e.y-12+(e.aimY-e.y+12)*t-2,4,4,'#e58955');}else if(e.kind==='mage'){diamond(e.x+e.face*18,e.y-24,8,'#172637');diamond(e.x+e.face*18,e.y-24,4,'#9ce6cf')}else rect(e.tough?e.x-90:e.x,e.y-3,e.tough?180:88*e.strikeDir,3,'#e58955');}
+ if(e.state==='lunge'&&!e.fly){rect(e.x-e.strikeDir*30,e.y-20,e.strikeDir*28,3,'#f1c17d')}
+ if(e.state==='chase'&&!e.fly&&e.hopCD<.1)text('•',e.x-2,e.y-h-18,10,'#caa16d');}
  drawChainSweep();
  if(DEBUG_HITBOX)drawHitboxes();
  for(const b of world.enemyShots){if(b.arrow){drawArrow(b);continue;}diamond(b.x,b.y,10,'#111d2b');diamond(b.x,b.y,7,'#8de0cf');diamond(b.x,b.y,3,'#fff0c2');}
@@ -436,6 +436,8 @@ function draw(){
   sprite(img,x,y,w,h);
   // Hurt flash: Red's silhouette goes white, then red, for the first beat of the knockback.
   if(world.hurtTime>.24){ctx.globalAlpha=1;sprite(tinted(img,world.hurtTime>.33?'#fff4ee':'#e8434a'),x,y,w,h);}
+  // Death beat: her silhouette burns red and thins out as the scene dims.
+  else if(world.dying>0){ctx.globalAlpha=Math.min(1,world.dying/DEATH_TIME*1.6);sprite(tinted(img,'#b02a3c'),x,y,w,h);}
  }
  ctx.restore();
  if(world.transform>0)effect(world.morphFrom==='light'?'FX_lighttodark':'FX_darktolight',(1-world.transform/world.morphDuration)*36,world.x,world.y,2,world.facing);
@@ -462,7 +464,7 @@ function draw(){
  if(!reduced)for(const d of world.dust)drawDust(d);
  for(const p of world.particles)rect(p.x,p.y,3,3,'#eacd88');for(const n of world.texts)text(n.text,n.x,n.y,20,'#ffe4a2');
  // Depth foreground around the floor rather than across landing surfaces.
- ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else if(!storyFloor())drawForeground(ctx,images,cam,world,reduced);ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
+ ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else if(!storyFloor())drawForeground(ctx,images,cam,world,reduced);if(world.dying>0||world.mode==='dead'){ctx.fillStyle=`rgba(11,8,16,${(world.mode==='dead'?1:1-world.dying/DEATH_TIME)*.55})`;ctx.fillRect(0,0,960,480);}ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
 }
 function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();if(loaded){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
   while(accumulator>=1/60){const input={axis:Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),sword:keys.has('KeyJ')};if(first&&world.hitStop<=0){input.jump=edges.has('Space');input.jumpRelease=releaseJump;input.dash=edges.has('ShiftLeft')||edges.has('ShiftRight');input.play=edges.has('KeyK');input.drop=edges.has('KeyS')||edges.has('ArrowDown');for(let i=0;i<5;i++)if(edges.has('Digit'+(i+1)))input.replace=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}

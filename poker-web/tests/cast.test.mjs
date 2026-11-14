@@ -11,7 +11,7 @@ test('every roster sheet is bundled', () => {
 test('the journey dresses enemies in the whole roster and places the townsfolk', () => {
  const seen=new Set(),npcs=new Set();
  CLEARINGS.forEach((_,i)=>{const w=new World();w.reset(i);for(const e of w.enemies){assert.ok(e.skin in CAST,e.skin);seen.add(e.skin)}for(const n of w.npcs)npcs.add(n.skin)});
- for(const name of ['big_bad_wolf','rogue_hunter','forest_witch','wild_boar','forest_crow','living_tree','thorn_brambles','lost_wisp','brown_bear','forest_stag','spore_mushroom','ghost_hunter','raven','will_o_wisp','wolf_in_disguise'])assert.ok(seen.has(name),name);
+ for(const name of ['big_bad_wolf','rogue_hunter','forest_witch','wild_boar','living_tree','thorn_brambles','lost_wisp','brown_bear','forest_stag','spore_mushroom','ghost_hunter','raven','will_o_wisp','wolf_in_disguise'])assert.ok(seen.has(name),name);
  assert.deepEqual([...npcs].sort(),['grandmother','mother','woodcutter']);
 });
 test('enemy states map onto the roster rows', () => {
@@ -55,4 +55,12 @@ test('the chain sweep only hurts where the chain has passed', async () => {
  const {updateBoss}=await import('../bosses.mjs');
  updateBoss(w,.05);assert.equal(w.health,5,'the tip starts in front of him, far from Red behind');
  for(let i=0;i<8;i++)updateBoss(w,.05);assert.equal(w.health,4,'the sweep reaches Red behind him');
+});
+test('birds perch on the idle row, fly on the run row and dive on the attack row', () => {
+ const row=f=>f.y/32,bird={id:0,kind:'flyer',fly:true,flash:0};
+ assert.equal(row(castFrame({...bird,state:'idle'},0)),0);assert.equal(row(castFrame({...bird,state:'recover'},0)),0);
+ assert.equal(row(castFrame({...bird,state:'chase',aloft:true},0)),1);
+ assert.equal(row(castFrame({...bird,state:'windup',wind:.2,aloft:true},0)),2);assert.equal(row(castFrame({...bird,state:'lunge',aloft:true},0)),2);
+ const skins=i=>{const w=new World();w.reset(i);return new Set(w.enemies.filter(e=>e.fly).map(e=>e.skin));};
+ assert.deepEqual([...skins(1)],['raven']);assert.deepEqual([...skins(3)],['raven']);assert.equal(skins(0).size,0);
 });

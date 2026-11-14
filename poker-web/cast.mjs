@@ -12,13 +12,14 @@ export const CAST={
 export const castTop=skin=>CAST[skin]??0;
 // Bow and crossbow skins shoot arrows (ranged 'mage' behaviour) and draw their bow on the attack row.
 export const ARCHERS=new Set(['rogue_hunter','ghost_hunter']);
-// Each clearing dresses its enemy behaviours in local wildlife; every roster enemy appears on the journey.
-const DEFAULT={scout:['big_bad_wolf'],brute:['brown_bear'],runner:['wild_boar','forest_crow'],mage:['forest_witch','will_o_wisp'],guard:['living_tree','forest_stag']};
+// Each clearing dresses its enemy behaviours in local wildlife. Every flyer uses the raven sheet: the older
+// forest_crow sheet has no hover or dive pose and reads poorly against the dark backdrops, so it is unused.
+const DEFAULT={scout:['big_bad_wolf'],brute:['brown_bear'],runner:['wild_boar'],flyer:['raven'],mage:['forest_witch','will_o_wisp'],guard:['living_tree','forest_stag']};
 const THEMES={
  'lantern-wood':{scout:['big_bad_wolf'],mage:['rogue_hunter'],brute:['brown_bear'],runner:['wild_boar']},
- 'broken-crossing':{guard:['forest_stag'],mage:['forest_witch'],runner:['forest_crow']},
- 'moss-cavern':{runner:['raven','wild_boar'],mage:['spore_mushroom','lost_wisp'],guard:['living_tree']},
- 'ruined-chapel':{guard:['thorn_brambles','living_tree'],mage:['ghost_hunter','will_o_wisp'],runner:['raven']},
+ 'broken-crossing':{guard:['forest_stag'],mage:['forest_witch'],runner:['wild_boar']},
+ 'moss-cavern':{runner:['wild_boar'],mage:['spore_mushroom','lost_wisp'],guard:['living_tree']},
+ 'ruined-chapel':{guard:['thorn_brambles','living_tree'],mage:['ghost_hunter','will_o_wisp'],runner:['wild_boar']},
  'thorn-house':{scout:['wolf_in_disguise'],runner:['wild_boar'],mage:['forest_witch','will_o_wisp'],guard:['brown_bear','thorn_brambles']}
 };
 export function skinFor(kind,clearingId,slot=0){
@@ -29,6 +30,12 @@ function cell(tag,index){const [row,count]=ROW[tag];return {tag,x:(Math.max(0,in
 // Maps the existing enemy state machine onto the roster tags.
 export function castFrame(e,time){
  if((e.hurt||0)>0||e.state==='stagger'){const t=.32-(e.hurt||0);return cell('hit',t<.06?0:Math.min(3,1+Math.floor((t-.06)/.087)));}
+ if(e.fly){
+  // Birds perch on the idle row, fly on the run row and dive on the attack row.
+  if(e.state==='windup')return cell('attack',Math.min(1,Math.floor((1-Math.max(0,e.wind||0)/ENEMY_TYPES.flyer.wind)*2)));
+  if(e.state==='lunge')return cell('attack',2+Math.floor(time*12)%2);
+  return e.aloft?cell('run',Math.floor(time*10+(e.id||0))):cell('idle',Math.floor(time*5+(e.id||0)));
+ }
  const archer=e.kind==='mage'&&ARCHERS.has(e.skin);
  if(e.state==='windup'){
   const total=(ENEMY_TYPES[e.kind]||ENEMY_TYPES.scout).wind,progress=1-Math.max(0,e.wind||0)/total;

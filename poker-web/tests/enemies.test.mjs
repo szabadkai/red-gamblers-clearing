@@ -65,3 +65,22 @@ test('a guard braces through sword hits once its slam has begun; a played hand s
  assert.equal(e.hp,e.max-2);assert.equal(e.state,'windup');assert.ok(e.wind>0&&e.wind<wind);assert.equal(e.x,x);assert.ok(e.brace>0);assert.equal(w.deck.hits,1);
  w.play();for(let i=0;i<12;i++)w.step(1/60);assert.equal(e.hp,e.max-16);assert.equal(e.wind,0);assert.ok(e.rest>0);assert.ok(e.x>x);
 });
+test('a crow perches until it sees Red, hovers beside her, dives at where she stood and rests where it lands',()=>{
+ const w=new World();w.practiceDeal(15);const e=w.enemies[0];e.rest=0;assert.equal(e.fly,true);
+ w.x=20;tick(w,30);assert.equal(e.state,'idle');assert.equal(e.y,420);
+ w.x=200;let n=0;while(e.state!=='windup'&&n++<120)tick(w,1);
+ assert.equal(e.state,'windup');assert.deepEqual([e.x,e.y,e.aloft],[300,328,true]);assert.deepEqual([e.aimX,e.aimY],[200,420]);
+ w.x=80;n=0;while(e.state!=='recover'&&n++<90)tick(w,1);
+ assert.equal(w.health,5);assert.deepEqual([e.x,e.y,e.aloft],[200,420,false]);assert.ok(e.rest>.8);
+ w.x=160;w.facing=1;w.sword();for(let i=0;i<7;i++)w.step(1/60);assert.equal(e.hp,e.max-2);
+ const still=new World();still.practiceDeal(15);still.enemies[0].rest=0;still.x=200;tick(still,200);assert.equal(still.health,4);
+ const away=new World();away.practiceDeal(15);const b=away.enemies[0];b.rest=0;away.x=200;tick(away,60);away.x=1500;tick(away,600);
+ assert.deepEqual([b.x,b.y,b.state],[420,420,'idle']);
+});
+test('a bird killed in the air drops to the ground; flyers stay behind a closed briar gate',()=>{
+ const w=new World();w.practiceDeal(15);const e=w.enemies[0];e.y=300;e.hp=0;w.removeDead();
+ assert.equal(w.corpses[0].y,300);for(let i=0;i<30;i++)w.step(1/60);assert.equal(w.corpses[0].y,420);
+ const trail=new World();trail.reset(1);const gate=trail.gates[0].x,bird=trail.enemies.find(f=>f.fly&&f.section===1);
+ assert.ok(bird.left>gate&&bird.right<trail.gates[1].x);trail.x=gate-30;for(let i=0;i<300;i++)updateEnemies(trail,1/60);
+ assert.equal(bird.state,'idle');assert.deepEqual([bird.x,bird.y],[bird.home.x,bird.home.y]);
+});

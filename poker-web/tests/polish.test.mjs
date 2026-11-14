@@ -78,3 +78,14 @@ test('a pair or better that spends a heart card mends one heart; high cards, kic
  assert.equal(play([49,0,15,30,7],3).health,3);assert.equal(play([5,44,2,9,24],5).health,5);
  assert.equal(play([39,40,41,42,43],1).health,2);
 });
+test('the last hit plays out as a slowed death beat before the retry screen; a pit ends it at once',()=>{
+ const w=new World();w.practiceDeal(0);w.enemies=[];w.health=1;w.hurt(w.x+40);
+ assert.equal(w.health,0);assert.equal(w.mode,'playing');assert.ok(w.dying>0);
+ const x=w.x;for(let i=0;i<30;i++)w.step(1/60,{axis:1,jump:true,sword:true});
+ assert.equal(w.mode,'playing');assert.ok(w.x<x,'knocked back, input ignored');assert.equal(w.attack,0);
+ w.invincible=0;w.hurt();assert.equal(w.health,0);
+ for(let i=0;i<40;i++)w.step(1/60);assert.equal(w.mode,'dead');
+ const pit=new World();pit.practiceDeal(0);pit.health=1;pit.hurt();pit.y=600;pit.step(1/60);pit.step(1/60);pit.step(1/60);pit.step(1/60);
+ for(let i=0;i<12;i++)pit.step(1/60);assert.equal(pit.mode,'dead');assert.equal(pit.health,0);
+ w.reset();assert.equal(w.dying,0);
+});
