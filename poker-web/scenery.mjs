@@ -125,6 +125,12 @@ function drawInterior(ctx,images,cam,time,reduced,theme){
   const t=reduced?0:time,x=((i*173-cam*.32+t*3)%1000+1000)%1000;
   rect(ctx,x,150+i*23%270,2,2,cave?'#477580':'#8b7a8c');
  }
+ // Moss Cavern drips: drops fall from the roof at fixed spots (they move with the near plane) and splash.
+ if(cave)for(let i=0;i<7;i++){
+  const x=((i*157+40-cam*.9)%1100+1100)%1100-70,period=1.6+(i%3)*.5,t=reduced?.3:((time+i*.37)%period)/period;
+  if(t<.75){const y=70+t/.75*350;rect(ctx,x,y,2,6,'#83aaa0');rect(ctx,x,y,2,2,'#c2ece0');}
+  else{const s=(t-.75)/.25*10;rect(ctx,x-s,418,2,2,'#83aaa0');rect(ctx,x+s,418,2,2,'#83aaa0');rect(ctx,x-2,420,6,2,'#477077');}
+ }
 }
 export function drawBackdrop(ctx,images,cam,time,reduced,theme,width=2400){
  const viewCam=reduced?0:cam;
@@ -151,6 +157,12 @@ export function drawBackdrop(ctx,images,cam,time,reduced,theme,width=2400){
   const t=reduced?0:time,x=((i*137-viewCam*.32+t*(3+i%3))%1020+1020)%1020-30,y=120+(i*67)%260;
   ctx.globalAlpha=.2+(i%3)*.08;rect(ctx,x,y+(reduced?0:Math.sin(t*.7+i)*9),i%4===0?6:2,i%4===0?2:2,i%4===0?'#d16e58':'#ffe4a0');
  }ctx.globalAlpha=1;
+ // Lantern Wood fireflies: slow wandering lights that blink on and off near the trail.
+ if(theme==='wood')for(let i=0;i<16;i++){
+  const t=reduced?i:time,x=((i*211-viewCam*.8+Math.sin(t*.4+i)*40)%1060+1060)%1060-50,y=230+(i*53)%150+Math.sin(t*.9+i*1.7)*14;
+  if(Math.sin(t*1.3+i*2.1)<-.2)continue;
+  ctx.globalAlpha=.22;rect(ctx,x-4,y-4,10,10,'#d8f27a');ctx.globalAlpha=1;rect(ctx,x-1,y-1,4,4,'#d8f27a');rect(ctx,x,y,2,2,'#fffbd0');
+ }
 }
 export function drawForeground(ctx,images,cam,world,reduced){
  // The opening forest is already framed by its oak canopy and undergrowth.

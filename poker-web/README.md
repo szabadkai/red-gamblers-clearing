@@ -128,6 +128,9 @@ terrain sheet's bushes in dusk greens with scarlet berries (`house-bushes`, buil
 bright cartoon bush from the old forest strip, and lone warm lights (lit windows, lamps) survive the scenery
 speck cleanup. Moss Cavern's briar gates are lighter so they read against the cave.
 
+Lantern Wood has blinking fireflies near the trail and Moss Cavern has water dripping from the roof and splashing on
+the floor (Motion Off freezes both).
+
 The room inside the Wolf is a dark ribcage that breathes (Motion Off holds it still), with pieces of the rooms he
 swallowed hanging in it: the kitchen door, hearth and table, a chapel window and bell, a turning mill wheel. Its ledges
 are flesh with a bone lip. The walk home uses Lantern Wood's painted forest and grass under a dawn wash with a low sun.
