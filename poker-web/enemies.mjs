@@ -80,7 +80,9 @@ export function hintFor(e){
   e.rooted?['rooted','BRAMBLES · STAY OUT OF THE LASH OR GET BEHIND IT']:
   e.erupts?['erupts','TREE · LEAVE THE CRACKED GROUND']:
   e.rage?['rage','BEAR · IT BRACES THROUGH SWORD HITS AND ROARS AT HALF HEALTH']:
-  e.tough?['tough','HEAVY FOE · IT BRACES THROUGH SWORD HITS, DODGE THE SLAM']:null;
+  e.tough?['tough','HEAVY FOE · IT BRACES THROUGH SWORD HITS, DODGE THE SLAM']:
+  e.kind==='mage'?['shot','SHOTS CAN BE JUMPED, DASHED THROUGH OR CUT']:
+  ['basic','WATCH THE WIND-UP · DASH THROUGH THE LUNGE, THEN STRIKE'];
 }
 // Seconds a wisp spends vanishing and reforming; it moves at the halfway point and cannot be hit meanwhile.
 export const BLINK=.5;
@@ -104,7 +106,7 @@ export function updateEnemies(world,dt){
   if(wall){const side=beyond?1:-1;if((e.x-wall.x)*side<26){e.x=wall.x+side*26;if(e.air)e.airVX=0;}}
   const def=ENEMY_TYPES[e.kind]||ENEMY_TYPES[e.tough?'brute':'scout'];
   if(e.slide){e.x=clamp(e.x+e.slide*dt,e.left,e.right);e.slide*=Math.exp(-dt*14);if(Math.abs(e.slide)<5)e.slide=0;}
-  e.flash=Math.max(0,e.flash-dt);e.hurt=Math.max(0,(e.hurt||0)-dt);e.brace=Math.max(0,(e.brace||0)-dt);e.hopCD=Math.max(0,(e.hopCD||0)-dt);
+  e.flash=Math.max(0,e.flash-dt);e.dazed=Math.max(0,(e.dazed||0)-dt);e.hurt=Math.max(0,(e.hurt||0)-dt);e.brace=Math.max(0,(e.brace||0)-dt);e.hopCD=Math.max(0,(e.hopCD||0)-dt);
   if(e.air){const oldY=e.y;e.vy+=1300*dt;e.x+=e.airVX*dt;e.y+=e.vy*dt;let landing=null;
    if(e.vy>=0)for(const p of world.platforms){if(e.x+8>p.x&&e.x-8<p.x+p.w&&oldY<=p.y+.5&&e.y>=p.y&&(!landing||p.y<landing.y))landing=p}
    if(landing){e.air=false;e.y=landing.y;e.vy=0;e.surface=landing.id;e.left=landing.x+14;e.right=landing.x+landing.w-14;e.x=clamp(e.x,e.left,e.right);e.rest=.16;e.state='recover'}

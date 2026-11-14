@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {StoryWorld,STORY_SAVE_KEY,loadStory,saveStory,BOSS_DEATH} from '../story.mjs';
+import {StoryWorld,STORY_SAVE_KEY,loadStory,saveStory,BOSS_DEATH,gradeClearing,saveRecord,loadRecords,PAR} from '../story.mjs';
 import {SCENES,STAGES,arenaPlatforms} from '../story-data.mjs';
 import {bossInput} from './support/story-player.mjs';
 import {updateBoss,updateHazards} from '../bosses.mjs';
@@ -216,4 +216,16 @@ test('in phase two the Wolf lands and leaps once more at where Red has moved, wi
  n=0;while(b.state!=='recover'&&n++<200)tick(w,1);assert.equal(b.state,'recover');assert.equal(b.chained,false);assert.equal(b.y,420);
  const calm=new StoryWorld();calm.practiceDeal(14);const c=calm.boss;c.state='approach';c.timer=0;c.cycle=1;calm.x=c.x-120;calm.invincible=99;
  n=0;while(c.state!=='recover'&&n++<300)tick(calm,1);assert.equal(c.chained,false);assert.equal(calm.hazards.filter(h=>h.kind==='landing').length<=1,true);
+});
+test('a clearing is graded on hearts lost, retries and time over par; the tally survives retries and saves',()=>{
+ assert.equal(gradeClearing(0,{time:100,hurt:0,retries:0,best:1}).grade,'S');
+ assert.equal(gradeClearing(0,{time:100,hurt:2,retries:0,best:1}).grade,'A');
+ assert.equal(gradeClearing(0,{time:PAR[0]+80,hurt:2,retries:1,best:1}).grade,'C');
+ const w=new StoryWorld();w.reset(0,{phase:'boss',seen:['prologue']});w.invincible=0;w.hurt(w.x+10);w.tally.time=50;
+ w.retry();assert.deepEqual([w.tally.hurt,w.tally.retries,w.tally.time],[1,1,50]);
+ const s=storage();saveStory(s,w);const back=new StoryWorld(),saved=loadStory(s);back.reset(saved.stage,saved);assert.deepEqual(back.tally,{time:50,hurt:1,retries:1,best:-1});
+ defeat(w);assert.equal(w.storyPhase,'cleared');assert.equal(w.result.grade,'B');
+ assert.deepEqual(saveRecord(s,'lantern-wood',w.result),{better:true,faster:true,first:true});
+ assert.deepEqual(saveRecord(s,'lantern-wood',{...w.result,score:10,grade:'D',time:20}),{better:false,faster:true,first:false});
+ assert.deepEqual(loadRecords(s)['lantern-wood'],{score:w.result.score,grade:'B',time:20});
 });

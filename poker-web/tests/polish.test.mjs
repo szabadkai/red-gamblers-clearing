@@ -73,10 +73,19 @@ test('every third landed swing in a row is a heavy finisher; a pause or a hit ta
 });
 test('a pair or better that spends a heart card mends one heart; high cards, kickers and full health do not',()=>{
  const play=(cards,health)=>{const w=new World();w.practiceDeal(0);w.enemies=[];w.deck.preset(cards);w.health=health;w.play();return w;};
- assert.equal(play([5,44,2,9,24],3).health,4);assert.match(play([5,44,2,9,24],3).banner,/PAIR · \+1 HEART/);
+ assert.equal(play([5,44,2,9,24],3).health,4);assert.match(play([5,44,2,9,24],3).banner,/^PAIR · .*\+1 HEART$/);
  assert.equal(play([5,18,2,9,24],3).health,3);assert.equal(play([5,18,40,9,24],3).health,3);
  assert.equal(play([49,0,15,30,7],3).health,3);assert.equal(play([5,44,2,9,24],5).health,5);
  assert.equal(play([39,40,41,42,43],1).health,2);
+});
+test('the suits a hand spends add flavours: spades pierce, diamonds draw, clubs knock back and daze',()=>{
+ const deal=(cards,tough=false)=>{const w=new World();w.practiceDeal(0);w.enemies=[];w.deck.preset(cards);w.deck.hits=0;w.spawn(w.x+80,0,tough);if(!tough)w.spawn(w.x+150,0);w.play();for(let i=0;i<40;i++)w.step(1/60,{});return w;};
+ const spadeDiamond=deal([5,18,2,9,24]),clubHeart=deal([31,44,2,9,24]);
+ assert.equal(spadeDiamond.kills,2,'the spade pair pierces both scouts');assert.equal(clubHeart.kills,1);
+ assert.equal(spadeDiamond.deck.hits,1,'one diamond fills one notch');assert.equal(clubHeart.deck.hits,0);
+ const plain=deal([5,18,2,9,24],true),knocked=deal([31,44,2,9,24],true);
+ assert.ok(knocked.enemies[0].dazed>0&&knocked.enemies[0].rest>0,'dazed: it cannot act yet');
+ assert.ok(knocked.enemies[0].x-plain.enemies[0].x>40,'clubs knock the brute further');assert.equal(plain.enemies[0].dazed||0,0);
 });
 test('the last hit plays out as a slowed death beat before the retry screen; a pit ends it at once',()=>{
  const w=new World();w.practiceDeal(0);w.enemies=[];w.health=1;w.hurt(w.x+40);

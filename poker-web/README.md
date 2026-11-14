@@ -126,6 +126,16 @@ before). After 4 s standing still Red glances around (the pack's `look_intro` ro
 Hearts mend: playing a pair or better that spends at least one heart card restores one heart (kickers and lone
 high cards do not count, and nothing is gained at full health). The hand panel says so, the heart it would
 restore is shown dim red, and card-drop hints mark choices that would make a mending hand.
+The other suits add their own flavour the same way (`FLAVOURS` in `model.mjs`), so every pair carries two: spades make
+the bolt pierce every foe in line, each diamond spent fills a notch of the draw meter, and clubs knock foes back and
+daze them for 1.2 s (gold stars; bosses shrug it off). The hand panel lists them under the effect, the banner names
+them when played, and card-drop hints include them.
+
+Each clearing is graded S to D when its boss falls: 100 points, minus 6 per heart lost, 15 per retry and 1 per 4 s
+over par (at most 20), plus 5 for a flush or better (`gradeClearing` in `story.mjs`; par is about twice the soak bot's
+time). The tally survives retries and is saved with the story. The clearing screen shows the grade and what earned it;
+the best grade and best time per clearing are kept in `red.poker.records` and the best grade shows beside the
+clearing's name on the title screen.
 
 Thorn House's painted backdrop gets only a light dusk wash (it used to be greyed out), its undergrowth uses the
 terrain sheet's bushes in dusk greens with scarlet berries (`house-bushes`, built in `prepareScenery`) instead of the
@@ -220,6 +230,9 @@ Patches are drawn over the foreground foliage so a bush never hides a tell; the 
 green tips that push up as it runs out. Patches (`world.patches`: the hex, the roots, the cloud) share one rule: a tell owned by a foe, cancelled if that
 foe is staggered or killed first, then a harmful area. Practice has Tree, Mushroom, Ghost hunter and Bear entries.
 
+The opening is two short scenes (nine lines in all), then a lone wolf to fight: the hunter that used to share its
+ledge waits further along the first section. Plain scouts and runners get a first-time hint too ("watch the wind-up,
+dash through the lunge"), and plain casters one about dodging or cutting shots.
 On a journey, the first time each kind of foe notices Red a one-line hint names its counter (`hintFor` in
 `enemies.mjs`), and the first time Red is hurt holding a hand that would mend, a hint says so. Each hint shows once;
 the set is kept in this browser (`red.poker.hints`) and cleared by New journey. Practice never shows them.

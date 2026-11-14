@@ -1,6 +1,6 @@
 import {drawBridgeBackdrop,drawBridgeArchitecture,drawBridgeAtmosphere,drawBriarDock} from './bridge.mjs';
 import {CLEARINGS} from './journey.mjs';
-import {StoryWorld,loadStory,saveStory,BOSS_DEATH} from './story.mjs';
+import {StoryWorld,loadStory,saveStory,BOSS_DEATH,loadRecords,saveRecord} from './story.mjs';
 import {STAGES,SCENES,CAST} from './story-data.mjs';
 import {STORY_IMAGES,drawStoryActor,drawStorySet,drawStoryPortrait,bedCover} from './story-art.mjs';
 import {drawHazardArt} from './arena-art.mjs';
@@ -10,7 +10,7 @@ import {prepareScenery,drawBackdrop,drawLandmarks,drawTrailGate,drawGates,drawFo
 import {PLAYER_CLIPS,playerClip,playerFrame} from './animation.mjs';
 import {drawTerrain,drawHome} from './environment.mjs';
 import {snap,characterSize,playerOffset,castShape,shakeOffset} from './art.mjs';
-import {World,evaluate,EFFECTS,HANDS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE,DEATH_TIME} from './model.mjs';
+import {World,evaluate,flavourText,EFFECTS,HANDS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE,DEATH_TIME} from './model.mjs';
 import {CAST as ROSTER,CELL,castFrame,castTop,deathFrame,idleFrame} from './cast.mjs';
 const $=id=>document.getElementById(id),canvas=$('game'),screen=canvas.getContext('2d'),raster=document.createElement('canvas');
 raster.width=960;raster.height=540;const ctx=raster.getContext('2d');
@@ -25,6 +25,11 @@ let hintCount=0;try{for(const key of JSON.parse(storage.getItem('red.poker.hints
 try{muted=storage.getItem('red.poker.sound')==='off'}catch{}
 let savedJourney=loadStory(storage),persistedCompletion=false,lastStoryRevision=-1,lastSceneLine="",skipHeld=0,skipStarted=null;
 const defs=PLAYER_CLIPS;
+// Clearing grades: the best per clearing sits beside its name on the title trail; recorded once per result.
+let recorded=null,recordNote=null;
+const clock=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+function showRecords(){const all=loadRecords(storage);$('journey-trail').querySelectorAll('span').forEach((el,i)=>{const r=all[CLEARINGS[i].id];el.querySelector('b')?.remove();if(r){const b=document.createElement('b');b.className='grade-'+r.grade;b.textContent=r.grade;b.title=`Best ${r.grade} · fastest ${clock(r.time)}`;el.append(b)}})}
+showRecords();
 const tasks=[];
 function loadImage(key,url){tasks.push(new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>{images.set(key,image);resolve()};image.onerror=()=>reject(new Error('Could not load '+url));image.src=url}))}
 for(const form of ['light','dark'])for(const [state,[count,prefix]] of Object.entries(defs))for(let i=0;i<count;i++)loadImage(`${form}/${state}/${i}`,`./assets/${form}/${state}/${prefix}${form==='light'&&state==='attack3'?String(i).padStart(2,'0'):i}.png`);
@@ -151,7 +156,7 @@ function draftHint(card){
  const hand=world.deck.hand,candidates=hand.length<5?[[...hand,card]]:hand.map((_,slot)=>hand.map((id,i)=>i===slot?card:id));
  const best=candidates.map(evaluate).sort((a,b)=>b.tier-a.tier)[0],suit=Math.floor(card/13),suited=hand.filter(id=>Math.floor(id/13)===suit).length;
  if(suited>=2&&best.tier<=evaluate(hand).tier)return `${Math.min(5,suited+1)} ${['spades','diamonds','clubs','hearts'][suit]} available`;
- return (hand.length===5?'Best swap: ':'Hand becomes: ')+best.name+(best.heal?' · mends a heart':'');
+ const fl=flavourText(best);return (hand.length===5?'Best swap: ':'Hand becomes: ')+best.name+(fl?' · '+fl:'');
 }
 function updateDraftUI(){
  const choosing=world.mode==='drafting';$('draft-overlay').hidden=!choosing;
@@ -412,7 +417,7 @@ function updateUI(force=false){
  if($('trail-dots').dataset.stage!==trailKey){$('trail-dots').dataset.stage=trailKey;$('trail-dots').innerHTML=CLEARINGS.map((c,i)=>`<i class="${!world.practice&&i<=world.stageIndex?'lit':''}" title="${c.name}"></i>`).join('');$('trail-dots').setAttribute('aria-label',`Clearing ${world.stageIndex+1} of ${CLEARINGS.length}`);}
  const mends=started&&evaluate(world.deck.hand).heal;$('health').innerHTML=Array.from({length:5},(_,i)=>`<i class="heart ${i<world.health?'full':mends&&i===world.health?'mend':''}"></i>`).join('');$('health').setAttribute('aria-label',`${world.health} of 5 health`);$('health').classList.toggle('low',started&&world.health===1);
  $('quest').textContent=world.storyLocation==='trail'&&!world.arena?`${world.collected} / 3 embers · ${world.foesAhead} ${world.foesAhead===1?'foe':'foes'} ahead`:world.storyPhase==='inside'?`${3-world.knots.filter(k=>k.hp>0).length} / 3 knots`:world.boss?'Boss encounter':world.storyPhase==='home'?'The road is open':'Lantern lit';
- const r=evaluate(world.deck.hand);$('combo').textContent=r.name;$('effect').textContent=r.tier<0?'Land sword hits to refill':`${EFFECTS[r.tier]} · ${r.damage} damage${r.heal&&world.health<5?' · +1 heart':''}`;
+ const r=evaluate(world.deck.hand);$('combo').textContent=r.name;$('effect').textContent=r.tier<0?'Land sword hits to refill':`${EFFECTS[r.tier]} · ${r.damage} damage`;const fl=flavourText({...r,suits:r.suits.filter(s=>s<3||world.health<5)});$('flavour').textContent=fl;$('flavour').hidden=!fl;
  $('play').disabled=!started||world.mode!=='playing'||!world.deck.hand.length;
  $('draw-label').textContent=world.deck.banked?'Saved: '+cardName(world.deck.reserve):`Sword hits ${world.deck.hits} / 3`;
  $('draw-help').textContent=world.deck.banked?'1–5: replace a slot with your saved card.':world.cardDrops.length?'Touch a card drop to reveal two choices.':'Three landed swings drop one card.';
@@ -438,8 +443,13 @@ function updateUI(force=false){
    $('story-title').textContent=won?(final?'Room for one more.':'A light in the dark.'):world.mode==='dead'?'One more hand?':'By the lantern.';
    $('story-copy').textContent=won?(world.practice?'Practice complete. Your journey is safe.':final?'Grandmother is safe. The voices are free. There is enough bread to share.':'The way is clear. '+CLEARINGS[world.stageIndex+1]?.name+' lies ahead.'):world.mode==='dead'?(world.arena?'Return to the encounter with full health and a fresh hand.':'Take a fresh hand and try this clearing again.'):'Your hand and the forest will wait right here.';
    $('begin').textContent=won?(world.practice?(world.bossPractice?'Retry encounter':'Back to journey'):final?'Play a new journey':'On to '+CLEARINGS[world.stageIndex+1]?.name):world.mode==='paused'?'Back to the forest':(world.arena?'Retry encounter':'Retry clearing');
-   const clock=`${Math.floor(world.time/60)}:${String(Math.floor(world.time%60)).padStart(2,'0')}`,best=world.bestHand>=0?' · best hand: '+HANDS[world.bestHand]:'';
-   $('loading').textContent=won?`${world.kills} foes defeated · ${world.fallCount} falls · ${clock}${best}`:'P / Esc resumes · R retries this clearing';
+   const best=world.bestHand>=0?' · best hand: '+HANDS[world.bestHand]:'',r=won&&!world.practice?world.result:null;
+   $('loading').textContent=won&&!r?`${world.kills} foes defeated · ${world.fallCount} falls · ${clock(world.time)}${best}`:won?'':'P / Esc resumes · R retries this clearing';
+   $('grade').hidden=!r;
+   if(r){$('grade-letter').textContent=r.grade;$('grade-letter').className='grade-'+r.grade;
+    const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`,note=recordNote&&recorded===r&&!recordNote.first?[recordNote.better&&'NEW BEST GRADE',recordNote.faster&&'NEW BEST TIME'].filter(Boolean).join(' · '):'';
+    $('grade-line').textContent=`${plural(r.hurt,'heart')} lost · ${r.retries} ${r.retries===1?'retry':'retries'} · ${clock(r.time)} / par ${clock(r.par)}${r.best>=0?' · best hand: '+HANDS[r.best]:''}`;
+    $('grade-note').textContent=note;}
    if(won&&!persistedCompletion){persistedCompletion=true;persistJourney();}
   }
  }
@@ -532,7 +542,7 @@ function draw(){
  for(const e of world.enemies){if(e.boss||e.storyTarget){if(world.dialogue?.id!=='wolfIntro')drawStoryActor(ctx,images,e.kind,e.x,e.y,visual,{facing:e.face,state:e.state,flash:e.flash,boss:e});continue;}const img=images.get('cast/'+e.skin);const frame=castFrame(e,world.time);ctx.save();ctx.translate(snap(e.x),snap(e.y));ctx.scale(e.face,1);const {w}=characterSize(frame.w,frame.h),h=(CELL-castTop(e.skin))*2;ctx.drawImage(img,frame.x,frame.y,frame.w,frame.h,snap(-w/2),-w,w,w);
   // A braced heavy keeps its slam pose and only flashes: the hit landed, the slam is still coming.
   if(e.brace>0)ctx.drawImage(tinted(img,'#fff4ee'),frame.x,frame.y,frame.w,frame.h,snap(-w/2),-w,w,w);
-  ctx.restore();if(e.state!=='blink'&&e.hp<e.max){rect(e.x-16,e.y-h-8,32,3,'#26322e');rect(e.x-16,e.y-h-8,32*e.hp/e.max,3,e.enraged?'#e8434a':e.tough?'#bd8fe0':'#ca8072');}if(e.state==='roar')text('ROAR',e.x-16,e.y-h-20,12,'#ffbf80');if(e.wind>0){text(e.arrow?'AIM':e.kind==='mage'?(e.hexing?'HEX':e.puffing?'SPORES':'CAST'):e.erupting?'ROOTS':e.rooted?'LASH':e.tough?'SLAM':e.kind==='charger'?'CHARGE':'!',e.x-(e.kind==='charger'?22:e.tough||e.arrow?14:3),e.y-h-20,12,'#ffbf80');
+  ctx.restore();if(e.state!=='blink'&&e.hp<e.max){rect(e.x-16,e.y-h-8,32,3,'#26322e');rect(e.x-16,e.y-h-8,32*e.hp/e.max,3,e.enraged?'#e8434a':e.tough?'#bd8fe0':'#ca8072');}if(e.state==='roar')text('ROAR',e.x-16,e.y-h-20,12,'#ffbf80');if(e.dazed>0)for(let i=0;i<3;i++){const a=(reduced?0:world.time*6)+i*2.09,sx=e.x+Math.cos(a)*13,sy=e.y-h-14+Math.sin(a)*3;rect(sx-2,sy,6,2,'#f2d16b');rect(sx,sy-2,2,6,'#f2d16b');}if(e.wind>0){text(e.arrow?'AIM':e.kind==='mage'?(e.hexing?'HEX':e.puffing?'SPORES':'CAST'):e.erupting?'ROOTS':e.rooted?'LASH':e.tough?'SLAM':e.kind==='charger'?'CHARGE':'!',e.x-(e.kind==='charger'?22:e.tough||e.arrow?14:3),e.y-h-20,12,'#ffbf80');
  if(e.arrow){}else if(e.fly){for(let t=.2;t<1;t+=.16)rect(e.x+(e.aimX-e.x)*t-2,e.y-12+(e.aimY-e.y+12)*t-2,4,4,'#e58955');}else if(e.kind==='mage'){if(!e.hexing&&!e.puffing){diamond(e.x+e.face*18,e.y-24,8,(SHOT_COLORS[e.look]||SHOT_COLORS.orb)[0]);diamond(e.x+e.face*18,e.y-24,4,(SHOT_COLORS[e.look]||SHOT_COLORS.orb)[1])}}else if(e.erupting){}else if(e.rooted)rect(e.x-24*e.strikeDir,e.y-3,144*e.strikeDir,3,'#e58955');else if(e.kind==='charger')rect(e.x,e.y-3,Math.max(e.left,Math.min(e.right,e.x+e.strikeDir*300))-e.x,3,'#e58955');else rect(e.tough?e.x-90:e.x,e.y-3,e.tough?180:88*e.strikeDir,3,'#e58955');}
  if(e.state==='lunge'&&!e.fly){rect(e.x-e.strikeDir*30,e.y-20,e.strikeDir*28,3,'#f1c17d')}
  if(e.state==='chase'&&!e.fly&&e.hopCD<.1)text('•',e.x-2,e.y-h-18,10,'#caa16d');}
@@ -596,6 +606,7 @@ function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepa
  if(started&&world.mode==='cutscene')speak(dt);
  if(world.mode==='cutscene'&&skipStarted!==null){skipHeld=(now-skipStarted)/900;if(skipHeld>=1)finishDialogue(true);}
  if(started&&!world.practice&&lastStoryRevision!==world.storyRevision)persistJourney();
+ if(started&&!world.practice&&world.result&&world.result!==recorded){recorded=world.result;recordNote=saveRecord(storage,world.clearing.id,world.result);showRecords();}
  if(world.hinted.size!==hintCount){hintCount=world.hinted.size;try{storage.setItem('red.poker.hints',JSON.stringify([...world.hinted]))}catch{}}
  // Look-ahead: Red sits in the left third facing right and the right third facing left; the shift eases in slowly
  // so a quick turn to swing does not swing the view.

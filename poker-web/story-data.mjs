@@ -19,15 +19,12 @@ export const SCENES={
  prologue:scene('The empty letter','A letter without a word. A loaf still warm.',['mother','red'],[
  ['mother','Your grandmother has never sent me a short letter. This is a first.'],
  ['red','Perhaps she finally ran out of complaints.'],
- ['mother','Take her medicine, the bread, and these cards. She taught you for a reason.'],
- ['red','To beat her at cards?'],
- ['mother','Nobody beats her at cards. Home before dark. Stay by the lanterns. Find a face before you follow a voice.'],
+ ['mother','Medicine, bread, and her cards. Stay by the lanterns. Find a face before you follow a voice.'],
  ['mother',"And don't leave the crusts."],
  ['red','I know. “The crust is what holds the bread together.”']]),
  stranger:scene('The helpful stranger','A white flower. A sign pointing away from the lanterns.',['stranger','red'],[
  ['stranger','Taking supper somewhere?'],['red','Medicine. The bread is for complaints.'],
- ['stranger',"The old woman beyond the chapel, then. Her garden is lovely this time of year."],
- ['red','You know her?'],['stranger','Everyone in these woods knows your grandmother. The shorter path is over here.'],
+ ['stranger',"To your grandmother's, beyond the chapel? Everyone in these woods knows her. The shorter path is over here."],
  ['red',"Something's hurt on the lantern road. I'm going to look."]]),
  hartIntro:scene('A wounded guardian','An iron trap. Thorns wound tight around living antlers.',['red','hart'],[
  ['red',"Easy. I'm not here to hurt you."],['red',"That trap's pulling the thorns tighter. I'll have to break it loose."]]),

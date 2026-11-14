@@ -54,7 +54,10 @@ body.drafting #stage>nav{opacity:.4;pointer-events:none}
 .intro{width:72cqw;max-width:86%;border:.25cqw solid #a38e61;background:linear-gradient(140deg,#192b2bed,#0c1c23f5);box-shadow:.5cqw .5cqw #071016;padding:2.2cqw 3cqw}
 .intro>.eyebrow{color:#c6b17e;letter-spacing:.2cqw}.intro h2{color:#f0dcab;text-shadow:.2cqw .2cqw #080f17;font-size:3cqw}.intro>p{color:#c7ccb6;font-size:1.15cqw;line-height:1.8}
 body.at-title .intro h2{font-size:7cqw;letter-spacing:1cqw;line-height:1;color:#cf6562;margin:.6cqw 0}.intro .primary{background:#d8bc81;color:#152324;border-color:#f2d49b}
-#journey-trail{display:flex;justify-content:center;gap:1cqw;margin:1.5cqw 0;font-size:.7cqw;color:#b6bea1}#journey-trail i{font-style:normal;color:#a88356}#continue{margin-left:.7cqw;font-size:1.1cqw;padding:.9cqw 1.1cqw}
+#journey-trail{display:flex;justify-content:center;gap:1cqw;margin:1.5cqw 0;font-size:.7cqw;color:#b6bea1}#journey-trail i{font-style:normal;color:#a88356}#journey-trail b{margin-left:.5cqw}
+/* Clearing grade: the letter, then what earned it. S gold, A green, B blue, C/D muted. */
+#grade{display:flex;align-items:center;justify-content:center;gap:1.4cqw;margin:0 0 1.2cqw}#grade p{text-align:left;margin:0}#grade strong{display:block;color:var(--gold);font-size:.8cqw}
+#grade-letter{font-size:4.2cqw;line-height:1;text-shadow:.3cqw .3cqw #050b0e}.grade-S{color:#f2cf6b}.grade-A{color:#9fd37f}.grade-B{color:#86b8d8}.grade-C,.grade-D{color:#a69f92}#continue{margin-left:.7cqw;font-size:1.1cqw;padding:.9cqw 1.1cqw}
 #save-status{color:#b4bc9c;font-size:.7cqw}.intro footer{margin:.7cqw 0}.intro details{margin:.6cqw 0}.intro .practice{flex-wrap:wrap}body.at-title #restart{display:none}
 .draft-panel{translate:0 -3cqw}#draft-overlay{background:linear-gradient(#08141ab8 0%,#08141ab8 74%,#08141a55 74%)}
 /* Storybook framing; card artwork and its interaction targets remain unchanged. */
@@ -64,7 +67,7 @@ body.at-title .intro h2{font-size:7cqw;letter-spacing:1cqw;line-height:1;color:#
 .heart.full{background:#e64448;box-shadow:inset 3px 3px #ff8a75,inset -3px -3px #8f273a}
 #journey-hud{color:#e7cd9e;top:1.4cqw;font-size:1.05cqw;border-bottom:1px solid #9e795777;padding-bottom:.5cqw}
 #stage>nav button{background:#111c24ce;border:1px solid #75664d;box-shadow:none;color:#c7bc9f}
-.table{color:#d8c9aa}.table .eyebrow{color:#aa8f70}.hand-info h2{color:#f0d29b}.draw-info strong{color:#e0bd85}
+.table{color:#d8c9aa}.table .eyebrow{color:#aa8f70}.hand-info h2{color:#f0d29b}#flavour{color:#e3be7f}.hand-info #flavour{margin-top:-.3cqw}.draw-info strong{color:#e0bd85}
 #play{background:#592e39;border-color:#9d6c60;box-shadow:inset 1px 1px #ba8c6d}
 #pips i{background:#3e3537;border-color:#7b6654}#pips i.lit{background:#d5b176}
 /* Story dialogue replaces the hand dock while the simulation is paused. */
@@ -110,6 +113,7 @@ body.reduced #rotate .phone{animation:none;transform:rotate(-90deg)}
    carry words players need to read; boxes grow or scroll a little instead. */
 @media(pointer:coarse){
  .intro p,.intro small,details,details p,.intro summary,footer,footer p{font-size:max(1cqw,9px)!important}
+ #journey-trail{font-size:max(.7cqw,7px)}#grade strong{font-size:max(.8cqw,8px)}#grade-letter{font-size:max(4.2cqw,30px)}
  .intro .eyebrow,.hud .eyebrow,.hand-info .eyebrow,.draw-info .eyebrow{font-size:max(.8cqw,7px)}
  .intro .primary{font-size:max(1.3cqw,12px)}
  .practice button,.practice select,.practice label,#stage>nav button{font-size:max(.9cqw,9px)}

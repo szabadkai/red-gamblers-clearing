@@ -17,9 +17,15 @@ export const HANDS=['High card','Pair','Two pair','Three of a kind','Straight','
 export const DAMAGE=[6,14,20,26,32,40,52,64,90];
 export const EFFECTS=['Quick bolt','Heavy bolt','Explosive shot','Piercing lance','Piercing beam','Dark wave','Twin dark waves','Royal burst','Royal burst + wave'];
 export const SUITS=['spades','diamonds','clubs','hearts'];
+// Each suit among the cards a pair or better spends adds its flavour: spades pierce every foe in line, each diamond
+// fills a notch of the draw meter, clubs knock foes back and daze them (not bosses), hearts mend a heart.
+export const FLAVOURS=['pierces','draw','knocks back','+1 heart'];
+// Seconds a club-struck foe stays dazed.
+export const DAZE=1.2;
+export function flavourText(r){return r.suits.map(s=>s===1?`+${r.diamonds} draw`:FLAVOURS[s]).join(' · ');}
 export function cardName(id){const rank=id%13+2;return `${({11:'Jack',12:'Queen',13:'King',14:'Ace'})[rank]||rank} of ${SUITS[Math.floor(id/13)]}`;}
 export function evaluate(cards){
- if(!cards.length)return {tier:-1,name:'Empty hand',damage:0,indices:[],heal:false};
+ if(!cards.length)return {tier:-1,name:'Empty hand',damage:0,indices:[],heal:false,suits:[],diamonds:0};
  const groups=new Map();cards.forEach((c,i)=>{let r=c%13+2;if(!groups.has(r))groups.set(r,[]);groups.get(r).push(i)});
  const ranks=[...groups.keys()].sort((a,b)=>groups.get(b).length-groups.get(a).length||b-a);
  const sorted=[...ranks].sort((a,b)=>a-b),count=groups.get(ranks[0]).length;
@@ -33,8 +39,8 @@ export function evaluate(cards){
  else if(count===3){tier=3;indices=[...groups.get(ranks[0])]}
  else if(count===2){tier=1;indices=[...groups.get(ranks[0])];if(groups.get(ranks[1])?.length===2){tier=2;indices.push(...groups.get(ranks[1]))}}
  if([4,5,6,8].includes(tier))indices=cards.map((_,i)=>i);
- // Hearts mend: a pair or better heals one heart when a heart is among the cards it spends.
- return {tier,name:HANDS[tier],damage:DAMAGE[tier],indices,heal:tier>=1&&indices.some(i=>Math.floor(cards[i]/13)===3)};
+ const spent=tier>=1?indices.map(i=>Math.floor(cards[i]/13)):[],suits=[...new Set(spent)].sort();
+ return {tier,name:HANDS[tier],damage:DAMAGE[tier],indices,heal:suits.includes(3),suits,diamonds:spent.filter(s=>s===1).length};
 }
 export class Deck{
  constructor(random=Math.random){this.random=random;this.reset()}
@@ -79,6 +85,8 @@ export class World{
   this.cardDrops=[];this.activeDraft=null;this.lastPicked=null;this.dying=0;this.combo=0;this.comboTime=0;
   this.platforms=platformsFor(stageIndex);this.embers=this.clearing.embers.map(([x,y])=>({x,y}));this.collected=0;
   this.checkpoint={x:60,y:420};this.checkpointId=0;this.mode='playing';this.practice=false;this.kills=0;this.bestHand=-1;
+  // tally: the whole clearing for its grade; unlike time, kills and bestHand it survives retries.
+  this.tally={time:0,hurt:0,retries:0,best:-1};
   this.impacts=[];this.corpses=[];this.bolts=[];this.enemyShots=[];this.patches=[];this.rings=[];this.texts=[];this.particles=[];this.dust=[];this.events=[];this.banner='';this.bannerTime=0;this.nextId=0;
   this.npcs=(this.clearing.npcs||[]).map(([x,s,skin,line])=>({x,y:this.platforms[s].y,skin,line}));
   this.enemies=[];
@@ -88,7 +96,7 @@ export class World{
   if(this.mode!=='won'||this.practice||this.stageIndex>=CLEARINGS.length-1)return false;
   this.reset(this.stageIndex+1);this.banner=this.clearing.name.toUpperCase();this.bannerTime=2.8;return true;
  }
- retry(){const open=this.gates.filter(g=>g.open).length,left=this.embers;this.reset(this.stageIndex);this.resume(open,left);}
+ retry(){const open=this.gates.filter(g=>g.open).length,left=this.embers,tally=this.tally;this.reset(this.stageIndex);this.resume(open,left);this.tally=tally;tally.retries++;}
  // A retry on the trail returns to the last opened gate; the sections behind it stay cleared.
  resume(open,embers){
   if(!open)return;
@@ -174,11 +182,13 @@ export class World{
   this.activeDraft=null;this.mode='playing';
  }
  suppressNearbyDrops(){for(const drop of this.cardDrops)if(Math.abs(drop.x-this.x)<32&&Math.abs(drop.y-this.y)<40)drop.blocked=true;}
- play(){if(this.cast>0||!this.deck.hand.length||this.mode!=='playing')return;const r=this.deck.play();this.bestHand=Math.max(this.bestHand??-1,r.tier);this.cast=.36;this.banner=r.name.toUpperCase();this.bannerTime=1.5;this.emit('attack3');
+ play(){if(this.cast>0||!this.deck.hand.length||this.mode!=='playing')return;const r=this.deck.play();this.bestHand=Math.max(this.bestHand??-1,r.tier);this.tally.best=Math.max(this.tally.best,r.tier);this.cast=.36;this.banner=r.name.toUpperCase();this.bannerTime=1.5;this.emit('attack3');
+  if(r.suits.some(s=>s<3)){this.banner+=' · '+flavourText({...r,suits:r.suits.filter(s=>s<3)}).toUpperCase();this.bannerTime=2;}
   if(r.heal&&this.health<5){this.health++;this.banner+=' · +1 HEART';this.bannerTime=2;this.emit('pickup_essence');}
+  for(let i=0;i<r.diamonds;i++){const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,{x:this.x+this.facing*40,y:this.y});this.emit('meter_full');}}
   if(r.tier>=5){if(this.dark<=0)this.startMorph('light',.75);this.dark=6;this.invincible=Math.max(this.invincible,.75);this.emit('transform_dark')}
   this.castForm=this.dark>0?'dark':'light';this.castFacing=this.facing;
-  const impact={tier:r.tier,spent:false};
+  const impact={tier:r.tier,spent:false,pierce:r.suits.includes(0),knock:r.suits.includes(2)};
   if(r.tier>=7)this.blast(this.x,this.y-22,270,r.damage,true,impact);
   if(r.tier<7||r.tier===8)this.fire(r,this.facing,impact);
   if(r.tier===6)this.fire(r,-this.facing,impact);this.removeDead();
@@ -192,7 +202,8 @@ export class World{
   this.shakePower=frames*2-2;this.shakeDuration=.1+frames*.025;this.shakeTime=this.shakeDuration;
  }
  fire(r,dir,impact){this.bolts.push({x:this.x+dir*20,y:this.y-23,dir,damage:r.damage,tier:r.tier,life:1.5,hit:new Set(),impact})}
- blast(x,y,radius,damage,dark=false,impact=null){this.rings.push({x,y,radius,dark,life:.45});for(const e of this.enemies){const box=e.boss&&bossBox(e);if(box?Math.hypot(clamp(x,box.x0,box.x1)-x,clamp(y,box.y0,box.y1)-y)<=radius:Math.hypot(e.x-x,e.y-22-y)<=radius){this.damage(e,damage,Math.sign(e.x-x)*40);this.pokerImpact(impact,e.hp<=0)}}}
+ blast(x,y,radius,damage,dark=false,impact=null){this.rings.push({x,y,radius,dark,life:.45});for(const e of this.enemies){const box=e.boss&&bossBox(e);if(box?Math.hypot(clamp(x,box.x0,box.x1)-x,clamp(y,box.y0,box.y1)-y)<=radius:Math.hypot(e.x-x,e.y-22-y)<=radius){if(this.damage(e,damage,Math.sign(e.x-x)*40)!==false&&impact?.knock)this.knockBack(e,Math.sign(e.x-x)||this.facing);this.pokerImpact(impact,e.hp<=0)}}}
+ knockBack(e,dir){if(e.boss||e.storyTarget||e.hp<=0||e.state==='blink')return;e.slide=(e.slide||0)+dir*90*SLIDE;e.rest=Math.max(e.rest||0,DAZE);e.dazed=DAZE;}
  damage(e,amount,push,sword=false){if(this.wall&&e.x>this.wall.x||e.state==='blink')return false;e.hp-=amount;e.flash=.15;
   // A brute or guard that has begun its slam, and a stag rearing or charging, braces through sword hits;
   // only a played hand breaks it.
@@ -204,7 +215,7 @@ export class World{
    // A bird killed in the air drops to the ground below it.
    const floor=Math.min(...this.platforms.filter(p=>e.x>=p.x&&e.x<=p.x+p.w&&p.y>=e.y-1).map(p=>p.y),e.fly?Infinity:e.y);
    this.corpses.push({kind:e.kind,skin:e.skin,x:e.x,y:e.y,floor:Number.isFinite(floor)?floor:e.y,face:e.face,life:CORPSE_LIFE});}this.kills+=this.enemies.filter(e=>e.hp<=0).length;this.enemies=this.enemies.filter(e=>e.hp>0)}
- hurt(fromX){if(this.invincible>0||this.dying>0)return;this.health--;this.invincible=1;this.combo=0;this.emit('player_hurt');
+ hurt(fromX){if(this.invincible>0||this.dying>0)return;this.health--;this.tally.hurt++;this.invincible=1;this.combo=0;this.emit('player_hurt');
   const dir=fromX===undefined?-this.facing:Math.sign(this.x-fromX)||-this.facing;
   this.vx=dir*320;this.vy=Math.min(this.vy,-250);this.grounded=false;this.dash=0;this.knock=.3;this.hurtTime=.4;
   this.hitStop=Math.max(this.hitStop,.05);this.shakePower=4;this.shakeDuration=.18;this.shakeTime=.18;
@@ -216,7 +227,7 @@ export class World{
   if(this.hitStop>0){this.hitStop=Math.max(0,this.hitStop-dt-1e-9);return;}
   // Death beat: Red's fall plays out slowed and out of the player's hands; nothing can hurt her again.
   if(this.dying>0){this.dying=Math.max(0,this.dying-dt);if(!this.dying){this.mode='dead';return;}dt*=.4;input={};}
-  this.time+=dt;const wasDark=this.dark>0;
+  this.time+=dt;this.tally.time+=dt;const wasDark=this.dark>0;
   for(const key of ['invincible','dash','dashCD','attack','cast','dark','transform','land','drop','buffer','bannerTime','knock','hurtTime','comboTime'])this[key]=Math.max(0,this[key]-dt);
   if(wasDark&&this.dark===0)this.startMorph('dark',.6);
   const knocked=this.knock>0;
@@ -245,7 +256,7 @@ export class World{
   if(!this.practice&&this.health<5&&this.bannerTime<=0&&!this.hinted.has('heal')&&evaluate(this.deck.hand).heal){this.hinted.add('heal');this.banner='HEARTS MEND · PLAY THIS HAND TO HEAL';this.bannerTime=3.2;}
   for(const b of this.bolts){let old=b.x;b.x+=b.dir*680*dt;b.life-=dt;if(this.wall&&b.x>this.wall.x-8){b.life=0;continue}for(const e of this.enemies){const box=e.boss&&bossBox(e),lo=Math.min(old,b.x),hi=Math.max(old,b.x),reach=b.tier>=5?65:30;
    const miss=box?hi+6<box.x0||lo-6>box.x1||b.y<box.y0-reach/2||b.y>box.y1+4:e.x<lo-22||e.x>hi+22||Math.abs(e.y-23-b.y)>reach;
-   if(miss||b.hit.has(e.id))continue;b.hit.add(e.id);if(b.tier===2)this.blast(e.x,e.y-22,100,b.damage,false,b.impact);else{this.damage(e,b.damage,b.dir*(30+b.tier*5));this.pokerImpact(b.impact,e.hp<=0)}if(b.tier<3){b.life=0;break}}}
+   if(miss||b.hit.has(e.id))continue;b.hit.add(e.id);if(b.tier===2)this.blast(e.x,e.y-22,100,b.damage,false,b.impact);else{if(this.damage(e,b.damage,b.dir*(30+b.tier*5))!==false&&b.impact?.knock)this.knockBack(e,b.dir);this.pokerImpact(b.impact,e.hp<=0)}if(b.tier<3&&!b.impact?.pierce){b.life=0;break}}}
   this.bolts=this.bolts.filter(b=>b.life>0);this.removeDead();
   for(const r of this.impacts)r.life-=dt;this.impacts=this.impacts.filter(r=>r.life>0);
   for(const r of this.corpses){r.life-=dt;if(r.y<r.floor)r.y=Math.min(r.floor,r.y+500*dt);}this.corpses=this.corpses.filter(r=>r.life>0);
