@@ -103,6 +103,7 @@ export function updateEnemies(world,dt){
   const beyond=wall&&e.section>held;
   if(wall){const side=beyond?1:-1;if((e.x-wall.x)*side<26){e.x=wall.x+side*26;if(e.air)e.airVX=0;}}
   const def=ENEMY_TYPES[e.kind]||ENEMY_TYPES[e.tough?'brute':'scout'];
+  if(e.slide){e.x=clamp(e.x+e.slide*dt,e.left,e.right);e.slide*=Math.exp(-dt*14);if(Math.abs(e.slide)<5)e.slide=0;}
   e.flash=Math.max(0,e.flash-dt);e.hurt=Math.max(0,(e.hurt||0)-dt);e.brace=Math.max(0,(e.brace||0)-dt);e.hopCD=Math.max(0,(e.hopCD||0)-dt);
   if(e.air){const oldY=e.y;e.vy+=1300*dt;e.x+=e.airVX*dt;e.y+=e.vy*dt;let landing=null;
    if(e.vy>=0)for(const p of world.platforms){if(e.x+8>p.x&&e.x-8<p.x+p.w&&oldY<=p.y+.5&&e.y>=p.y&&(!landing||p.y<landing.y))landing=p}

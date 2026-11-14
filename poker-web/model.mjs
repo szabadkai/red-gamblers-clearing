@@ -11,6 +11,8 @@ export const DUST_LIFE=.3;
 export const COMBO_WINDOW=1.1;
 // The last hit plays out in slow motion for this long before the retry screen.
 export const DEATH_TIME=.9;
+// A knocked-back foe slides: its push becomes a velocity that dies away in about a fifth of a second.
+export const SLIDE=14;
 export const HANDS=['High card','Pair','Two pair','Three of a kind','Straight','Flush','Full house','Four of a kind','Straight flush'];
 export const DAMAGE=[6,14,20,26,32,40,52,64,90];
 export const EFFECTS=['Quick bolt','Heavy bolt','Explosive shot','Piercing lance','Piercing beam','Dark wave','Twin dark waves','Royal burst','Royal burst + wave'];
@@ -195,7 +197,7 @@ export class World{
   // A brute or guard that has begun its slam, and a stag rearing or charging, braces through sword hits;
   // only a played hand breaks it.
   const charging=e.kind==='charger'&&(e.state==='windup'||e.state==='lunge');
-  if(sword&&(charging||e.tough&&e.state==='windup')){e.brace=.15;if(this.bannerTime<=0){this.banner=charging?'IT WON\'T FLINCH · JUMP THE CHARGE':'IT BRACES · STEP BACK, STRIKE AFTER THE SLAM';this.bannerTime=1.8;}}else{e.x=clamp(e.x+push,e.left,e.right);e.wind=0;e.rest=.22;e.hurt=HIT_TIME;e.state='stagger';}
+  if(sword&&(charging||e.tough&&e.state==='windup')){e.brace=.15;if(this.bannerTime<=0){this.banner=charging?'IT WON\'T FLINCH · JUMP THE CHARGE':'IT BRACES · STEP BACK, STRIKE AFTER THE SLAM';this.bannerTime=1.8;}}else{e.slide=(e.slide||0)+push*SLIDE;e.wind=0;e.rest=.22;e.hurt=HIT_TIME;e.state='stagger';}
   this.texts.push({x:e.x,y:e.y-55,text:String(amount),life:.7});this.impacts.push({x:e.x,y:e.y-25,amount,life:.25,knockout:e.hp<=0});
   for(let i=0;i<7;i++)this.particles.push({x:e.x,y:e.y-22,vx:Math.cos(i*2.4)*90,vy:-40-i*12,life:.4});}
  removeDead(){if(this.enemies.some(e=>e.hp<=0))this.emit('enemy_death');for(const e of this.enemies)if(e.hp<=0){

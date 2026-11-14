@@ -266,7 +266,8 @@ The ghost hunter, spore mushroom and will-o'-wisp use `_small` sheets (24, 16 an
 made like the other small sheets by deleting repeated rows and columns (`sources/lrrh_sprites/shrink/`).
 Bowmen (rogue hunter, ghost hunter) use the ranged behaviour: they draw on the attack row and loose arrows.
 Mother, the woodcutter and Grandmother stand at the start of the first two clearings and by the hearth,
-and speak a line when Red is near. Enemy run cycles advance with distance travelled, so slow patrols walk and fast foes race. Hitboxes and balance are unchanged.
+and speak a line when Red is near. A hit foe slides back over about a fifth of a second instead of jumping there, and foes show a health bar only once
+hurt. Enemy run cycles advance with distance travelled, so slow patrols walk and fast foes race. Hitboxes and balance are unchanged.
 
 Story bosses (Briar Hart, Tollkeeper, Bell Widow) use 48×48 sheets in `assets/bosses/`; the Wolf is the roster's
 own `big_bad_wolf` sheet. The boss sheets are drawn with
