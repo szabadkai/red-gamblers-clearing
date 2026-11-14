@@ -64,3 +64,12 @@ test('birds perch on the idle row, fly on the run row and dive on the attack row
  const skins=i=>{const w=new World();w.reset(i);return new Set(w.enemies.filter(e=>e.fly).map(e=>e.skin));};
  assert.deepEqual([...skins(1)],['raven']);assert.deepEqual([...skins(3)],['raven']);assert.equal(skins(0).size,0);
 });
+test('stags charge on their special row; wisps cast on the attack row and blink on the special row', () => {
+ const row=f=>f.y/32;
+ assert.equal(row(castFrame({id:0,kind:'charger',skin:'forest_stag',state:'lunge',flash:0},0)),3);
+ assert.equal(row(castFrame({id:0,kind:'charger',skin:'forest_stag',state:'windup',wind:.3,flash:0},0)),2);
+ const wisp={id:0,kind:'mage',skin:'will_o_wisp',flash:0};
+ assert.equal(row(castFrame({...wisp,state:'windup',wind:.4},0)),2);assert.equal(row(castFrame({...wisp,state:'blink',action:.2},0)),3);
+ const w=new World();w.reset(1);assert.equal(w.enemies.filter(e=>e.kind==='charger').length,4);assert.ok(w.enemies.filter(e=>e.kind==='charger').every(e=>e.skin==='forest_stag'));
+ const cave=new World();cave.reset(2);assert.ok(cave.enemies.some(e=>e.blink));
+});

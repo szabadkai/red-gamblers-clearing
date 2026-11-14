@@ -1,6 +1,6 @@
 import {updateEnemies,updateEnemyShots,ENEMY_TYPES} from './enemies.mjs';
 import {CLEARINGS,TRAIL_WIDTH,platformsFor} from './journey.mjs';
-import {skinFor,ARCHERS} from './cast.mjs';
+import {skinFor,ARCHERS,BLINKERS} from './cast.mjs';
 import {bossBox} from './bosses.mjs';
 export const CORPSE_LIFE=1.2;
 // Enemy hit reaction: a white flash, then the hit row, readable at the game's speed.
@@ -112,8 +112,12 @@ export class World{
  spawn(x,s,type=false){const platform=this.platforms[s];if(!platform)return;const kind=typeof type==='string'?type:type?'brute':'scout',def=ENEMY_TYPES[kind];if(!def)return;const tough=kind==='brute'||kind==='guard',section=this.gates.filter(g=>g.x<x).length;const slot=this.enemies.filter(e=>e.kind===kind).length,skin=skinFor(kind,this.clearing.id,slot);
   // Flyers roam their whole gated section and remember the perch they started on.
   const fly=kind==='flyer',from=this.gates[section-1]?.x,to=this.gates[section]?.x,roam=fly?{fly,home:{x,y:platform.y},left:from===undefined?16:from+26,right:to===undefined?this.width-16:to-26}:{left:platform.x+16,right:platform.x+platform.w-16};
-  this.enemies.push({id:this.nextId++,kind,skin,section,arrow:ARCHERS.has(skin),x,y:platform.y,...roam,hp:def.hp,max:def.hp,tough,wind:0,rest:.3,flash:0,walk:0,face:-1,state:'patrol',surface:s,patrolDir:this.nextId%2?1:-1,air:false,airVX:0,vy:0,hopCD:0,action:0,strikeDir:-1,connected:false})}
- practiceDeal(kind){const flyer=kind===15;if(flyer)kind=4;if(kind>=7){this.reset(kind===9?1:kind===7?2:3);this.practice=true;this.banner='EXPLORE · '+this.clearing.name.toUpperCase();this.bannerTime=3;return;}this.reset();this.practice=true;this.arena=true;this.width=WIDTH;this.gates=[];this.platforms=[{id:0,x:0,y:420,w:2400,ground:true}];this.embers=[];this.npcs=[];this.x=180;this.enemies=[];this.deck.preset([[5,18,2,9,24],[0,2,5,8,11],[5,18,31,44,8]][kind]||[5,18,2,9,24]);for(let i=0;i<3;i++)this.spawn(300+i*100,0,i===2);this.banner='PRACTICE · '+evaluate(this.deck.hand).name;this.bannerTime=2;if(kind===3){this.deck.pile=this.deck.pile.filter(c=>c!==31&&c!==12);this.deck.pile.push(12,31);this.deck.hit();this.deck.hit();this.spawnCardDrop(this.deck.hit(),{x:240,y:420});this.banner='TOUCH THE CARD · CHOOSE YOUR DRAW'}if(kind>=4){this.enemies=[];this.spawn(flyer?420:330,0,flyer?'flyer':['runner','mage','guard'][kind-4]);this.banner=flyer?'CROW · SIDESTEP THE DIVE, STRIKE WHERE IT LANDS':['GOBLIN RUNNER · DODGE THE LUNGE','LANTERN MAGE · JUMP OR SLASH ITS SHOT','IRON GUARD · BAIT THE SLAM'][kind-4];this.bannerTime=4;}}
+  this.enemies.push({id:this.nextId++,kind,skin,section,arrow:ARCHERS.has(skin),blink:BLINKERS.has(skin),x,y:platform.y,...roam,hp:def.hp,max:def.hp,tough,wind:0,rest:.3,flash:0,walk:0,face:-1,state:'patrol',surface:s,patrolDir:this.nextId%2?1:-1,air:false,airVX:0,vy:0,hopCD:0,action:0,strikeDir:-1,connected:false})}
+ practiceDeal(kind){
+  // Extra single-foe practices: [behaviour, spawn x, banner, skin]
+  const extra={15:['flyer',420,'CROW · SIDESTEP THE DIVE, STRIKE WHERE IT LANDS'],16:['charger',520,'STAG · JUMP THE CHARGE, STRIKE WHILE IT RECOVERS'],17:['mage',400,'WISP · CATCH IT BEFORE IT BLINKS AWAY','will_o_wisp']}[kind];if(extra)kind=4;
+  if(kind>=7){this.reset(kind===9?1:kind===7?2:3);this.practice=true;this.banner='EXPLORE · '+this.clearing.name.toUpperCase();this.bannerTime=3;return;}this.reset();this.practice=true;this.arena=true;this.width=WIDTH;this.gates=[];this.platforms=[{id:0,x:0,y:420,w:2400,ground:true}];this.embers=[];this.npcs=[];this.x=180;this.enemies=[];this.deck.preset([[5,18,2,9,24],[0,2,5,8,11],[5,18,31,44,8]][kind]||[5,18,2,9,24]);for(let i=0;i<3;i++)this.spawn(300+i*100,0,i===2);this.banner='PRACTICE · '+evaluate(this.deck.hand).name;this.bannerTime=2;if(kind===3){this.deck.pile=this.deck.pile.filter(c=>c!==31&&c!==12);this.deck.pile.push(12,31);this.deck.hit();this.deck.hit();this.spawnCardDrop(this.deck.hit(),{x:240,y:420});this.banner='TOUCH THE CARD · CHOOSE YOUR DRAW'}if(kind>=4){this.enemies=[];this.spawn(extra?extra[1]:330,0,extra?extra[0]:['runner','mage','guard'][kind-4]);this.banner=extra?extra[2]:['GOBLIN RUNNER · DODGE THE LUNGE','LANTERN MAGE · JUMP OR SLASH ITS SHOT','IRON GUARD · BAIT THE SLAM'][kind-4];
+   if(extra?.[3])Object.assign(this.enemies[0],{skin:extra[3],arrow:ARCHERS.has(extra[3]),blink:BLINKERS.has(extra[3])});this.bannerTime=4;}}
  emit(type){this.events.push(type)}
  puff(kind){this.dust.push({x:this.x,y:this.y,dir:this.facing,kind,life:DUST_LIFE})}
  jump(){this.buffer=.14;this.tryJump()}
@@ -184,9 +188,11 @@ export class World{
  }
  fire(r,dir,impact){this.bolts.push({x:this.x+dir*20,y:this.y-23,dir,damage:r.damage,tier:r.tier,life:1.5,hit:new Set(),impact})}
  blast(x,y,radius,damage,dark=false,impact=null){this.rings.push({x,y,radius,dark,life:.45});for(const e of this.enemies){const box=e.boss&&bossBox(e);if(box?Math.hypot(clamp(x,box.x0,box.x1)-x,clamp(y,box.y0,box.y1)-y)<=radius:Math.hypot(e.x-x,e.y-22-y)<=radius){this.damage(e,damage,Math.sign(e.x-x)*40);this.pokerImpact(impact,e.hp<=0)}}}
- damage(e,amount,push,sword=false){if(this.wall&&e.x>this.wall.x)return false;e.hp-=amount;e.flash=.15;
-  // A brute or guard that has begun its slam braces through sword hits; only a played hand breaks it.
-  if(sword&&e.tough&&e.state==='windup'){e.brace=.15;if(this.bannerTime<=0){this.banner='IT BRACES · STEP BACK, STRIKE AFTER THE SLAM';this.bannerTime=1.8;}}else{e.x=clamp(e.x+push,e.left,e.right);e.wind=0;e.rest=.22;e.hurt=HIT_TIME;e.state='stagger';}
+ damage(e,amount,push,sword=false){if(this.wall&&e.x>this.wall.x||e.state==='blink')return false;e.hp-=amount;e.flash=.15;
+  // A brute or guard that has begun its slam, and a stag rearing or charging, braces through sword hits;
+  // only a played hand breaks it.
+  const charging=e.kind==='charger'&&(e.state==='windup'||e.state==='lunge');
+  if(sword&&(charging||e.tough&&e.state==='windup')){e.brace=.15;if(this.bannerTime<=0){this.banner=charging?'IT WON\'T FLINCH · JUMP THE CHARGE':'IT BRACES · STEP BACK, STRIKE AFTER THE SLAM';this.bannerTime=1.8;}}else{e.x=clamp(e.x+push,e.left,e.right);e.wind=0;e.rest=.22;e.hurt=HIT_TIME;e.state='stagger';}
   this.texts.push({x:e.x,y:e.y-55,text:String(amount),life:.7});this.impacts.push({x:e.x,y:e.y-25,amount,life:.25,knockout:e.hp<=0});
   for(let i=0;i<7;i++)this.particles.push({x:e.x,y:e.y-22,vx:Math.cos(i*2.4)*90,vy:-40-i*12,life:.4});}
  removeDead(){if(this.enemies.some(e=>e.hp<=0))this.emit('enemy_death');for(const e of this.enemies)if(e.hp<=0){

@@ -84,3 +84,22 @@ test('a bird killed in the air drops to the ground; flyers stay behind a closed 
  assert.ok(bird.left>gate&&bird.right<trail.gates[1].x);trail.x=gate-30;for(let i=0;i<300;i++)updateEnemies(trail,1/60);
  assert.equal(bird.state,'idle');assert.deepEqual([bird.x,bird.y],[bird.home.x,bird.home.y]);
 });
+test('a stag rears, then charges along its ledge: it can be jumped, will not flinch from the sword, and a hand stops it',()=>{
+ const setup=()=>{const w=new World();w.practiceDeal(16);const e=w.enemies[0];e.rest=0;let n=0;while(e.state!=='windup'&&n++<200)tick(w,1);return [w,e];};
+ let [w,e]=setup();assert.equal(e.kind,'charger');assert.equal(e.skin,'forest_stag');assert.equal(e.state,'windup');assert.ok(w.x-e.x>-221&&e.wind>.6);
+ const from=e.x;let n=0;while(e.state!=='recover'&&n++<120)tick(w,1);assert.equal(w.health,4);assert.ok(from-e.x>250);assert.ok(e.rest>1);
+ [w,e]=setup();n=0;while(e.state!=='lunge'&&n++<60)tick(w,1);w.y=360;while(e.state!=='recover'&&n++<200)tick(w,1);assert.equal(w.health,5);
+ [w,e]=setup();w.x=e.x-50;w.sword();for(let i=0;i<7;i++)w.step(1/60);assert.equal(e.hp,e.max-2);assert.equal(e.state,'windup');assert.ok(e.brace>0);
+ w.play();for(let i=0;i<12;i++)w.step(1/60);assert.equal(e.hp,e.max-16);assert.equal(e.wind,0);assert.notEqual(e.state,'lunge');
+ [w,e]=setup();e.x=e.left+40;w.x=e.x-30;n=0;while(e.state!=='recover'&&n++<120)tick(w,1);assert.equal(e.x,e.left);
+});
+test('a wisp casts, then blinks past Red when she closes in; it cannot be hit mid-blink and casts before it blinks again',()=>{
+ const w=new World();w.practiceDeal(17);const e=w.enemies[0];e.rest=0;assert.equal(e.blink,true);
+ let n=0;while(!w.enemyShots.length&&n++<120)tick(w,1);assert.equal(w.enemyShots.length,1);
+ w.x=300;n=0;while(e.state!=='blink'&&n++<200)tick(w,1);assert.equal(e.state,'blink');assert.equal(e.x,400);
+ const hp=e.hp;w.facing=1;w.sword();for(let i=0;i<7;i++)w.step(1/60);assert.equal(e.hp,hp);assert.equal(w.deck.hits,0);
+ n=0;while(e.state==='blink'&&n++<60)tick(w,1);assert.equal(e.x,110);assert.equal(e.y,420);
+ w.x=150;tick(w,1);assert.equal(e.state,'windup');
+ const far=new World();far.practiceDeal(17);const f=far.enemies[0];f.rest=0;tick(far,400);assert.equal(f.x,400);assert.ok(far.enemyShots.length>=0&&f.state!=='blink');
+ const boxed=new World();boxed.practiceDeal(17);boxed.platforms=[{id:0,x:150,y:420,w:300,ground:true}];const b=boxed.enemies[0];b.rest=0;b.left=166;b.right=434;b.cast=true;boxed.x=320;tick(boxed,1);assert.equal(b.state,'windup');
+});

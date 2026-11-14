@@ -155,6 +155,16 @@ gated section, return to their perch when Red is out of sight, and fall to the g
 Thirteen former ground runners on the Huntsman's Bridge, in Moss Cavern and in the Ruined Chapel are now flyers;
 the remaining runners there are boars. Practice has a Crow entry.
 
+Stags charge (`charger`, 30 HP): from up to 220 away on Red's ledge a stag rears for 0.7 s (attack row, a line on
+the ground shows the run), then charges up to 300 along the ledge on its special row and stops where the ledge
+ends. Jump it or dash through it. It does not flinch from sword hits while rearing or charging (a played hand stops
+it) and is open for 1.1 s afterwards. Four of the five guards on the Huntsman's Bridge are now charging stags.
+
+Wisps (`will_o_wisp`, `lost_wisp`; still `mage` behaviour) cast on their attack row. Once a wisp has cast, if Red is
+within 170 when it is next free to act it blinks instead: 0.5 s on its special row, during which it cannot be hit,
+reappearing 190 past her on a ledge near hers. It always casts again before it can blink again, so the opening is
+the 1.35 s after a shot. Practice has Stag and Wisp entries.
+
 The environment reuses the generated forest and stone from the earlier Red web
 prototype. Generated
 paintings are reduced once and then drawn into the same 480×270 raster as the
