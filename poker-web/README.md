@@ -108,7 +108,8 @@ Each is 4800 units long, in four sections closed off by briar gates. A gate open
 before it has fallen and restores one heart; foes behind a closed gate stay dormant and cannot be hit.
 Collect three embers in each, clear the last section, and reach its lantern. Retrying after a death
 returns to the last opened gate with the earlier sections still cleared. Checkpoint posts preserve your
-position after pits (falling costs a heart). Movement uses fixed 60 Hz updates,
+position after pits (falling costs a heart). The camera looks ahead: Red sits in the left third facing right and the right third facing left. It only shifts after
+she has faced one way for 0.4 s and then eases over about a second, so quick turns to swing don't move the view. Movement uses fixed 60 Hz updates,
 120 ms coyote time, a 140 ms jump buffer, variable jump height, ground/air
 acceleration, and a brief invulnerable dash. Blur or hiding the tab pauses and
 clears input. Progress saves at clearing entrances and at every opened briar gate in this browser. Continue returns to the

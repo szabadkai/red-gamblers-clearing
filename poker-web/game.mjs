@@ -16,7 +16,7 @@ const $=id=>document.getElementById(id),canvas=$('game'),screen=canvas.getContex
 raster.width=960;raster.height=540;const ctx=raster.getContext('2d');
 const world=new StoryWorld(),keys=new Set(),edges=new Set();let releaseJump=false,started=false,loaded=false,muted=false;
 let reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,cam=0,accumulator=0,last=0,visual=0,hover=-1,toast='';
-let previousMode='ready',lastHand='',formClock=0,lastAnim='',cameraSnap=true,lastDraft=null;
+let camLead=340,leadFacing=1,facingFor=9,settledFacing=1,previousMode='ready',lastHand='',formClock=0,lastAnim='',cameraSnap=true,lastDraft=null;
 const images=new Map(),cards=new Map();
 const storage={getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)};
 // Advice already shown stays shown across visits; a new journey shows it again.
@@ -593,13 +593,18 @@ function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepa
  if(world.mode==='cutscene'&&skipStarted!==null){skipHeld=(now-skipStarted)/900;if(skipHeld>=1)finishDialogue(true);}
  if(started&&!world.practice&&lastStoryRevision!==world.storyRevision)persistJourney();
  if(world.hinted.size!==hintCount){hintCount=world.hinted.size;try{storage.setItem('red.poker.hints',JSON.stringify([...world.hinted]))}catch{}}
- const target=Math.max(0,Math.min((world.worldWidth||WIDTH)-960,world.x-340));cam=cameraSnap?target:cam+(target-cam)*(1-Math.exp(-dt*8));cameraSnap=false;
+ // Look-ahead: Red sits in the left third facing right and the right third facing left; the shift eases in slowly
+ // so a quick turn to swing does not swing the view.
+ if(world.facing!==leadFacing){leadFacing=world.facing;facingFor=0;}else facingFor+=dt;
+ if(facingFor>.4||cameraSnap)settledFacing=world.facing;
+ const lead=settledFacing<0?600:340;camLead=cameraSnap?lead:camLead+(lead-camLead)*(1-Math.exp(-dt*1.8));
+ const target=Math.max(0,Math.min((world.worldWidth||WIDTH)-960,world.x-camLead));cam=cameraSnap?target:cam+(target-cam)*(1-Math.exp(-dt*8));cameraSnap=false;
  draw();updateUI();for(const [id,el] of cards){let i=Number(el.dataset.slot),match=el.classList.contains('match'),active=hover===id;
  const t=visual,wiggle=reduced?0:Math.sin(t*2.3+id)*1.4+Math.sin(t*18)*Math.pow(Math.max(0,Math.sin(t*1.5+i*1.7)),12)*5;
  el.style.transform=`translateY(${(match?-7:0)+(active?-10:0)+(reduced?0:Math.sin(t*2+i)*2)}px) rotate(${reduced?0:(i-2)*2+wiggle}deg)`;el.style.zIndex=active?20:5+i;
  }}requestAnimationFrame(frame)}requestAnimationFrame(frame);
 // Read-only state for checking the live game; no cheat functions are exposed.
-Object.defineProperty(window,'__POKER_STATE__',{get:()=>({x:world.x,y:world.y,vx:world.vx,vy:world.vy,mode:started?world.mode:'ready',grounded:world.grounded,hand:[...world.deck.hand],hits:world.deck.hits,banked:world.deck.banked,dark:world.dark,collected:world.collected,health:world.health,practice:world.practice,stage:world.stageIndex,storyPhase:world.storyPhase,storyLocation:world.storyLocation,dialogue:world.dialogue?{...world.dialogue}:null,boss:world.boss?{kind:world.boss.kind,hp:world.boss.hp,max:world.boss.max,state:world.boss.state,pattern:world.boss.pattern}:null,objective:world.objective,hitStop:world.hitStop,shakeTime:world.shakeTime,reserve:world.deck.reserve,cardDrops:world.cardDrops.map(d=>({id:d.id,x:d.x,y:d.y,blocked:d.blocked})),draft:world.deck.drafts.find(d=>d.id===world.activeDraft)?.cards??null})});
+Object.defineProperty(window,'__POKER_STATE__',{get:()=>({cam:Math.round(cam),x:world.x,y:world.y,vx:world.vx,vy:world.vy,mode:started?world.mode:'ready',grounded:world.grounded,hand:[...world.deck.hand],hits:world.deck.hits,banked:world.deck.banked,dark:world.dark,collected:world.collected,health:world.health,practice:world.practice,stage:world.stageIndex,storyPhase:world.storyPhase,storyLocation:world.storyLocation,dialogue:world.dialogue?{...world.dialogue}:null,boss:world.boss?{kind:world.boss.kind,hp:world.boss.hp,max:world.boss.max,state:world.boss.state,pattern:world.boss.pattern}:null,objective:world.objective,hitStop:world.hitStop,shakeTime:world.shakeTime,reserve:world.deck.reserve,cardDrops:world.cardDrops.map(d=>({id:d.id,x:d.x,y:d.y,blocked:d.blocked})),draft:world.deck.drafts.find(d=>d.id===world.activeDraft)?.cards??null})});
 
 // Named exports support the separate local review fixture; the player page exposes no mutation controls.
 export {world,enterWorld};
