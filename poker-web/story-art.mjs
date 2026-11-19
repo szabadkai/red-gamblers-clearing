@@ -143,8 +143,10 @@ function drawHuman(c,images,id,time,state) {
 // Boss sheets: 48x48 cells, rows idle / run / attack(6) / special(8) / hit(4) / death(8).
 // Each boss alternates a main pattern (attack row) with a phase-two pattern (special row).
 const BOSS_SPECIAL={hart:'roots',tollkeeper:'slam',widow:'rings',wolf:'leap'};
-// The Wolf is the roster's own big_bad_wolf (32x32 cells, same rows).
-const BOSS_CELL={wolf:32};
+// The Wolf is the roster's own big_bad_wolf (32x32 cells, same rows); the Hart is drawn from the
+// user's stag sheet on 96x96 cells with 6-frame idle and walk loops.
+const BOSS_CELL={wolf:32,hart:96};
+const BOSS_LOOP={hart:6};
 const BOSS_DEATH_MS=[100,100,80,140,160,160,160];
 function bossFrame(id,time,state,flash,b) {
   const size=BOSS_CELL[id]||48,cell=(row,i)=>[i*size,row*size];
@@ -166,8 +168,9 @@ function bossFrame(id,time,state,flash,b) {
     const t=Math.min(1,(b?.elapsed??0)/Math.max(.01,b?.duration??.3));
     return special?cell(3,4+Math.min(3,Math.floor(t*4))):cell(2,3+Math.min(2,Math.floor(t*3)));
   }
-  if(['approach','walk','run','chase','charge'].includes(state))return cell(1,Math.floor(time*8)%4);
-  return cell(0,Math.floor(time*4)%4);
+  const loop=BOSS_LOOP[id]||4;
+  if(['approach','walk','run','chase','charge'].includes(state))return cell(1,Math.floor(time*8)%loop);
+  return cell(0,Math.floor(time*4)%loop);
 }
 
 export function drawStoryActor(ctx,images,id,x,y,time,{facing=1,state='idle',flash=0,scale=2,boss=null}={}) {
@@ -200,7 +203,7 @@ export function drawStoryPortrait(ctx,images,id,time) {
   // Tall weapons, legs and outer spider limbs may crop; faces remain centered.
   const focus={
     red:[0,-11],mother:[0,-13],grandma:[0,-12],disguise:[0,-11],pip:[0,-11],rowan:[0,-16],
-    wren:[0,-12],stranger:[0,-9],hart:[6,-29],wolf:[6,-14],widow:[5,-25],tollkeeper:[1,-28]
+    wren:[0,-12],stranger:[0,-9],hart:[16,-52],wolf:[6,-14],widow:[5,-25],tollkeeper:[1,-28]
   }[id]??[0,-11];
   drawStoryActor(ctx,images,id,width/2-focus[0]*scale,height/2-focus[1]*scale,time,{scale});
 }

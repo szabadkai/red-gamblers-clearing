@@ -51,9 +51,13 @@ export class Deck{
  draw(){if(this.hand.length>=5)return;const card=this.take();if(card!==undefined)this.hand.push(card)}
  hit(){
   if(this.banked)return null;this.hits=Math.min(3,this.hits+1);if(this.hits<3)return null;
+  const draft=this.reward();if(draft)this.hits=0;return draft;
+ }
+ // A draft outside the meter: every kill drops one.
+ reward(){
   const a=this.take(),b=this.take();
   if(a===undefined||b===undefined){if(a!==undefined)this.pile.push(a);return null;}
-  const draft={id:this.nextDraft++,cards:[a,b]};this.drafts.push(draft);this.hits=0;return draft;
+  const draft={id:this.nextDraft++,cards:[a,b]};this.drafts.push(draft);return draft;
  }
  choose(id,index){
   const draft=this.drafts.find(d=>d.id===id);if(!draft||![0,1].includes(index)||(this.hand.length===5&&this.banked))return null;
@@ -146,10 +150,10 @@ export class World{
   for(const e of this.enemies){const box=e.boss&&bossBox(e);let hit;
    if(box){const f=this.attackFacing,a0=f>0?this.x-10:this.x-76,a1=f>0?this.x+76:this.x+10;hit=a1>box.x0&&a0<box.x1&&this.y-56<box.y1&&this.y>box.y0;}
    else{const d=(e.x-this.x)*this.attackFacing;hit=d>=-10&&d<76&&Math.abs(e.y-this.y)<40;}
-   if(hit){if(this.damage(e,finisher?base*2.5:base,(finisher?26:10)*this.attackFacing,true)!==false)source??={x:e.x,y:e.y}}}
+   if(hit){if(this.damage(e,finisher?base*2.5:base,(finisher?26:10)*this.attackFacing,true)!==false)source??=e}}
   if(source){this.combo=chain+1;this.comboTime=COMBO_WINDOW;
    if(finisher){for(const hit of this.impacts.slice(first))hit.heavy=true;this.hitStop=Math.max(this.hitStop,2/60);this.shakePower=2;this.shakeDuration=.1;this.shakeTime=.1;this.emit('finisher');}
-   this.emit('hit');const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,source);this.emit('meter_full');this.banner='CARD DROP · TOUCH TO CHOOSE';this.bannerTime=1.5}}this.removeDead();
+   this.emit('hit');const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,source);source.dropped=true;this.emit('meter_full');this.banner='CARD DROP · TOUCH TO CHOOSE';this.bannerTime=1.5}}this.removeDead();
  }
  spawnCardDrop(draft,source){
   if(!draft)return;
@@ -214,7 +218,8 @@ export class World{
  removeDead(){if(this.enemies.some(e=>e.hp<=0))this.emit('enemy_death');for(const e of this.enemies)if(e.hp<=0){
    // A bird killed in the air drops to the ground below it.
    const floor=Math.min(...this.platforms.filter(p=>e.x>=p.x&&e.x<=p.x+p.w&&p.y>=e.y-1).map(p=>p.y),e.fly?Infinity:e.y);
-   this.corpses.push({kind:e.kind,skin:e.skin,x:e.x,y:e.y,floor:Number.isFinite(floor)?floor:e.y,face:e.face,life:CORPSE_LIFE});}this.kills+=this.enemies.filter(e=>e.hp<=0).length;this.enemies=this.enemies.filter(e=>e.hp>0)}
+   this.corpses.push({kind:e.kind,skin:e.skin,x:e.x,y:e.y,floor:Number.isFinite(floor)?floor:e.y,face:e.face,life:CORPSE_LIFE});
+   if(!e.dropped)this.spawnCardDrop(this.deck.reward(),{x:e.x,y:floor});}this.kills+=this.enemies.filter(e=>e.hp<=0).length;this.enemies=this.enemies.filter(e=>e.hp>0)}
  hurt(fromX){if(this.invincible>0||this.dying>0)return;this.health--;this.tally.hurt++;this.invincible=1;this.combo=0;this.emit('player_hurt');
   const dir=fromX===undefined?-this.facing:Math.sign(this.x-fromX)||-this.facing;
   this.vx=dir*320;this.vy=Math.min(this.vy,-250);this.grounded=false;this.dash=0;this.knock=.3;this.hurtTime=.4;

@@ -8,7 +8,7 @@ export const BOSS_STATS={
  wolf:{hp:140,speed:115,reach:250,tell:.85,recovery:1.5}
 };
 // Hurtable body boxes measured from each boss's drawn art (world units, feet at y; symmetric).
-export const BOSS_BODY={hart:{hw:30,h:72},tollkeeper:{hw:24,h:84},rowan:{hw:14,h:44},widow:{hw:28,h:60},wolf:{hw:26,h:40}};
+export const BOSS_BODY={hart:{hw:38,h:80},tollkeeper:{hw:24,h:84},rowan:{hw:14,h:44},widow:{hw:28,h:60},wolf:{hw:26,h:40}};
 export function bossBox(e){const b=BOSS_BODY[e.kind];return b?{x0:e.x-b.hw,x1:e.x+b.hw,y0:e.y-b.h,y1:e.y}:null;}
 export const CHAIN_REACH=220;
 // The Wolf's second leap in phase two gets this much warning (his first leap gets his full tell).

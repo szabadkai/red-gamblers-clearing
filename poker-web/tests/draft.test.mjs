@@ -46,3 +46,11 @@ test('drops land on reachable ground instead of inside a gap; a full reserve is 
  // Existing uncollected drafts cannot replace a saved choice until it is used.
  assert.equal(w.deck.hit(),null);assert.equal(w.deck.reserve,saved);assert.equal(w.openDraft(drop),false);assert.equal(w.deck.choose(offer.id,0),null);w.deck.replace(0);assert.equal(w.openDraft(drop),true);
 });
+test('every kill drops a card, and a kill that fills the meter drops only that one',()=>{
+ const w=new World();w.practiceDeal(0);w.enemies=[];w.spawn(220,0);w.enemies[0].hp=1;
+ w.enemies[0].x=220;w.sword();step(w,20);
+ assert.equal(w.enemies.length,0);assert.equal(w.cardDrops.length,1);assert.equal(w.deck.hits,1);
+ const v=new World();v.practiceDeal(0);v.enemies=[];v.spawn(220,0);v.deck.hits=2;v.enemies[0].hp=1;
+ v.enemies[0].x=220;v.sword();step(v,20);
+ assert.equal(v.enemies.length,0);assert.equal(v.cardDrops.length,1);assert.equal(v.deck.hits,0);
+});
