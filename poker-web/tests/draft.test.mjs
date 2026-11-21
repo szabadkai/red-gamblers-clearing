@@ -12,12 +12,12 @@ test('three landed swings create one pickup without adding a random card',()=>{
  assert.equal(w.cardDrops.length,1);assert.equal(w.deck.drafts.length,1);assert.equal(w.deck.drafts[0].cards.length,2);
  assert.deepEqual(w.deck.hand,hand);assert.equal(w.deck.banked,false);assert.equal(w.mode,'playing');assert.equal(inventory(w.deck).length,52);
 });
-test('touching a pickup freezes the world; Escape preserves its exact choices and requires leaving',()=>{
- const w=fixture(),drop=w.cardDrops[0];w.x=drop.x;step(w,30);assert.equal(w.mode,'drafting');
+test('collecting is intentional; the choice freezes combat and Escape preserves the offer',()=>{
+ const w=fixture(),drop=w.cardDrops[0];w.x=drop.x;step(w,30);assert.equal(w.mode,'playing');w.step(1/60,{collect:true});assert.equal(w.mode,'drafting');
  const choices=[...w.deck.drafts[0].cards],state={x:w.x,y:w.y,time:w.time,health:w.health,hand:[...w.deck.hand]};
  w.step(5,{axis:1,sword:true,play:true});assert.deepEqual({x:w.x,y:w.y,time:w.time,health:w.health,hand:w.deck.hand},state);
  w.dismissDraft();assert.equal(w.mode,'playing');assert.deepEqual(w.deck.drafts[0].cards,choices);assert.equal(w.cardDrops.length,1);
- step(w,40);assert.equal(w.mode,'playing');w.x=drop.x+50;step(w,1);w.x=drop.x;step(w,1);
+ step(w,40);assert.equal(w.mode,'playing');w.step(1/60,{collect:true});
  assert.equal(w.mode,'drafting');assert.deepEqual(w.deck.drafts[0].cards,choices);
 });
 test('choosing saves the exact card, including card zero, and replaces the requested slot',()=>{
@@ -28,13 +28,13 @@ test('choosing saves the exact card, including card zero, and replaces the reque
  assert.equal(inventory(d).length,52);assert.equal(new Set(inventory(d)).size,52);assert.equal(d.choose(offer.id,1),null);
 });
 test('choosing fills an empty slot; playing a hand spends the saved card into a slot',()=>{
- const w=fixture(),drop=w.cardDrops[0],chosen=w.deck.drafts[0].cards[1];w.play();w.cast=0;w.x=drop.x;step(w,30);
+ const w=fixture(),drop=w.cardDrops[0],chosen=w.deck.drafts[0].cards[1];w.play();w.cast=0;w.x=drop.x;step(w,30);w.step(1/60,{collect:true});
  assert.equal(w.mode,'drafting');const before=w.deck.hand.length;assert.equal(w.chooseDraft(1),true);
  assert.equal(w.mode,'playing');assert.equal(w.cardDrops.length,0);assert.equal(w.deck.hand.length,before+1);assert.ok(w.deck.hand.includes(chosen));
  const d=new Deck(),offer=earn(d);d.choose(offer.id,0);const saved=d.reserve;d.play();assert.equal(d.banked,false);assert.ok(d.hand.includes(saved));
 });
 test('queued pickups own distinct cards and skipping overlapping pickups resumes without a modal loop',()=>{
- const w=fixture(),drop=w.cardDrops[0];w.spawnCardDrop(earn(w.deck),{x:drop.x,y:drop.y});w.x=drop.x;step(w,30);
+ const w=fixture(),drop=w.cardDrops[0];w.spawnCardDrop(earn(w.deck),{x:drop.x,y:drop.y});w.x=drop.x;step(w,30);w.step(1/60,{collect:true});
  w.dismissDraft();step(w,60);assert.equal(w.mode,'playing');assert.equal(w.cardDrops.length,2);
  assert.equal(new Set(inventory(w.deck)).size,52);assert.equal(inventory(w.deck).length,52);
  w.reset();assert.equal(w.cardDrops.length,0);assert.equal(w.deck.drafts.length,0);assert.equal(w.activeDraft,null);

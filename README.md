@@ -16,6 +16,8 @@ No dependency install or build is needed. The server normally opens http://127.0
 
 Move with **A/D**, jump with **Space**, and swing the sword with **J**. **K** casts the highlighted combination. Your strongest hand is selected first. **Q**, the **Cycle** button, or **LB** on a controller cycles through other scoring combinations. Press **1–5** or click a card to throw it, or replace that slot when you have a saved draw.
 
+Collect nearby card drops with **E**, **D-pad Up**, or the **Collect** button; walking past a drop keeps combat moving. **C**, **LT**, or **Cards** opens a paused card inspector. Select a slot with left/right, confirm with Enter/A, or cancel with Esc/B. Draw choices show progress toward straights and flushes, and a saved card stays visible beside your hand.
+
 To try the opening encounter, choose **Begin journey**, meet the stranger, and face right at the ford. Press **Q** once and **K** to play the jacks against the first wolf. Press **K** again to send the sevens through the boar and wolf on the far bank. You can also spend both pairs together.
 
 At the final lantern in Lantern Wood, choose **Keep my hand** or **Deal five** before facing the Briar Hart. Both choices restore five hearts. Press **R** during the fight to retry with the same starting cards. [Watch the 11-second gameplay clip](docs/poker-prototype/lantern-wood-to-hart.mp4).

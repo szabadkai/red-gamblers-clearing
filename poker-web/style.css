@@ -157,3 +157,139 @@ body.at-title #logo{display:block}
 body.at-title #story-title{display:none}
 body.at-title .hud,body.at-title #journey-hud,body.at-title #objective,body.at-title .hand-info,body.at-title .draw-info{visibility:hidden}
 @media(pointer:coarse){#logo{width:max(25cqw,150px)}}
+
+/* Readable card desk: quiet text plates, with the original briars confined to the frame. */
+.table{align-items:stretch;padding:1.2cqw 2cqw;gap:2%;}
+.hand-info,.draw-info{min-width:0;align-self:center;background:#14171c;padding:.45cqw .6cqw;}
+.hand-info h2{font-size:clamp(14px,1.7cqw,25px);line-height:1.2;}
+.hand-info .eyebrow,.draw-info .eyebrow{font-size:max(9px,.8cqw);color:#c5b599;}
+.hand-info p:not(.eyebrow),.draw-info p{font-size:max(10px,.85cqw);line-height:1.4;color:#ded9c9;}
+.hand-info #flavour{margin-top:.3cqw;color:#e8c98e;}
+.draw-info strong{font-size:max(12px,1.05cqw);line-height:1.35;}
+.draw-info small{font-size:max(9px,.75cqw);color:#bcb7a8;}
+.cast-button{font-size:max(11px,1cqw);min-height:28px;}
+.cast-button kbd,button.card .slot{font-size:max(9px,.8cqw);}
+#hand{align-self:center;}
+#deck-count{display:block;}
+#saved-card{display:flex;align-items:center;gap:8px;margin:.45cqw 0;padding:5px 7px;background:#29352e;border-left:3px solid #e3be7f;}
+#saved-card[hidden]{display:none;}
+#saved-card canvas{width:24px;height:36px;flex:none;image-rendering:pixelated;}
+#saved-card strong{font-size:max(11px,.9cqw);color:#fff0c8;}
+#collect-card{position:absolute;z-index:25;bottom:28%;left:50%;translate:-50% 0;max-width:70%;font-size:max(11px,1cqw);padding:8px 12px;background:#1b2b24;border-color:#e3be7f;box-shadow:2px 2px #071114;}
+#collect-card[hidden]{display:none;}
+#tutorial-hint{position:absolute;left:20%;right:20%;top:13cqw;z-index:24;background:#14221ff2;border:1px solid #d5ba7c;padding:8px 12px;font-size:max(11px,1.1cqw);line-height:1.45;text-align:center;color:#f6e5bd;pointer-events:none;}
+#tutorial-hint:empty,#tutorial-hint[hidden]{display:none;}
+#card-select{position:absolute;inset:0;z-index:72;display:grid;place-items:center;background:#08141ac9;text-align:center;}
+#card-select[hidden]{display:none;}
+#card-select .draft-panel{width:min(78cqw,620px);max-height:92%;overflow:auto;translate:none;}
+#card-select button{font-size:max(11px,1cqw);min-height:32px;}
+#slot-name{font-size:max(14px,1.6cqw);color:#f5d49b;}
+#slot-preview{font-size:max(12px,1.1cqw);line-height:1.5;color:#e8dfca;}
+#slot-confirm{background:#d8bc81;color:#172421;}
+/* Card choices carry enough room for both immediate effects and future-hand hints. */
+.draft-panel{width:min(70cqw,720px);max-height:90%;overflow:auto;translate:none;}
+.draft-panel>.eyebrow,.draft-panel>p:not(.eyebrow){font-size:max(11px,.95cqw);max-width:none;line-height:1.5;}
+.draft-panel h2{font-size:max(20px,2.2cqw);}
+.draft-options{gap:max(12px,2cqw);align-items:stretch;}
+.draft-option{flex:1;min-width:0;width:auto;padding:14px 10px 10px;gap:8px;}
+.draft-option strong{font-size:max(12px,1cqw);min-height:0;}
+.draft-option small{font-size:max(11px,.9cqw);line-height:1.5;min-height:0;}
+.draft-option kbd{font-size:max(11px,.9cqw);}
+#draft-skip{font-size:max(11px,1cqw);min-height:32px;padding:6px 12px;}
+/* A narrow window gets a second row for the reading panels rather than shrinking words
+   to fit. The canvas and its five card targets keep their original 16:9 geometry. */
+@media(max-width:760px){
+ main{width:100vw;}
+ #stage{aspect-ratio:auto;}
+ canvas#game{height:auto;aspect-ratio:16/9;}
+ .table{position:relative;inset:auto;height:auto;min-height:150px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:12px;background:#14171c;border-top:1px solid #7a6555;}
+ .hand-info,.draw-info{align-self:start;padding:0;}
+ #hand{position:absolute;left:27cqw;bottom:calc(100% + 1.8cqw);width:42cqw;height:11.6cqw;}
+ .hand-info h2{font-size:16px;margin:4px 0;}
+ .hand-info .eyebrow,.draw-info .eyebrow{font-size:9px;}
+ .hand-info p:not(.eyebrow),.draw-info p{font-size:11px;margin:6px 0;}
+ .draw-info strong{font-size:12px;}
+ .draw-info small{font-size:10px;}
+ .hand-actions{flex-wrap:wrap;gap:6px;margin-top:8px;}
+ .hand-actions button{font-size:11px;padding:6px 9px;min-height:32px;}
+ #pips{margin:6px 0;gap:5px;}
+ #pips i{height:6px;width:25px;}
+ #touch{bottom:auto;height:41.6cqw;}
+ #collect-card{bottom:auto;top:34cqw;padding:6px 9px;}
+ #tutorial-hint{left:10%;right:10%;top:11cqw;font-size:11px;padding:6px 8px;}
+ .hud .eyebrow{font-size:8px;}
+ .quest strong{font-size:10px;}
+ #health{height:14px;gap:3px;}
+ .heart{width:12px;height:12px;}
+ #journey-hud{display:none;}
+ #objective{top:7cqw;font-size:10px;left:12%;width:76%;}
+ #stage>nav button{font-size:10px;min-height:28px;}
+ #stage>nav kbd{font-size:9px;}
+ #toast{font-size:12px;top:20cqw;}
+ .draft-panel{width:90cqw;padding:12px;max-height:94%;overflow:auto;translate:none;}
+ .draft-panel>.eyebrow,.draft-panel>p:not(.eyebrow){font-size:11px;max-width:none;}
+ .draft-panel h2{font-size:20px;}
+ .draft-options{gap:12px;}
+ .draft-option{width:38cqw;padding:12px 8px;gap:8px;}
+ .draft-option canvas{width:48px;height:72px;}
+ .draft-option strong{font-size:12px;}
+ .draft-option small{font-size:11px;}
+ .draft-option kbd{font-size:11px;}
+ #draft-skip{font-size:11px;padding:8px 12px;margin-top:12px;}
+ .dialogue-panel{height:max(27%,150px);grid-template-columns:50px 1fr;gap:10px;padding:12px;align-content:center;}
+ .portrait-frame,#portrait{width:48px;height:48px;}
+ .dialogue-copy strong{font-size:11px;}
+ .dialogue-copy p{font-size:12px;line-height:1.5;}
+ .dialogue-copy small{font-size:9px;}
+ .dialogue-actions{grid-column:1/-1;flex-direction:row;justify-content:flex-end;}
+ .dialogue-actions button,.dialogue-actions .primary{font-size:10px;min-height:28px;padding:5px 10px;margin:0;}
+ .dialogue-actions small,.skip-track{display:none;}
+}
+.hand-actions{flex-wrap:wrap;}
+#tutorial-hint strong,#tutorial-hint span{display:block;}
+#tutorial-hint span{margin-top:3px;color:#d2cbb6;font-size:.9em;}
+#card-select #slot-card{display:block;width:64px;height:96px;margin:12px auto;image-rendering:pixelated;}
+#slot-name{display:block;}
+.slot-navigation{display:flex;align-items:center;justify-content:center;gap:12px;margin:12px 0;}
+#slot-position,#slot-help{font-size:max(11px,1cqw);}
+#slot-help{display:block;margin-top:12px;color:#d2cbb6;}
+.draw-info:has(#saved-card:not([hidden])) #pips{display:none;}
+
+/* Keep three card actions on one line and avoid repeating the saved card label. */
+.hand-actions button{padding:4px 5px;}
+.draw-info:has(#saved-card:not([hidden])) > .eyebrow,.draw-info:has(#saved-card:not([hidden])) #draw-label{display:none;}
+body.in-cutscene #collect-card,body.in-cutscene #tutorial-hint,body.at-title #collect-card,body.at-title #tutorial-hint,body.drafting #collect-card,body.drafting #tutorial-hint{display:none;}
+
+/* Short landscape screens keep the complete playfield and card targets in view.
+   The paused Cards inspector holds the longer descriptions in this compact layout. */
+@media(max-width:760px) and (max-height:500px) and (orientation:landscape){
+ main{width:min(100vw,calc(100dvh * 16 / 9));}
+ #stage{aspect-ratio:16/9;}
+ canvas#game{height:100%;}
+ .table{position:absolute;inset:auto 0 0;height:26%;min-height:0;grid-template-columns:24% 42% 30%;gap:2%;padding:1.2cqw 2cqw;background:transparent;border:0;align-items:center;}
+ .hand-info,.draw-info{align-self:center;padding:.3cqw .4cqw;}
+ #hand{position:relative;left:auto;bottom:auto;width:100%;height:11.6cqw;}
+ .hand-info .eyebrow,.draw-info>.eyebrow,#flavour,#deck-count,#draw-help,.hand-actions kbd{display:none;}
+ .hand-info h2{font-size:14px;line-height:1.1;margin:0 0 3px;}
+ .hand-info p:not(.eyebrow){font-size:11px;line-height:1.2;margin:3px 0;}
+ .hand-actions{gap:3px;margin-top:4px;flex-wrap:nowrap;}
+ .hand-actions button{font-size:11px;min-height:26px;padding:3px 4px;}
+ .draw-info strong{font-size:12px;}
+ #pips{margin:6px 0 0;}
+ #saved-card{gap:5px;margin:0;padding:4px;}
+ #saved-card .eyebrow{font-size:9px;}
+ #saved-card strong{font-size:11px;}
+ #touch{height:auto;bottom:26%;}
+ #collect-card{top:auto;bottom:28%;}
+}
+
+/* Each action owns a column; keycaps sit below labels so the third action cannot
+   wrap beneath the dock at intermediate desktop sizes. */
+.hand-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:stretch;}
+.hand-actions:has(#cycle[hidden]){grid-template-columns:repeat(2,minmax(0,1fr));}
+.hand-actions button{min-width:0;width:100%;min-height:38px;padding:3px 2px;line-height:1.1;white-space:nowrap;}
+.hand-actions kbd{display:block;width:fit-content;margin:2px auto 0;font-size:9px;line-height:1.1;}
+@media(max-width:760px) and (max-height:500px) and (orientation:landscape){
+ .hand-actions button{min-height:32px;padding:1px 2px;}
+ .hand-actions kbd{margin-top:1px;}
+}

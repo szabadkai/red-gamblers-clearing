@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Cards and tutorial review</title>
+<style>
+body{margin:18px;background:#0b141a;color:#ecd9ae;font:14px system-ui}button,a{font:inherit;padding:8px;background:#213a3e;color:#ffe5b2;border:1px solid #657d73;margin:4px}iframe{display:block;width:960px;height:540px;border:0;max-width:100%}p{max-width:960px;line-height:1.5}#status{white-space:pre-line;min-height:3em}button:disabled{opacity:.4}
+</style>
+<h1>Cards and tutorial review</h1>
+<p>The real renderer and simulation, frozen between actions. Storage is replaced with memory for this iframe; your journey and settings stay untouched. Fixtures grant invulnerability. Keyboard actions use the actual game handlers. Recording contains the game canvas plus a clearly labeled transcript of the DOM card panels.</p>
+<div id="controls">
+<button data-size="960,540">Desktop size</button><button data-size="700,700">Narrow size</button><button data-size="740,360">Short landscape</button>
+<button data-setup="opening" disabled>Opening lesson</button><button data-setup="pickup" disabled>Card pickup setup</button>
+<button data-action="advance" disabled>Advance 1 second</button><button data-key="KeyE" disabled>E · Collect</button><button data-key="KeyC" disabled>C · Inspect cards</button><button data-key="KeyQ" disabled>Q · Cycle</button><button data-key="KeyK" disabled>K · Cast</button>
+<button data-key="Digit1" disabled>Choose left · 1</button><button data-key="Digit2" disabled>Choose right · 2</button><button data-key="ArrowLeft" disabled>Previous slot</button><button data-key="ArrowRight" disabled>Next slot</button><button data-click="slot-confirm" disabled>Confirm slot</button><button data-key="Escape" disabled>Escape</button>
+<button data-pad="6" disabled>LT · Inspect</button><button data-pad="12" disabled>D-pad Up · Collect</button><button data-pad="14" disabled>Pad left</button><button data-pad="15" disabled>Pad right</button><button data-pad="0" disabled>A · Confirm</button><button data-pad="1" disabled>B · Cancel</button>
+<button id="record" disabled>Record card flow · 8 seconds</button><a id="video" hidden download="cards-flow.webm">Save recording</a>
+</div><p id="status">Loading assets…</p><iframe title="Frozen game review"></iframe>
+<script type="module">
+const $=id=>document.getElementById(id),frame=document.querySelector('iframe');
+const html=await(await fetch('/index.html')).text();
+const bootstrap=`<base href="/"><script>const memory=new Map();Object.defineProperty(window,'localStorage',{value:{getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,String(v)),removeItem:k=>memory.delete(k),clear:()=>memory.clear()}});window.requestAnimationFrame=cb=>{window.renderFrame=cb;return 0}</scr`+'ipt>';
+frame.srcdoc=html.replace('<head>','<head>'+bootstrap);
+await new Promise(r=>frame.onload=r);const g=frame.contentWindow;
+for(let i=0;i<480&&(!g.renderFrame||g.document.getElementById('begin').disabled);i++)await new Promise(r=>setTimeout(r,100));
+if(!g.__RED_REVIEW__||!g.renderFrame||g.document.getElementById('begin').disabled)throw Error('Start the server with --dev-tools');
+let simulatedPad=null;Object.defineProperty(g.navigator,'getGamepads',{value:()=>simulatedPad?[simulatedPad]:[]});
+const review=g.__RED_REVIEW__,world=review.world,game=g.document.getElementById('game');
+let now=g.performance.now(),busy=false,lastInnerFocus=null;
+g.document.addEventListener('focusin',event=>{if(event.target!==g.document.body)lastInnerFocus=event.target});
+const run=n=>{for(let i=0;i<n;i++)g.renderFrame(now+=1000/60)};
+const key=(code,down)=>g.document.body.dispatchEvent(new g.KeyboardEvent(down?'keydown':'keyup',{code,bubbles:true,cancelable:true}));
+function wake(){if(world.mode==='paused'){world.mode='playing';run(1);}if(lastInnerFocus?.isConnected&&lastInnerFocus.getClientRects().length)lastInnerFocus.focus({preventScroll:true});}
+function tap(code){wake();key(code,true);run(2);key(code,false);run(1);}
+function status(){
+ const lesson=world.tutorialHint;
+ $('status').textContent=`${world.mode} · ${world.health} hearts · ${world.cardDrops.length} drops · saved draw: ${world.deck.reserve===null?'none':g.document.getElementById('saved-card').querySelector('strong').textContent}`+'\nInner focus: '+(g.document.activeElement?.id||g.document.activeElement?.tagName)+(lesson?'\nLesson: '+lesson.text+' — '+lesson.detail:'');
+}
+function setup(kind){
+ if(kind==='opening'){world.reset(0,{phase:'trail',seen:['prologue','stranger']});world.x=180;}
+ else{world.practiceDeal(3);const drop=world.cardDrops[0];world.x=drop.x;world.y=drop.y;}
+ world.invincible=10000;review.enterWorld();run(30);status();
+}
+for(const button of document.querySelectorAll('[data-size]'))button.onclick=()=>{if(!busy){const [width,height]=button.dataset.size.split(',');frame.style.width=width+'px';frame.style.height=height+'px';run(1);status()}};
+for(const button of document.querySelectorAll('[data-setup]'))button.onclick=()=>{if(!busy)setup(button.dataset.setup)};
+for(const button of document.querySelectorAll('[data-key]'))button.onclick=()=>{if(!busy){tap(button.dataset.key);status()}};
+for(const button of document.querySelectorAll('[data-pad]'))button.onclick=()=>{if(!busy){wake();simulatedPad={connected:true,axes:[0,0],buttons:Array.from({length:16},(_,i)=>({pressed:i===Number(button.dataset.pad)}))};run(2);simulatedPad=null;run(2);status()}};
+for(const button of document.querySelectorAll('[data-click]'))button.onclick=()=>{if(!busy){g.document.getElementById(button.dataset.click).click();run(2);status()}};
+document.querySelector('[data-action]').onclick=()=>{if(!busy){wake();run(60);status()}};
+const capture=document.createElement('canvas');capture.width=960;capture.height=650;const context=capture.getContext('2d');
+function videoFrame(){
+ context.fillStyle='#0b141a';context.fillRect(0,0,960,650);context.drawImage(game,0,0);
+ context.font='16px monospace';context.fillStyle='#ecd9ae';context.fillText('DOM PANEL TRANSCRIPT · scripted invulnerable practice',18,565);
+ const lines=world.mode==='drafting'?['Choose your card · combat paused',g.document.getElementById('draft-left').innerText,g.document.getElementById('draft-right').innerText]:world.mode==='cards'?[g.document.getElementById('slot-name').textContent,g.document.getElementById('slot-preview').textContent,'Left / Right · confirm slot']:world.deck.reserve!==null?['Saved: '+g.document.getElementById('saved-card').querySelector('strong').textContent,'C / LT opens the paused slot inspector']:['Mode: '+world.mode,'E / D-pad Up collects deliberately; walking past keeps combat running'];
+ for(let i=0;i<lines.length;i++)context.fillText(lines[i].replaceAll('\n',' ').slice(0,107),18,590+i*22);
+}
+$('record').onclick=async()=>{
+ if(busy)return;setup('pickup');busy=true;$('status').textContent='Recording 8 seconds…';
+ const stream=capture.captureStream(30),chunks=[],recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};const done=new Promise(r=>recorder.onstop=r);recorder.start();
+ for(let i=0;i<480;i++){
+  if(i===30)tap('KeyE');if(i===95)tap('Digit1');if(i===150)tap('KeyC');
+  if([185,205,225,245].includes(i))tap('ArrowRight');
+  if(i===285)g.document.getElementById('slot-confirm').click();
+  if(i===330)tap('KeyK');if(i===370){key('KeyD',true);key('KeyJ',true)}if(i===420)key('KeyD',false);
+  wake();run(1);videoFrame();await new Promise(r=>setTimeout(r,1000/60));
+ }
+ key('KeyD',false);key('KeyJ',false);recorder.stop();await done;stream.getTracks().forEach(t=>t.stop());
+ const blob=new Blob(chunks,{type:recorder.mimeType});$('video').href=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(blob)});$('video').hidden=false;busy=false;status();
+};
+for(const button of document.querySelectorAll('button'))button.disabled=false;setup('opening');
+</script></html>

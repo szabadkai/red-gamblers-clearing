@@ -1,4 +1,5 @@
 import {bossBox} from './bosses.mjs';
+import {PlaytestRecorder,observePlaytest} from './playtest.mjs';
 
 // Only the opted-in Node launcher serves this module as runtime.mjs.
 export function installLocalTools({world,enterWorld,menu,ready,camera,started}) {
@@ -64,6 +65,32 @@ export function installLocalTools({world,enterWorld,menu,ready,camera,started}) 
    if(!ready())return;
    world.practiceDeal(Number(page.querySelector('select').value));enterWorld();
  };
+ const recorder=new PlaytestRecorder();
+ observePlaytest(world,recorder);
+ const recording=document.createElement('section');
+ recording.innerHTML=`<h3>Playtest recording</h3>
+ <p class="menu-note">Opt-in, local only. Record a journey, then export encounter deaths, gate timing, healing opportunities and card-choice time. Nothing is uploaded.</p>
+ <div class="menu-actions"><button id="test-start">Start new recording</button><button id="test-stop" disabled>Stop recording</button><button id="test-export" disabled>Export playtest JSON</button></div>
+ <p id="test-status" class="menu-note" role="status">No recording yet. Starting a recording does not start or reset a journey.</p>`;
+ page.insertBefore(recording,page.lastElementChild);
+ const testStart=recording.querySelector('#test-start'),testStop=recording.querySelector('#test-stop'),testExport=recording.querySelector('#test-export'),testStatus=recording.querySelector('#test-status');
+ const summarize=()=>{
+   const report=recorder.report(),rows=report.encounters,total=key=>rows.reduce((sum,row)=>sum+row[key],0);
+   testStatus.textContent=`${report.active?'Recording':'Stopped'} · ${Math.round(report.activeSeconds)} active seconds · ${total('deaths')} deaths · ${total('drawChoices')} card choices · ${total('deathsWithHealingHand')} deaths holding a healing hand. Practice entries are marked separately.`;
+ };
+ testStart.onclick=()=>{
+   recorder.start(world);testStart.disabled=true;testStop.disabled=false;testExport.disabled=true;summarize();
+ };
+ testStop.onclick=()=>{
+   recorder.stop(world);testStart.disabled=false;testStop.disabled=true;testExport.disabled=false;summarize();
+ };
+ testExport.onclick=()=>{
+   const blob=new Blob([JSON.stringify(recorder.report(),null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+   link.href=url;link.download='red-playtest.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ };
+ // Keep pause/menu state current even when the fixed-step loop is suspended.
+ const sampleTimer=setInterval(()=>{if(recorder.active){recorder.capture(world);if(!page.hidden)summarize();}},250);
+ window.addEventListener('pagehide',()=>clearInterval(sampleTimer),{once:true});
  if(!new URLSearchParams(location.search).has('hitboxes'))return;
  return function drawHitboxes(ctx){
  ctx.save();ctx.lineWidth=2;ctx.strokeStyle='#ff4dd2';

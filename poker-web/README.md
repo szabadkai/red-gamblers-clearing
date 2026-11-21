@@ -89,13 +89,11 @@ and the opening, cottage, chapel, and rescue-room layouts.
 A/D or arrows move. Hold Space for a higher jump; release for a short hop.
 Shift dashes. Hold J for sword attacks. K plays the highlighted poker combination. The strongest is selected whenever your cards change. Q or the Cycle button previews other scoring combinations, including different suits in a three of a kind. Only the highlighted cards are spent. Click a card or press its slot number (1–5)
 to throw that card for 6 damage and keep the rest. With a saved draw, the same
-controls replace the chosen slot.
+controls replace the chosen slot. C or Cards opens a paused inspector: left/right selects a slot, Enter confirms, Esc cancels.
 S or Down drops through raised platforms. P/Escape pauses. R retries the current clearing.
 New journey in the menu starts from Lantern Wood.
 A gamepad with the standard mapping also works: stick or d-pad moves (down drops through), A jumps, X swings,
-Y plays the hand, LB cycles combinations, B/RB/RT dash, Start pauses. In scenes A advances and Start skips; at a card drop, left/right
-take that card and B leaves it; A confirms the menu button. A saved card cannot be slotted from the pad (it still
-fills a slot when a hand is played). Checked against a simulated pad only, not real hardware.
+Y plays the hand, LB cycles combinations, B/RB/RT dash, Start pauses. D-pad Up collects a nearby card; left/right selects a choice, A takes it and B leaves it. LT opens the paused card inspector: left/right selects a slot, A throws or replaces it, and B cancels. In scenes A advances and Start skips. Controller mappings require a physical-device playtest in addition to automated coverage.
 On touch screens (coarse pointer, or once the screen is touched) the left half of the world is a floating joystick:
 it centres wherever the thumb lands, trails the thumb past its rim, and pulling it down drops through a ledge. Round
 buttons fan out from the bottom-right corner: JUMP (largest, hold for a higher jump), SWORD, DASH and HAND.
@@ -108,7 +106,7 @@ On touch screens text has minimum sizes (the stage-relative sizes fell to 5-8 px
 the chapter label are hidden, and scenes say "Tap to continue": a tap anywhere in a scene finishes the line, then
 moves on (a click does the same on desktop).
 `tests/harness.js` steps the game frame by frame in a browser for visual checks.
-The card dock, health, settings and pause/help menus stay inside one 16:9 viewport.
+The world uses a 16:9 viewport. Narrow windows place the hand information below it to keep text readable.
 
 Cross five authored clearings: Lantern Wood, Broken Crossing, Moss Cavern, Ruined Chapel, and Thorn House.
 Each is 4800 units long, in four sections closed off by briar gates. A gate opens once every foe
@@ -160,7 +158,7 @@ The last hit plays out as a 0.9 s slowed death beat (Red's silhouette burns red,
 screen; falling into a pit skips it.
 
 Five unique cards are dealt initially. Three landed sword swings drop one
-face-down card near the enemy. Touch it to pause combat and reveal two choices.
+face-down card near the enemy. Stand nearby and press E, D-pad Up, or Collect to pause combat and reveal two choices. Passing a drop does not interrupt movement or attacks.
 World cards render behind enemy sprites so they cannot obscure a combat pose.
 Click a choice or press 1/2 to take that exact card; the other is discarded and
 combat resumes. Escape leaves the pickup and both choices intact. Step away and
@@ -507,3 +505,58 @@ pause/settings/resume. No browser errors or warnings were reported.
 Screenshots in `../docs/poker-prototype/`: `woodland-flora-bridge.png`,
 `woodland-flora-cave.png` (native renderer captures), and
 `woodland-flora-gameplay.jpg` (live game with HUD).
+
+## Card clarity and playtest tools
+
+The hand desk has solid text backing and briars confined to its borders. Narrow
+windows use a separate information row instead of shrinking the instructions.
+The opening lesson stays visible until the relevant pair is spent or changed:
+Q selects the jacks, K casts them, then K casts the saved sevens. Alternate plays
+remain available; the lesson follows the cards actually held.
+
+Draws are intentional: E, D-pad Up or Collect opens the nearby offer and pauses
+combat. Choosing a full-hand draw displays its card beside the hand. C, LT or
+Cards opens a paused slot inspector; left/right selects, Enter/A confirms, and
+Esc/B cancels. A throw confirmed during cast recovery queues that exact card.
+Draw and replacement previews show progress toward flushes and straights;
+these are patterns to build, not promises about the next random card.
+
+For repeatable review run `npm run dev -- --dev-tools` and open
+`/tests/cards-review.html`. The iframe uses memory-only storage and freezes
+between actions. **Opening lesson**, **Q · Cycle**, **K · Cast**, **Advance 1
+second**, **K · Cast** demonstrates the lesson. **Card pickup setup**, **E ·
+Collect**, **Choose left**, **C · Inspect cards**, **Previous slot**, **Confirm
+slot** demonstrates a saved seven replacing slot five to make trips. The pad
+buttons exercise the real controller polling path with a simulated pad.
+Fixtures grant invulnerability; they are not balance measurements. The recording
+button captures eight seconds of the game canvas with a labeled transcript of
+the DOM panels; screenshots show the actual panel layout.
+
+For a human balance pass, open **Developer tools → Start new recording**, go
+Back, then begin or continue a journey normally. After the run pause, reopen
+Developer tools, **Stop recording**, and **Export playtest JSON**. The recorder
+stays in memory, is opt-in, has no player identifiers, sends nothing, and is
+excluded from the release build. A new recording clears the previous report;
+export first if you want to keep it. Reports separate practice from journeys,
+group deaths by section/boss, record gate intervals and retries, count deaths
+with an available healing hand, and measure active time with unused healing and
+wall time spent choosing draws. They do not infer which enemy caused a hit.
+
+Have new players attempt the opening without coaching, then play through the
+campaign. Record whether they can explain splitting pairs, collect and replace
+a draw, and use hearts to heal. Compare repeated deaths and gate times across
+runs, and ask whether choosing draws interrupted their intended actions. Use
+those observations to tune encounters and grading. Automated reachability and
+simulated input checks do not replace that human session or physical-controller
+and phone testing; no balance values were changed on that assumption.
+
+Verification (2026-11-21): all 164 tests pass; the static build and release
+reference check pass. Browser review covered the persistent lesson, deliberate
+collection, draw previews, saved-card replacement/cancellation, simulated
+controller navigation, Settings and Field guide, and narrow/short-landscape
+layouts. The local recorder's JSON export was checked. No browser errors or
+warnings appeared in the review fixture. Evidence: [card-flow recording](../docs/poker-prototype/cards-flow.mp4),
+[opening HUD](../docs/poker-prototype/cards-tutorial-review.jpg),
+[draw choices](../docs/poker-prototype/cards-draw-review.jpg),
+[narrow HUD](../docs/poker-prototype/cards-narrow-review.jpg), and
+[short landscape](../docs/poker-prototype/cards-landscape-review.jpg).

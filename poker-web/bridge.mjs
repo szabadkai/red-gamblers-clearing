@@ -93,7 +93,10 @@ export function drawBriarDock(c,images){
  if(corner)for(const [sx,sy] of [[1,1],[-1,1],[1,-1],[-1,-1]]){
   c.save();c.translate(sx>0?8:952,sy>0?410:530);c.scale(sx,sy);c.drawImage(corner,0,0,32,26);c.restore();
  }
- // Briar ornaments (assets/ui/dock_branch.png, 124x60) at 2x, mirrored on the right.
- if(branch){c.drawImage(branch,8,410,248,120);c.translate(960,0);c.scale(-1,1);c.drawImage(branch,8,410,248,120);}
+ // Keep the original briars on the frame, outside the text and card reading areas.
+ if(branch){
+  c.save();c.beginPath();c.rect(8,410,944,8);c.rect(8,522,944,8);c.rect(8,410,8,120);c.rect(944,410,8,120);c.clip();
+  c.drawImage(branch,8,410,248,120);c.translate(960,0);c.scale(-1,1);c.drawImage(branch,8,410,248,120);c.restore();
+ }
  c.restore();
 }

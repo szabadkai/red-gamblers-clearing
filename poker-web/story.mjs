@@ -55,6 +55,23 @@ export class StoryWorld extends World{
  }
  get stageStory(){return STAGES[this.stageIndex];}
  get calm(){return !this.practice&&this.storyPhase==='trail'&&!this.seen.has(this.stageStory.encounter);}
+ // The opening lesson follows the cards actually held, rather than a timed banner.
+ // Retrying/reloading the first section restores its deal, so the lesson naturally restarts;
+ // spending or replacing either pair and opening the first gate make its advice disappear.
+ get tutorialHint(){
+  if(this.practice||this.stageIndex!==0||this.storyPhase!=='trail'||this.mode!=='playing'||this.dying>0||
+   !this.seen.has('stranger')||this.gates[0]?.open)return null;
+  const hand=this.deck.hand,jacks=SPLIT_PAIRS.slice(0,2),sevens=SPLIT_PAIRS.slice(2,4);
+  const has=cards=>cards.every(card=>hand.includes(card));
+  const cards=has(jacks)?jacks:has(sevens)?sevens:null;
+  if(!cards)return null;
+  const jackLesson=cards===jacks,play=this.deck.selectedPlay;
+  const selected=play.tier===1&&play.indices.length===2&&play.indices.every(index=>cards.includes(hand[index]));
+  const name=jackLesson?'jacks':'sevens',action=selected?'play':'cycle';
+  return {id:`${name}-${action}`,action,cards,text:`${selected?'Cast':'Select'} the ${name}`,
+   detail:jackLesson?(has(sevens)?'Keep the sevens for a piercing shot.':'This pair knocks foes back and can mend a heart.'):
+    'Face foes in a line: the spade pierces, the diamond earns a draw notch.'};
+ }
  get objective(){
   if(this.practice)return this.arena?'Practice arena':`Find the three embers · ${this.collected}/3`;
   if(this.dialogue)return SCENES[this.dialogue.id].title;
@@ -98,7 +115,7 @@ export class StoryWorld extends World{
   if(checkpoint)this.deck.restore(checkpoint);else this.deck.reset();
   this.bolts=[];this.enemyShots=[];this.patches=[];this.cardDrops=[];this.activeDraft=null;
   this.enemies=[];this.embers=[];this.hazards=[];this.impacts=[];this.corpses=[];this.rings=[];this.dust=[];
-  this.dark=0;this.transform=0;this.dash=0;this.attack=0;this.swordPending=0;this.cast=0;
+  this.dark=0;this.transform=0;this.dash=0;this.attack=0;this.swordPending=0;this.cast=0;this.pendingSlotCard=null;
   this.hitStop=0;this.shakeTime=0;this.dying=0;this.banner='';this.bannerTime=0;this.boss=null;this.bossCorpse=null;this.victoryDelay=0;
   this.mode='playing';this.storyRevision++;
  }
@@ -153,6 +170,8 @@ export class StoryWorld extends World{
  step(dt,input={}){
   if(this.mode!=='playing')return;
   const stopped=this.hitStop>0;
+  // Collect before moving encounter scenery: opening a choice freezes this whole tick.
+  if(!stopped&&input.collect&&this.collectCard())return;
   // The mill wheel carries its two ledges in opposite directions after the lock cracks.
   if(!stopped&&this.boss?.kind==='tollkeeper'&&this.boss.hp<=this.boss.max/2){
    for(const p of this.platforms.slice(1)){

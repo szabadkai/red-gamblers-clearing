@@ -49,6 +49,23 @@ export function previewDraw(hand,card){
   hand.map((_,slot)=>({slot,hand:hand.map((id,i)=>i===slot?card:id)}));
  return options.map(option=>({...option,result:evaluate(option.hand)}));
 }
+// Describe attainable patterns in the resulting hand, without promising the next draw.
+function potentialPatterns(hand){
+ const hints=[];
+ for(let suit=0;suit<4;suit++){
+  const count=hand.filter(card=>Math.floor(card/13)===suit).length;
+  if(count>=3&&count<5)hints.push({count,text:`${count} ${SUITS[suit]} toward a flush`});
+ }
+ const ranks=new Set(hand.map(card=>card%13+2));if(ranks.has(14))ranks.add(1);
+ let run=0;for(let low=1;low<=10;low++)run=Math.max(run,[0,1,2,3,4].filter(n=>ranks.has(low+n)).length);
+ if(run===4)hints.push({count:run,text:'4 of 5 ranks toward a straight'});
+ return hints;
+}
+export function handPotential(hand){return potentialPatterns(hand).map(hint=>hint.text);}
+export function bestDrawPreview(hand,card){
+ const score=cards=>Math.max(0,...potentialPatterns(cards).map(hint=>hint.count));
+ return previewDraw(hand,card).sort((a,b)=>b.result.tier-a.result.tier||score(b.hand)-score(a.hand))[0];
+}
 // K leads with the normal best hand. Offer each smaller scoring combination once,
 // including different suits of the same rank. Single cards already have slot controls.
 export function scoringPlays(hand){
@@ -145,7 +162,7 @@ export class World{
   this.deck.reset();this.x=60;this.y=420;this.vx=0;this.vy=0;this.facing=1;this.grounded=true;this.surface=0;
   this.coyote=.12;this.buffer=0;this.drop=0;this.health=5;this.invincible=0;this.dash=0;this.dashCD=0;
   this.attack=0;this.swordPending=0;this.attackFacing=1;this.cast=0;this.dark=0;this.transform=0;this.land=0;this.time=0;this.fallCount=0;
-  this.attackForm='light';this.castForm='light';this.castFacing=1;
+  this.pendingSlotCard=null;this.attackForm='light';this.castForm='light';this.castFacing=1;
   this.morphFrom='light';this.morphDuration=.75;this.morphPose=false;this.morphFacing=1;
   this.hitStop=0;this.shakeTime=0;this.shakeDuration=0;this.shakePower=0;
   this.cardDrops=[];this.activeDraft=null;this.lastPicked=null;this.dying=0;this.combo=0;this.comboTime=0;
@@ -209,7 +226,7 @@ export class World{
    this.banner='THROW THE JACK (4) · PLAY THE PAIR (K)';
    this.bannerTime=4;
   }
-  if(kind===3){this.deck.pile=this.deck.pile.filter(c=>c!==31&&c!==12);this.deck.pile.push(12,31);this.deck.hit();this.deck.hit();this.spawnCardDrop(this.deck.hit(),{x:240,y:420});this.banner='TOUCH THE CARD · CHOOSE YOUR DRAW'}if(kind>=4){this.enemies=[];this.spawn(extra?extra[1]:330,0,extra?extra[0]:['runner','mage','guard'][kind-4]);this.banner=extra?extra[2]:['BOAR · DODGE THE LUNGE','HUNTER · JUMP OR SLASH THE ARROW','LIVING TREE · BAIT THE SLAM'][kind-4];
+  if(kind===3){this.deck.pile=this.deck.pile.filter(c=>c!==31&&c!==12);this.deck.pile.push(12,31);this.deck.hit();this.deck.hit();this.spawnCardDrop(this.deck.hit(),{x:240,y:420});this.banner='COLLECT THE CARD · CHOOSE YOUR DRAW'}if(kind>=4){this.enemies=[];this.spawn(extra?extra[1]:330,0,extra?extra[0]:['runner','mage','guard'][kind-4]);this.banner=extra?extra[2]:['BOAR · DODGE THE LUNGE','HUNTER · JUMP OR SLASH THE ARROW','LIVING TREE · BAIT THE SLAM'][kind-4];
    if(extra?.[3])Object.assign(this.enemies[0],traits(extra[3]));this.bannerTime=4;}}
  emit(type){this.events.push(type)}
  puff(kind){this.dust.push({x:this.x,y:this.y,dir:this.facing,kind,life:DUST_LIFE})}
@@ -231,7 +248,7 @@ export class World{
    if(hit){if(this.damage(e,finisher?base*2.5:base,(finisher?26:10)*this.attackFacing,true)!==false)source??=e}}
   if(source){this.combo=chain+1;this.comboTime=COMBO_WINDOW;
    if(finisher){for(const hit of this.impacts.slice(first))hit.heavy=true;this.hitStop=Math.max(this.hitStop,2/60);this.shakePower=2;this.shakeDuration=.1;this.shakeTime=.1;this.emit('finisher');}
-   this.emit('hit');const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,source);source.dropped=true;this.emit('meter_full');this.banner='CARD DROP · TOUCH TO CHOOSE';this.bannerTime=1.5}}this.removeDead();
+   this.emit('hit');const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,source);source.dropped=true;this.emit('meter_full');this.banner='CARD DROP · COLLECT WHEN READY';this.bannerTime=1.5}}this.removeDead();
  }
  spawnCardDrop(draft,source){
   if(!draft)return;
@@ -244,8 +261,29 @@ export class World{
   const x=clamp(source.x,p.x+18,p.x+p.w-18),y=p.y;
   this.cardDrops.push({id:draft.id,x,y,age:0,blocked:Math.abs(x-this.x)<28&&Math.abs(y-this.y)<30});
  }
+ get nearbyCardDrop(){
+  if(this.mode!=='playing'||this.dying>0||(this.deck.banked&&this.deck.hand.length===5))return null;
+  return this.cardDrops.filter(drop=>drop.age>=.4&&Math.abs(drop.y-this.y)<=30&&Math.abs(drop.x-this.x)<=48)
+   .sort((a,b)=>Math.abs(a.x-this.x)-Math.abs(b.x-this.x)||a.id-b.id)[0]||null;
+ }
+ collectCard(){const drop=this.nearbyCardDrop;return drop?this.openDraft(drop):false;}
+ openCardSelection(){
+  if(this.mode!=='playing'||this.dying>0||!this.deck.hand.length)return false;
+  this.selectedSlot=0;this.mode='cards';return true;
+ }
+ moveCardSelection(direction){
+  if(this.mode!=='cards')return false;
+  this.selectedSlot=(this.selectedSlot+Math.sign(direction)+this.deck.hand.length)%this.deck.hand.length;return true;
+ }
+ finishCardSelection(confirm=false){
+  if(this.mode!=='cards')return false;
+  this.mode='playing';
+  if(!confirm)return true;
+  if(!this.deck.banked&&this.cast>0){this.pendingSlotCard=this.deck.hand[this.selectedSlot];return true;}
+  return this.useSlot(this.selectedSlot);
+ }
  openDraft(drop){
-  if(this.mode!=='playing'||(this.deck.banked&&this.deck.hand.length===5))return false;
+  if(this.mode!=='playing'||this.dying>0||(this.deck.banked&&this.deck.hand.length===5))return false;
   if(!this.deck.drafts.some(d=>d.id===drop.id))return false;
   this.activeDraft=drop.id;this.mode='drafting';return true;
  }
@@ -320,6 +358,7 @@ export class World{
   if(this.mode!=='playing')return;
   this.shakeTime=Math.max(0,this.shakeTime-dt);
   if(this.hitStop>0){this.hitStop=Math.max(0,this.hitStop-dt-1e-9);return;}
+  if(input.collect&&this.collectCard())return;
   // Death beat: Red's fall plays out slowed and out of the player's hands; nothing can hurt her again.
   if(this.dying>0){this.dying=Math.max(0,this.dying-dt);if(!this.dying){this.mode='dead';return;}dt*=.4;input={};}
   this.time+=dt;this.tally.time+=dt;const wasDark=this.dark>0;
@@ -332,6 +371,7 @@ export class World{
   if(this.swordPending>0){this.swordPending=Math.max(0,this.swordPending-dt);if(this.swordPending===0)this.resolveSword();}
   if(input.sword)this.sword();
   if(input.cycle)this.cyclePlay();
+  if(this.pendingSlotCard!==null&&this.cast<=0){const slot=this.deck.hand.indexOf(this.pendingSlotCard);this.pendingSlotCard=null;if(slot>=0)this.play(slot);}
   if(input.play)this.play();
   else if(input.cardSlot!==undefined)this.useSlot(input.cardSlot);
   else if(input.replace!==undefined)this.deck.replace(input.replace);
@@ -363,12 +403,7 @@ export class World{
   for(const r of this.dust)r.life-=dt;this.dust=this.dust.filter(r=>r.life>0);
   for(const n of this.texts){n.life-=dt;n.y-=35*dt}this.texts=this.texts.filter(n=>n.life>0);
   for(const p of this.particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=250*dt}this.particles=this.particles.filter(p=>p.life>0);
-  const pickupStart=Math.abs(this.x-oldX)>100?this.x:oldX;
-  for(const drop of this.cardDrops){
-   drop.age+=dt;
-   if(drop.blocked){if(Math.abs(drop.x-this.x)>32||Math.abs(drop.y-this.y)>40)drop.blocked=false;continue;}
-   if(drop.age<.4||Math.abs(drop.y-this.y)>26)continue;
-   if(drop.x>=Math.min(pickupStart,this.x)-18&&drop.x<=Math.max(pickupStart,this.x)+18&&this.openDraft(drop))break;
-  }
+  for(const drop of this.cardDrops)drop.age+=dt;
+
  }
 }

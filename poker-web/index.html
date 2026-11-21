@@ -2,19 +2,21 @@
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0b1416"><meta name="description" content="A fairy-tale platformer powered by a living hand of poker cards. Climb the forest, play your hand, awaken Dark Red."><title>RED — The Gambler's Clearing</title><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./menu.css"></head>
 <body class="at-title"><main>
 
-<section id="stage" tabindex="0" aria-label="Platforming game. A and D move, Space jumps, Shift dashes, J attacks, Q cycles scoring combinations and K plays the highlighted cards. Keys 1 to 5 throw a single card or replace it with your saved draw.">
+<section id="stage" tabindex="0" aria-label="Platforming game. A and D move, Space jumps, Shift dashes, J attacks, Q cycles scoring combinations and K plays the highlighted cards. Keys 1 to 5 throw a single card or replace it with your saved draw. E collects nearby drops. C opens the paused card inspector.">
 <canvas id="game" width="960" height="540" aria-label="Forest platforming game"></canvas>
 <nav aria-label="Game menu" inert><button id="pause" aria-label="Pause game" aria-keyshortcuts="P Escape">Pause <kbd>P</kbd></button></nav><div class="hud"><div><span class="eyebrow">HEALTH</span><div id="health" aria-label="Health"></div></div><div class="quest"><span class="eyebrow">FOREST EMBERS</span><strong id="quest">0 / 3 embers</strong></div></div>
 <div id="journey-hud"><span id="chapter-label">I · LANTERN WOOD</span><div id="trail-dots" aria-label="Journey progress"></div></div>
 <div id="objective" aria-live="polite"></div>
+<div id="tutorial-hint" hidden role="status"><strong></strong><span></span></div>
+<button id="collect-card" hidden>Collect card · E</button>
 <div id="boss-hud" hidden><strong id="boss-name"></strong><div id="boss-health" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i id="boss-fill"></i></div><small id="boss-tell"></small></div>
 <div id="dark-meter" hidden><span>DARK RED <b id="dark-time">6.0s</b></span><i></i><small>Double sword damage · faster movement</small></div>
 <div id="toast" aria-live="polite"></div>
 <div id="touch" class="touch" aria-hidden="true"><div id="stickzone"><div id="stick"><i id="knob"></i></div></div><button tabindex="-1" data-hold="Space" class="big" style="--x:8cqw;--y:8cqw;--s:11cqw">JUMP</button><button tabindex="-1" data-hold="KeyJ" style="--x:23cqw;--y:6cqw;--s:8.5cqw">SWORD</button><button tabindex="-1" data-hold="ShiftLeft" style="--x:19cqw;--y:19cqw;--s:7.5cqw">DASH</button><button tabindex="-1" data-hold="KeyK" style="--x:6.5cqw;--y:24cqw;--s:7.5cqw">HAND</button></div>
 <section class="table" aria-label="Poker hand" inert>
-<div class="hand-info"><p class="eyebrow" id="hand-label">POKER HAND</p><h2 id="combo">Pair</h2><p id="effect">Heavy bolt · 14 damage</p><p id="flavour" hidden></p><div class="hand-actions"><button id="play" class="cast-button">Play <kbd>K</kbd></button><button id="cycle" class="cast-button" hidden aria-keyshortcuts="Q">Cycle <kbd>Q</kbd></button></div><span id="play-description" class="sr-only" role="status"></span></div>
+<div class="hand-info"><p class="eyebrow" id="hand-label">POKER HAND</p><h2 id="combo">Pair</h2><p id="effect">Heavy bolt · 14 damage</p><p id="flavour" hidden></p><div class="hand-actions"><button id="play" class="cast-button">Play <kbd>K</kbd></button><button id="cycle" class="cast-button" hidden aria-keyshortcuts="Q">Cycle <kbd>Q</kbd></button><button id="inspect-cards" class="cast-button" aria-keyshortcuts="C">Cards <kbd>C</kbd></button></div><span id="play-description" class="sr-only" role="status"></span></div>
 <div id="hand" aria-label="Five card slots"></div>
-<div class="draw-info"><p class="eyebrow">DRAW METER</p><strong id="draw-label">Land 3 sword hits</strong><div id="pips"><i></i><i></i><i></i></div><p id="draw-help">Touch a card drop to choose your draw.</p><small id="deck-count">47 in deck · 0 spent</small></div>
+<div class="draw-info"><div id="saved-card" hidden><canvas width="32" height="48" aria-hidden="true"></canvas><div><span class="eyebrow">SAVED DRAW</span><strong></strong></div></div><p class="eyebrow">DRAW METER</p><strong id="draw-label">Land 3 sword hits</strong><div id="pips"><i></i><i></i><i></i></div><p id="draw-help">Press E near a card drop to choose your draw.</p><small id="deck-count">47 in deck · 0 spent</small></div>
 </section><section id="overlay" role="dialog" aria-modal="true" aria-label="Game menu">
  <div id="menu-home" class="menu-page">
   <div class="menu-heading">
@@ -56,7 +58,7 @@
   <p>Defeat the foes at each briar gate. Gather three embers and reach the lantern to face the guardian.</p>
   <h3>Playing your hand</h3>
   <p>Play the highlighted cards together, or cycle to save a pair for later. Throw a single card for 6 damage. Flushes and higher awaken Dark Red for six seconds.</p>
-  <p>Every third landed sword swing earns a card drop. Touch it to choose between two cards. With a full hand, choose a slot to replace or play a combination to make room. Esc leaves the drop for later.</p>
+  <p>Every third landed sword swing earns a card drop. Stand near it and press E, D-pad Up, or Collect to choose between two cards. Combat pauses only when you collect. With a full hand, choose a slot to replace or play a combination to make room. Esc or B leaves the drop for later.</p>
   <p>Pairs hit hard, two pair explodes, and trips and straights pierce. Spades pierce, diamonds fill the draw meter, clubs stagger ordinary foes, and hearts heal.</p>
   <h3>Controls</h3>
   <table class="control-list"><thead><tr><th>Action</th><th>Keyboard</th><th>Gamepad</th></tr></thead><tbody>
@@ -64,7 +66,8 @@
    <tr><th>Jump / dash</th><td>Space / Shift</td><td>A / B</td></tr>
    <tr><th>Sword / play hand</th><td>J / K</td><td>X / Y</td></tr>
    <tr><th>Cycle play</th><td>Q</td><td>LB</td></tr>
-   <tr><th>Use a card slot</th><td>1–5 or click</td><td>—</td></tr>
+   <tr><th>Use a card slot</th><td>1–5 or click; C to inspect</td><td>LT, left/right, A; B cancels</td></tr>
+   <tr><th>Collect nearby card</th><td>E or Collect button</td><td>D-pad Up</td></tr>
    <tr><th>Pause</th><td>P or Esc</td><td>Start</td></tr>
   </tbody></table>
   <p>On touchscreens, steer with your left thumb. Tap the action buttons, Cycle, or a card to use it.</p>
@@ -99,10 +102,20 @@
    <button id="draft-left" class="draft-option"><kbd>1</kbd><canvas width="32" height="48" aria-hidden="true"></canvas><strong></strong><small></small></button>
    <button id="draft-right" class="draft-option"><kbd>2</kbd><canvas width="32" height="48" aria-hidden="true"></canvas><strong></strong><small></small></button>
   </div>
-  <button id="draft-skip">Leave it · Esc</button>
+  <p id="draft-help">1 / 2 · choose a card</p><button id="draft-skip">Leave it · Esc</button>
  </div>
 </section>
 
+<section id="card-select" hidden role="dialog" aria-modal="true" aria-labelledby="slot-title">
+ <div class="draft-panel">
+  <p class="eyebrow">INSPECT CARDS · COMBAT PAUSED</p><h2 id="slot-title">Choose a card slot</h2>
+  <canvas id="slot-card" width="32" height="48" aria-hidden="true"></canvas>
+  <strong id="slot-name"></strong><p id="slot-preview"></p>
+  <div class="slot-navigation"><button id="slot-prev" aria-label="Previous card">←</button><span id="slot-position"></span><button id="slot-next" aria-label="Next card">→</button></div>
+  <button id="slot-confirm">Use card</button><button id="slot-cancel">Cancel</button>
+  <small id="slot-help">Left / Right · Enter confirm · Esc cancel</small>
+ </div>
+</section>
 <section id="lantern" role="dialog" aria-modal="true" aria-labelledby="lantern-title" aria-describedby="lantern-copy" hidden>
  <div class="draft-panel">
   <p class="eyebrow">LANTERN WOOD</p>
