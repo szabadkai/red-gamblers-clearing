@@ -1,3 +1,4 @@
+export const WOOD_TILE_SIZE=16;
 // Deterministic edge constraints applied to runtime pixel surfaces, never to source art.
 // Generated textures are not assumed to be seamless merely because of their prompt.
 export const TERRAIN_TILE_SIZE=96;

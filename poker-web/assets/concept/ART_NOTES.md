@@ -3,7 +3,7 @@ The Feather/Step/Briar concept files are retained as source references only; the
 # Journey artwork — 2026-11-08
 
 The forest, stone, feather, step and briar images are reused from
-`ridingHood-web/public/assets/concept/`, generated for the earlier Red web prototype.
+`asset-archive/web/concept/`, generated for the earlier Red web prototype.
 Their original files are preserved. The forest is the distant Lantern Wood and
 Broken Crossing background; the stone is foreground masonry; the three illustrated
 objects are keepsakes with new poker-platformer effects.
@@ -119,3 +119,39 @@ Use case: stylized-concept. Production pixel-art environment PROP ATLAS for RED,
 ### Masonry generation prompt
 
 Use case: stylized-concept. A production seamless masonry MATERIAL TEXTURE for a sophisticated pixel-art fairy-tale platformer. Square image completely filled edge to edge with a flat orthographic side view of old hand-cut limestone blocks, varied large and small interlocking rectangular stones, a few subtly chipped corners, confident dark recessed mortar, restrained moss in occasional joints. No perspective, no lighting gradients across the whole image. Cohesive muted slate teal and gray-green palette, sage moss, small warm ivory bevel highlights. CRISP LOW-RESOLUTION PIXEL ART authored as if the entire texture were exactly 96 by 96 pixels, upscaled by nearest neighbor. About six courses of stone across the height, five to seven blocks across the width. Each block has only 2-3 large flat shade clusters, a simple stepped bevel, occasional single clean crack. Polished readable crafted stone, NO mottled camouflage, NO noisy flecks, no granular rock texture, no painterly shading, no blur, no antialiasing. Strict seamless repeat in both directions: the top matches the bottom and the left matches the right; blocks and mortar continue across boundaries with no border. Suitable for extracting a mutually compatible modular platform tileset. No plants projecting off the surface, objects, characters, labels, text, framing, or UI.
+
+## Huntsman’s Bridge showcase — November 2026
+
+Generated with the built-in image-generation tool, not the CLI. Source outputs
+are preserved in this directory:
+
+- `bridge-atlas-v1.png`: transparent tower, oak, bridge arch and candle shrine.
+- `bridge-distance-v1.png`: opaque distant forest, aqueduct and ravine panorama.
+- `bridge-bough-v1.png`: transparent mossy oak bough.
+
+The playable bridge uses the same 16×16 native cells as Lantern Wood. The bank
+grass, earth, stone ledge ends and sprigs come directly from
+`assets/environment/terrain.png`. Three stone courses fit in each 16-pixel
+wall tile. Cut, chipped, damp and lichen-covered stone have eight matching
+edge configurations each. The two crossings use four native arch maps.
+Moss on coping, pillars, branches and ledges uses the five greens sampled from
+Lantern Wood turf. Only sunlit growth uses the bright tuft highlights.
+
+`sources/bridge/make_tiles.py` rebuilds `assets/bridge/stone-tiles.png`,
+`assets/bridge/moss-bough.png` and `bridge-arches.mjs` with Python and
+Pillow. Each branch slice is drawn at its native dimensions. Earlier painted
+bays are archived at `asset-archive/web/concept/bridge-stone-bays.png`.
+
+### Atlas prompt
+
+Use case: stylized-concept. Asset type: production TRANSPARENT game environment atlas, square image with FOUR equal square cells in a strict 2 by 2 grid, generous transparent padding within each cell, nothing crossing cell boundaries. No grid lines or labels. Reference image is ONLY visual style reference, do NOT reproduce its complete scene, characters, UI, cards, text or background. Create four independent isolated side-view architectural cutouts for a sophisticated fairy tale pixel platformer. Upper left: tall broken gothic stone chapel wall, one tall glowing amber arched window, mossy irregular ruined top, small attached hanging lantern; wall fills most of cell, flat base. Upper right: enormous ancient gnarled oak, trunk on RIGHT half, wide near-horizontal branch reaching LEFT at upper third height, root buttresses at base, sparse rich scarlet leaves on upper canopy; clear transparent air below branch left of trunk. Lower left: a single substantial grey mossy stone bridge ARCH module viewed perfectly side-on, FLAT horizontal walkable deck along top at 15 percent cell height, thick voussoir stones around large open arch, two broad piers descending to bottom corners, truly transparent open arch interior; no perspective, no background inside arch. Lower right: a ruined low stone tunnel shrine with a dark recessed gothic opening, warm candles, a small barrel and mossy rubble to either side; no ground beyond its flat base. Style: extremely beautiful deliberate pixel art, crisp stepped edges and clustered shading, charcoal outlines, grey slate masonry with warm ochre upper highlights, olive moss, burgundy ivy, petrol teal shadows, warm amber lights. Match reference's detailed stone and bark without painterly fuzz or noisy speckling. Every object entirely contained in its own cell, separated by transparency. These are reusable sprite assets NOT a screenshot. No scenery backdrop, characters, enemies, cards, letters, numbers, UI, border or watermarks. True alpha transparency everywhere outside objects and inside arch.
+
+Style reference: `docs/red-concept/references/01-bridge-gameplay.png`.
+
+### Distant panorama prompt
+
+Use case: stylized-concept. Production DISTANT BACKGROUND ONLY for a side-scrolling pixel-art fairy tale game. Wide landscape 3:1 panorama, blue teal moonlit ancient forest with enormous layered tree silhouettes, distant ruined gothic aqueduct partly swallowed by forest in center-left, narrow waterfall descending through deep ravine center-right. Pale blue moonlight behind canopy at top center. Muted burgundy leaves sparsely at far upper corners. Lower half dark teal atmosphere and deep chasm; low contrast enough for a separate playable bridge and small red character to read. Deliberately composed spacious scene, sophisticated crisp pixel-art clusters and stepped silhouettes, gentle mist bands separating distance planes, no blurry texture, no tiny noisy flecks. Palette deep ink blue, slate blue, desaturated petrol, pale blue-grey highlights, extremely restrained warm amber window points. No foreground trunks, no playable ground or foreground platforms, no close bridge, no characters, no cards, no UI or text, no border. Detailed but quiet background, all bright highlights in upper half. Whole image filled, opaque.
+
+### Bough prompt
+
+Use case: stylized-concept. Production sprite for pixel-art side view platform game. ONE isolated horizontal ancient oak bough on true transparent background, wide 3:1 landscape. The bough runs from left edge toward a thicker broken root joint on right. Entire object fully visible with transparent margin. Long mostly straight almost horizontal moss-covered top suitable as a walkable platform. Underside gently bows, varies organically, several slender hanging rootlets. Rich layered gnarled bark with dark plum grooves and warm muted brown ridges, thick sage and olive moss fringe, tiny ochre grass tufts, a small restrained cluster of red ivy dangling beneath near left end. No canopy or tree trunk, no leaves above platform, no scenery or ground. Beautiful detailed crisp PIXEL ART with deliberate clusters, stepped edges, black-blue outlines, no painterly blur. Matches sophisticated moonlit gothic forest game. No text, UI, characters, backdrop or shadow outside object. Object occupies middle horizontal third of image height; empty transparent air above and below.

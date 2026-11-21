@@ -14,6 +14,7 @@ export const DEATH_TIME=.9;
 // A knocked-back foe slides: its push becomes a velocity that dies away in about a fifth of a second.
 export const SLIDE=14;
 export const HANDS=['High card','Pair','Two pair','Three of a kind','Straight','Flush','Full house','Four of a kind','Straight flush'];
+export const SPLIT_PAIRS=[48,35,5,18,1]; // J♥ J♣ 7♠ 7♦ 3♠
 export const DAMAGE=[6,14,20,26,32,40,52,64,90];
 export const EFFECTS=['Quick bolt','Heavy bolt','Explosive shot','Piercing lance','Piercing beam','Dark wave','Twin dark waves','Royal burst','Royal burst + wave'];
 export const SUITS=['spades','diamonds','clubs','hearts'];
@@ -42,10 +43,54 @@ export function evaluate(cards){
  const spent=tier>=1?indices.map(i=>Math.floor(cards[i]/13)):[],suits=[...new Set(spent)].sort();
  return {tier,name:HANDS[tier],damage:DAMAGE[tier],indices,heal:suits.includes(3),suits,diamonds:spent.filter(s=>s===1).length};
 }
+// Pure previews share the evaluator used by actual casts and never move deck cards.
+export function previewDraw(hand,card){
+ const options=hand.length<5?[{slot:null,hand:[...hand,card]}]:
+  hand.map((_,slot)=>({slot,hand:hand.map((id,i)=>i===slot?card:id)}));
+ return options.map(option=>({...option,result:evaluate(option.hand)}));
+}
+// K leads with the normal best hand. Offer each smaller scoring combination once,
+// including different suits of the same rank. Single cards already have slot controls.
+export function scoringPlays(hand){
+ const best=evaluate(hand),plays=[best];
+ if(best.tier<=1)return plays;
+ const bestMask=best.indices.reduce((mask,slot)=>mask|(1<<slot),0);
+ const fullMask=(1<<hand.length)-1;
+ for(let mask=1;mask<fullMask;mask++){
+  if(mask===bestMask)continue;
+  const slots=[];
+  for(let slot=0;slot<hand.length;slot++)if(mask&(1<<slot))slots.push(slot);
+  if(slots.length<2)continue;
+  const play=evaluate(slots.map(slot=>hand[slot]));
+  if(play.tier>0&&play.indices.length===slots.length)plays.push({...play,indices:slots});
+ }
+ return plays.sort((a,b)=>b.tier-a.tier);
+}
 export class Deck{
  constructor(random=Math.random){this.random=random;this.reset()}
  shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(this.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
- reset(){this.hand=[];this.pile=this.shuffle(Array.from({length:52},(_,i)=>i));this.discard=[];this.hits=0;this.reserve=null;this.drafts=[];this.nextDraft=0;for(let i=0;i<5;i++)this.draw()}
+ reset(){this.handKey=null;this.hand=[];this.pile=this.shuffle(Array.from({length:52},(_,i)=>i));this.discard=[];this.hits=0;this.reserve=null;this.drafts=[];this.nextDraft=0;for(let i=0;i<5;i++)this.draw()}
+ // Unclaimed trail drops stay behind. Return their cards to the discard pile.
+ checkpoint(){
+  return {hand:[...this.hand],pile:[...this.pile],discard:[...this.discard,...this.drafts.flatMap(d=>d.cards)],
+   reserve:this.reserve,hits:this.hits};
+ }
+ restore(checkpoint){
+  this.hand=[...checkpoint.hand];this.pile=[...checkpoint.pile];this.discard=[...checkpoint.discard];
+  this.reserve=checkpoint.reserve;this.hits=checkpoint.hits;this.handKey=null;this.drafts=[];this.nextDraft=0;
+ }
+ get plays(){
+  const key=this.hand.join(',');
+  if(this.handKey!==key){this.handKey=key;this.handPlays=scoringPlays(this.hand);this.playIndex=0;}
+  return this.handPlays;
+ }
+ get selectedPlay(){return this.plays[this.playIndex];}
+ nextPlay(){
+  const count=this.plays.length;
+  if(count<2)return false;
+  this.playIndex=(this.playIndex+1)%count;
+  return true;
+ }
  get banked(){return this.reserve!==null}
  take(){if(!this.pile.length)this.pile=this.shuffle(this.discard.splice(0));return this.pile.pop()}
  draw(){if(this.hand.length>=5)return;const card=this.take();if(card!==undefined)this.hand.push(card)}
@@ -65,9 +110,26 @@ export class Deck{
   if(this.hand.length<5)this.hand.push(card);else this.reserve=card;
   return {card,banked:this.banked};
  }
- play(){let r=evaluate(this.hand);for(let i of [...r.indices].sort((a,b)=>b-a))this.discard.push(...this.hand.splice(i,1));if(this.banked&&this.hand.length<5){this.hand.push(this.reserve);this.reserve=null}return r}
+ play(slot=null){
+  let result;
+  if(slot===null){
+   result=this.selectedPlay;
+  }else{
+   if(!Number.isInteger(slot)||slot<0||slot>=this.hand.length)return null;
+   const card=this.hand[slot];
+   result={...evaluate([card]),indices:[slot],thrownCard:card};
+  }
+  for(const index of [...result.indices].sort((a,b)=>b-a)){
+   this.discard.push(...this.hand.splice(index,1));
+  }
+  if(this.banked&&this.hand.length<5){
+   this.hand.push(this.reserve);
+   this.reserve=null;
+  }
+  return result;
+ }
  replace(i){if(!this.banked||i<0||i>=this.hand.length)return false;this.discard.push(this.hand[i]);this.hand[i]=this.reserve;this.reserve=null;return true}
- preset(cards){this.hand=[...cards];this.pile=this.shuffle(Array.from({length:52},(_,i)=>i).filter(c=>!cards.includes(c)));this.discard=[];this.hits=0;this.reserve=null;this.drafts=[];this.nextDraft=0}
+ preset(cards){this.handKey=null;this.hand=[...cards];this.pile=this.shuffle(Array.from({length:52},(_,i)=>i).filter(c=>!cards.includes(c)));this.discard=[];this.hits=0;this.reserve=null;this.drafts=[];this.nextDraft=0}
 }
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const approach=(a,b,n)=>a<b?Math.min(a+n,b):Math.max(a-n,b);
@@ -129,9 +191,25 @@ export class World{
   const fly=kind==='flyer',from=this.gates[section-1]?.x,to=this.gates[section]?.x,roam=fly?{fly,home:{x,y:platform.y},left:from===undefined?16:from+26,right:to===undefined?this.width-16:to-26}:{left:platform.x+16,right:platform.x+platform.w-16};
   this.enemies.push({id:this.nextId++,kind,...traits(skin),section,x,y:platform.y,...roam,hp:def.hp,max:def.hp,tough,wind:0,rest:.3,flash:0,walk:0,face:-1,state:'patrol',surface:s,patrolDir:this.nextId%2?1:-1,air:false,airVX:0,vy:0,hopCD:0,action:0,strikeDir:-1,connected:false})}
  practiceDeal(kind){
+  const splitPairs=kind===24;
+  if(splitPairs)kind=0;
   // Extra single-foe practices: [behaviour, spawn x, banner, skin]
   const extra={15:['flyer',420,'RAVEN · SIDESTEP THE DIVE, STRIKE WHERE IT LANDS'],16:['charger',520,'STAG · JUMP THE CHARGE, STRIKE WHILE IT RECOVERS'],17:['mage',400,'WISP · CATCH IT BEFORE IT BLINKS AWAY','will_o_wisp'],18:['mage',400,'WITCH · LEAVE THE MARKED GROUND','forest_witch'],19:['guard',330,'BRAMBLES · STAY OUT OF THE LASH OR GET BEHIND IT','thorn_brambles'],20:['guard',400,'TREE · LEAVE THE CRACKED GROUND','living_tree'],21:['mage',400,'MUSHROOM · BACK OFF WHEN IT SWELLS','spore_mushroom'],22:['mage',400,'GHOST HUNTER · IT SLIPS THROUGH YOU','ghost_hunter'],23:['brute',330,'BEAR · IT ROARS AT HALF HEALTH, THEN SPEEDS UP','brown_bear']}[kind];if(extra)kind=4;
-  if(kind>=7){this.reset(kind===9?1:kind===7?2:3);this.practice=true;this.banner='EXPLORE · '+this.clearing.name.toUpperCase();this.bannerTime=3;return;}this.reset();this.practice=true;this.arena=true;this.width=WIDTH;this.gates=[];this.platforms=[{id:0,x:0,y:420,w:2400,ground:true}];this.embers=[];this.npcs=[];this.x=180;this.enemies=[];this.deck.preset([[5,18,2,9,24],[0,2,5,8,11],[5,18,31,44,8]][kind]||[5,18,2,9,24]);for(let i=0;i<3;i++)this.spawn(300+i*100,0,i===2);this.banner='PRACTICE · '+evaluate(this.deck.hand).name;this.bannerTime=2;if(kind===3){this.deck.pile=this.deck.pile.filter(c=>c!==31&&c!==12);this.deck.pile.push(12,31);this.deck.hit();this.deck.hit();this.spawnCardDrop(this.deck.hit(),{x:240,y:420});this.banner='TOUCH THE CARD · CHOOSE YOUR DRAW'}if(kind>=4){this.enemies=[];this.spawn(extra?extra[1]:330,0,extra?extra[0]:['runner','mage','guard'][kind-4]);this.banner=extra?extra[2]:['BOAR · DODGE THE LUNGE','HUNTER · JUMP OR SLASH THE ARROW','LIVING TREE · BAIT THE SLAM'][kind-4];
+  if(kind>=7){this.reset(kind===9?1:kind===7?2:3);this.practice=true;this.banner='EXPLORE · '+this.clearing.name.toUpperCase();this.bannerTime=3;return;}
+  this.reset();this.practice=true;this.arena=true;this.width=WIDTH;this.gates=[];this.platforms=[{id:0,x:0,y:420,w:2400,ground:true}];this.embers=[];this.npcs=[];this.x=180;this.enemies=[];
+  if(splitPairs){
+   this.deck.preset(SPLIT_PAIRS);this.health=4;
+   this.banner='SPLIT THE PAIRS · CYCLE ONCE TO MEND';this.bannerTime=4;
+   this.spawn(530,0,'scout');this.spawn(700,0,'runner');return;
+  }
+  this.deck.preset([[5,18,2,9,24],[0,2,5,8,11],[5,18,31,44,8]][kind]||[5,18,2,9,24]);
+  for(let i=0;i<3;i++)this.spawn(300+i*100,0,i===2);
+  this.banner='PRACTICE · '+evaluate(this.deck.hand).name;this.bannerTime=2;
+  if(kind===0){
+   this.banner='THROW THE JACK (4) · PLAY THE PAIR (K)';
+   this.bannerTime=4;
+  }
+  if(kind===3){this.deck.pile=this.deck.pile.filter(c=>c!==31&&c!==12);this.deck.pile.push(12,31);this.deck.hit();this.deck.hit();this.spawnCardDrop(this.deck.hit(),{x:240,y:420});this.banner='TOUCH THE CARD · CHOOSE YOUR DRAW'}if(kind>=4){this.enemies=[];this.spawn(extra?extra[1]:330,0,extra?extra[0]:['runner','mage','guard'][kind-4]);this.banner=extra?extra[2]:['BOAR · DODGE THE LUNGE','HUNTER · JUMP OR SLASH THE ARROW','LIVING TREE · BAIT THE SLAM'][kind-4];
    if(extra?.[3])Object.assign(this.enemies[0],traits(extra[3]));this.bannerTime=4;}}
  emit(type){this.events.push(type)}
  puff(kind){this.dust.push({x:this.x,y:this.y,dir:this.facing,kind,life:DUST_LIFE})}
@@ -186,7 +264,18 @@ export class World{
   this.activeDraft=null;this.mode='playing';
  }
  suppressNearbyDrops(){for(const drop of this.cardDrops)if(Math.abs(drop.x-this.x)<32&&Math.abs(drop.y-this.y)<40)drop.blocked=true;}
- play(){if(this.cast>0||!this.deck.hand.length||this.mode!=='playing')return;const r=this.deck.play();this.bestHand=Math.max(this.bestHand??-1,r.tier);this.tally.best=Math.max(this.tally.best,r.tier);this.cast=.36;this.banner=r.name.toUpperCase();this.bannerTime=1.5;this.emit('attack3');
+ useSlot(slot){
+  if(this.mode!=='playing'||this.dying>0||!Number.isInteger(slot)||slot<0||slot>=this.deck.hand.length)return false;
+  if(this.deck.banked)return this.deck.replace(slot);
+  return this.play(slot);
+ }
+ cyclePlay(){return this.mode==='playing'&&this.dying===0&&this.deck.nextPlay();}
+ play(slot=null){
+  if(this.cast>0||this.dying>0||!this.deck.hand.length||this.mode!=='playing')return false;
+  const r=this.deck.play(slot);
+  if(!r)return false;
+  this.bestHand=Math.max(this.bestHand??-1,r.tier);this.tally.best=Math.max(this.tally.best,r.tier);
+  this.cast=.36;this.banner=r.thrownCard===undefined?r.name.toUpperCase():cardName(r.thrownCard).toUpperCase();this.bannerTime=1.5;this.emit('attack3');
   if(r.suits.some(s=>s<3)){this.banner+=' · '+flavourText({...r,suits:r.suits.filter(s=>s<3)}).toUpperCase();this.bannerTime=2;}
   if(r.heal&&this.health<5){this.health++;this.banner+=' · +1 HEART';this.bannerTime=2;this.emit('pickup_essence');}
   for(let i=0;i<r.diamonds;i++){const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,{x:this.x+this.facing*40,y:this.y});this.emit('meter_full');}}
@@ -196,6 +285,7 @@ export class World{
   if(r.tier>=7)this.blast(this.x,this.y-22,270,r.damage,true,impact);
   if(r.tier<7||r.tier===8)this.fire(r,this.facing,impact);
   if(r.tier===6)this.fire(r,-this.facing,impact);this.removeDead();
+  return true;
  }
  startMorph(from,duration){this.morphFrom=from;this.morphDuration=duration;this.transform=duration;this.morphFacing=this.facing;this.morphPose=this.grounded&&Math.abs(this.vx)<=10&&this.attack<=0&&this.dash<=0;}
  pokerImpact(impact,killed=false){
@@ -205,7 +295,7 @@ export class World{
   this.hitStop=Math.max(this.hitStop,frames/60);
   this.shakePower=frames*2-2;this.shakeDuration=.1+frames*.025;this.shakeTime=this.shakeDuration;
  }
- fire(r,dir,impact){this.bolts.push({x:this.x+dir*20,y:this.y-23,dir,damage:r.damage,tier:r.tier,life:1.5,hit:new Set(),impact})}
+ fire(r,dir,impact){this.bolts.push({x:this.x+dir*20,y:this.y-23,dir,damage:r.damage,tier:r.tier,card:r.thrownCard,life:1.5,hit:new Set(),impact})}
  blast(x,y,radius,damage,dark=false,impact=null){this.rings.push({x,y,radius,dark,life:.45});for(const e of this.enemies){const box=e.boss&&bossBox(e);if(box?Math.hypot(clamp(x,box.x0,box.x1)-x,clamp(y,box.y0,box.y1)-y)<=radius:Math.hypot(e.x-x,e.y-22-y)<=radius){if(this.damage(e,damage,Math.sign(e.x-x)*40)!==false&&impact?.knock)this.knockBack(e,Math.sign(e.x-x)||this.facing);this.pokerImpact(impact,e.hp<=0)}}}
  knockBack(e,dir){if(e.boss||e.storyTarget||e.hp<=0||e.state==='blink')return;e.slide=(e.slide||0)+dir*90*SLIDE;e.rest=Math.max(e.rest||0,DAZE);e.dazed=DAZE;}
  damage(e,amount,push,sword=false){if(this.wall&&e.x>this.wall.x||e.state==='blink')return false;e.hp-=amount;e.flash=.15;
@@ -240,7 +330,11 @@ export class World{
   const axis=knocked?0:clamp(input.axis||0,-1,1);if(axis)this.facing=axis>0?1:-1;
   this.vx=this.dash>0?this.facing*570:knocked?approach(this.vx,0,700*dt):approach(this.vx,axis*(this.dark>0?300:260),(this.grounded?2600:1700)*dt);
   if(this.swordPending>0){this.swordPending=Math.max(0,this.swordPending-dt);if(this.swordPending===0)this.resolveSword();}
-  if(input.sword)this.sword();if(input.play)this.play();if(input.replace!==undefined)this.deck.replace(input.replace);
+  if(input.sword)this.sword();
+  if(input.cycle)this.cyclePlay();
+  if(input.play)this.play();
+  else if(input.cardSlot!==undefined)this.useSlot(input.cardSlot);
+  else if(input.replace!==undefined)this.deck.replace(input.replace);
   this.coyote=this.grounded?.12:Math.max(0,this.coyote-dt);this.tryJump();
   const oldX=this.x,oldY=this.y,wasGround=this.grounded;this.x=clamp(this.x+this.vx*dt,12,this.width-12);this.updateGates(dt);
   if(!this.dash)this.vy+=1300*dt;this.y+=this.vy*dt;this.grounded=false;this.surface=-1;
@@ -258,7 +352,7 @@ export class World{
    if(this.bannerTime<=0){this.banner='FOES STILL ROAM THE CLEARING';this.bannerTime=1.6;}
   }
   updateEnemies(this,dt);updateEnemyShots(this,dt);updatePatches(this,dt);
-  if(!this.practice&&this.health<5&&this.bannerTime<=0&&!this.hinted.has('heal')&&evaluate(this.deck.hand).heal){this.hinted.add('heal');this.banner='HEARTS MEND · PLAY THIS HAND TO HEAL';this.bannerTime=3.2;}
+  if(!this.practice&&this.health<5&&this.bannerTime<=0&&!this.hinted.has('heal')&&this.deck.selectedPlay.heal){this.hinted.add('heal');this.banner='HEARTS MEND · PLAY THIS HAND TO HEAL';this.bannerTime=3.2;}
   for(const b of this.bolts){let old=b.x;b.x+=b.dir*680*dt;b.life-=dt;if(this.wall&&b.x>this.wall.x-8){b.life=0;continue}for(const e of this.enemies){const box=e.boss&&bossBox(e),lo=Math.min(old,b.x),hi=Math.max(old,b.x),reach=b.tier>=5?65:30;
    const miss=box?hi+6<box.x0||lo-6>box.x1||b.y<box.y0-reach/2||b.y>box.y1+4:e.x<lo-22||e.x>hi+22||Math.abs(e.y-23-b.y)>reach;
    if(miss||b.hit.has(e.id))continue;b.hit.add(e.id);if(b.tier===2)this.blast(e.x,e.y-22,100,b.damage,false,b.impact);else{if(this.damage(e,b.damage,b.dir*(30+b.tier*5))!==false&&b.impact?.knock)this.knockBack(e,b.dir);this.pokerImpact(b.impact,e.hp<=0)}if(b.tier<3&&!b.impact?.pierce){b.life=0;break}}}

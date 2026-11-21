@@ -1,18 +1,15 @@
 {
-  "name": "red-other-side-prototype",
+  "name": "red-gamblers-clearing",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm --prefix ridingHood-web run dev -- --host 0.0.0.0",
-    "build": "npm --prefix ridingHood-web run build && node Scripts/copy-build.mjs",
-    "test": "node --experimental-strip-types --test ridingHood-web/tests/*.test.ts",
-    "start": "node tools/serve.mjs --open",
+    "start": "node poker-web/serve.mjs --open",
+    "dev": "node poker-web/serve.mjs",
     "play": "npm start",
-    "play:poker": "npm --prefix poker-web run dev",
-    "test:poker": "npm --prefix poker-web test",
-    "build:poker": "npm --prefix poker-web run build"
-  },
-  "workspaces": [
-    "ridingHood-web"
-  ]
+    "test": "npm --prefix poker-web test",
+    "build": "npm --prefix poker-web run build && node tools/check-release.mjs",
+    "play:poker": "npm run dev",
+    "test:poker": "npm test",
+    "build:poker": "npm run build"
+  }
 }

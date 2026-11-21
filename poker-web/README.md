@@ -3,19 +3,19 @@
 Standalone browser successor to the Godot poker prototype. No dependencies or
 external runtime services; sprites, audio, and font are bundled locally.
 
-Play on GitHub Pages: https://szabadkai.github.io/red-local/poker/
+Play on GitHub Pages: https://szabadkai.github.io/red-gamblers-clearing/
 
-The repository's Pages workflow tests and builds both games on pushes to `main`.
-`Scripts/prepare-pages.mjs` adds this build under `/poker/`, alongside the original
-game at the site root. All asset and module URLs are relative to this directory.
-For development, use the local server below. The earlier Sites-hosted copy is
-separate and is not updated by this workflow.
+Run `npm start` from the repository root to open the game. Inside this folder,
+`npm run dev` starts the same server, `npm test` runs the suite, and `npm run build`
+creates the deployable `dist/`. GitHub Pages serves this build at the site root.
 
-```sh
-npm run dev       # http://127.0.0.1:4310/
-npm test
-npm run build    # deployable dist/
-```
+## Menus and local tools
+
+Settings and the field guide are available from the title and pause menus. Continue journey takes priority when a checkpoint exists. New journey asks before replacing it. The audio mixer preserves the original sound preference. Motion follows the device until you choose Full or Reduced.
+
+Use Tab or the arrow keys to navigate, and Escape to go back. On a controller use the D-pad, A to select, B to go back and left/right to change a setting.
+
+All practice and review instructions below use `npm run dev -- --dev-tools` on the loopback address printed in the terminal. Choose **Developer tools**, select a preset, then **Start practice**. The release build contains the player menu and omits the developer module and review fixtures.
 
 ## Story campaign
 
@@ -37,8 +37,10 @@ advances; Skip scene or holding Escape skips with the same progression outcome.
 The finale ends with a playable walk home alongside Grandmother. Existing routes,
 including the bridge's lower passage, remain intact.
 
-Each boss, the swallowed rooms, and the garden have retry checkpoints. R restores
-full health and a normal fresh hand at the current encounter. Continue restores
+Each boss, the swallowed rooms, and the garden have retry checkpoints. The Briar Hart's
+lantern offers **Keep my hand** or **Deal five**. Keeping carries the cards, saved draw and draw meter.
+Use the buttons, press 1 or 2, or select with left/right and confirm with Enter (A on a gamepad).
+R restores full health and the chosen opening deal for the Hart. Other encounter checkpoints deal a fresh hand. Continue restores
 saved dialogue at its current line or restarts the saved encounter. On a trail,
 Continue after a reload returns to the last opened briar gate with the embers carried so far. Saves use `red.poker.story.v3`; older
 journeys migrate by clearing name. A saved completed journey can replay the final
@@ -85,11 +87,13 @@ and the opening, cottage, chapel, and rescue-room layouts.
 ## Play
 
 A/D or arrows move. Hold Space for a higher jump; release for a short hop.
-Shift dashes; hold J for sword attacks; K plays the best poker combination.
+Shift dashes. Hold J for sword attacks. K plays the highlighted poker combination. The strongest is selected whenever your cards change. Q or the Cycle button previews other scoring combinations, including different suits in a three of a kind. Only the highlighted cards are spent. Click a card or press its slot number (1–5)
+to throw that card for 6 damage and keep the rest. With a saved draw, the same
+controls replace the chosen slot.
 S or Down drops through raised platforms. P/Escape pauses. R retries the current clearing.
 New journey in the menu starts from Lantern Wood.
 A gamepad with the standard mapping also works: stick or d-pad moves (down drops through), A jumps, X swings,
-Y plays the hand, B/RB/RT dash, Start pauses. In scenes A advances and Start skips; at a card drop, left/right
+Y plays the hand, LB cycles combinations, B/RB/RT dash, Start pauses. In scenes A advances and Start skips; at a card drop, left/right
 take that card and B leaves it; A confirms the menu button. A saved card cannot be slotted from the pad (it still
 fills a slot when a hand is played). Checked against a simulated pad only, not real hardware.
 On touch screens (coarse pointer, or once the screen is touched) the left half of the world is a floating joystick:
@@ -260,7 +264,7 @@ ledge overhanging lower ground hopped back onto its own ledge forever; hops down
 
 The environment reuses the generated forest and stone from the earlier Red web
 prototype. Generated
-paintings are reduced once and then drawn into the same 480×270 raster as the
+paintings are reduced once and then drawn into the same 960×540 presentation canvas as the
 sprites. Scenery reduction uses nearest-neighbor sampling, a 20-color palette,
 hard alpha edges and removal of isolated texture flecks; it does not blur or
 dither. Original
@@ -288,15 +292,17 @@ Mother, the woodcutter and Grandmother stand at the start of the first two clear
 and speak a line when Red is near. A hit foe slides back over about a fifth of a second instead of jumping there, and foes show a health bar only once
 hurt. Enemy run cycles advance with distance travelled, so slow patrols walk and fast foes race. Hitboxes and balance are unchanged.
 
-Story bosses (Briar Hart, Tollkeeper, Bell Widow) use 48×48 sheets in `assets/bosses/`; the Wolf is the roster's
-own `big_bad_wolf` sheet. The boss sheets are drawn with
-the same roster generator (`lrrh_sprites/boss_gen/` in the Aseprite project). The attack row plays each
-boss's main pattern, the special row its phase-two pattern, timed from the tell and strike durations.
-The Huntsman's Bridge (`bridge-art.mjs`) places the concept pieces (chapel tower, oaks, arch span, crypt,
-mossy bough) at one shared scale on the collision surfaces and reduces them once onto the 2-unit pixel grid;
-collision surfaces are unchanged.
+The Briar Hart, Tollkeeper and Bell Widow use 96×96, 48×48 and 64×64 cells respectively in `assets/bosses/`.
+The Wolf uses the roster's `big_bad_wolf` sheet. The attack and special rows follow the combat timers.
+The Widow's eight-frame walk follows distance traveled. She draws silk between her foreleg and veil before
+the drops, and swings the brass bell beneath her abdomen to send out low rings. To replay both attacks,
+start **Developer tools → Bell Widow → Start practice** and bring her below half health.
+Her editable poses are in `sources/lrrh_sprites/boss_gen/bell_widow.lua`. Run it in Aseprite, then copy
+`sources/lrrh_sprites/bosses/bell_widow_sheet.png` into `poker-web/assets/bosses/`.
+The Huntsman's Bridge uses a 16×16 stone tileset. It shares native grass and masonry colors with Lantern Wood. Each crossing pairs a 160-pixel round arch with a 112-pixel relief arch and crops its last deck tile at the collision edge.
+The tower, oaks, shrine and mossy boughs share the foreground cache in `bridge-art.mjs`.
 Boss hits use body boxes measured from the art (`BOSS_BODY` in bosses.mjs) for the sword, bolts and blasts;
-the Tollkeeper's chain sweep is drawn and only hurts where its tip has passed. Add `?hitboxes` to the URL to see them.
+the Tollkeeper's chain sweep is drawn and only hurts where its tip has passed. On the flagged local server, add `?hitboxes` to the URL to see them.
 
 ## Files and checks
 
@@ -309,7 +315,7 @@ the Tollkeeper's chain sweep is drawn and only hurts where its tip has passed. A
 - `art.mjs`: pixel-grid snapping, anatomical sprite pivots, enemy frames and cast silhouettes.
 - `animation.mjs`: character clip priority, contact/recovery timing, blink and air poses.
 - `style.css`: responsive in-viewport HUD and pixel hearts.
-- `tests/`: 53 tests, including a complete no-enemy route through all
+- `tests/`: 54 tests, including a complete no-enemy route through all
   three embers to the lantern, deck conservation, movement timing, transformation,
   elevated attacks, and enemy states. The route test verifies geometry, not combat
   balance. Real browser inspection confirmed asset loading, pause/resume, hand
@@ -326,10 +332,7 @@ the Tollkeeper's chain sweep is drawn and only hurts where its tip has passed. A
   A full human playthrough and balance pass across all five clearings remain useful.
 
 The model is independent of rendering, so tests exercise the actual game rules.
-Read-only `window.__POKER_STATE__` exposes diagnostics in the browser.
-
-The original browser campaign and Godot prototype are retained in the parent
-repository. This folder has its own build, tests and private Sites deployment.
+The flagged local server exposes the read-only `window.__POKER_STATE__` diagnostic snapshot.
 
 ## Credits
 
@@ -339,7 +342,8 @@ existing terms; see `assets/ASSET_RIGHTS.md`. Audio credits are in
 under SIL Open Font License 1.1 (`assets/FONT_LICENSE.txt`):
 https://github.com/googlefonts/silkscreen
 
-The world and moving card art share a 480×270 raster, enlarged without smoothing.
+The world and moving cards share a 960×540 canvas, enlarged without smoothing.
+Original character and card assets retain their existing 2× world scale.
 Character and enemy sprites use their native pixel scale without stretching.
 Sword damage lands on the contact pose. Dark Red attack pivots account for the
 eight-pixel left margin and six transparent rows below the feet. Both forms use
@@ -363,11 +367,11 @@ static pose; pickup positions and collection radius are unchanged.
 Terrain reuses `Assets/tiles.png`; the home reuses the original gothic tileset,
 with a timber porch, sign, lantern and three ember sockets. Its doorway lights
 when all embers are collected. Ground gaps have dark recessed rock faces and
-broken rope ends. Lantern Wood keeps its small plants and mushrooms, with no
-repeated oval bushes on the trail or below the ground line. In other clearings,
-foreground bushes stay over solid ground so they never bridge a chasm.
+broken rope ends. Outdoor clearings keep their small plants and mushrooms, with
+no repeated oval bushes on the trail or below the ground line. Interior rocks
+and rubble stay over solid ground so they never bridge a chasm.
 The world framing exposes more cliff depth below the grass.
-All source art renders at 2x world scale (1 source pixel per raster pixel).
+Characters and bridge masonry render at two world units per source pixel.
 The opening clearing retains its geometry and pickup positions. Its lantern now
 leads onward; the home entrance completes the third clearing.
 `tests/environment-preview.html` provides local art checks for the chasm and
@@ -381,13 +385,13 @@ Screen captures are in `../docs/poker-prototype/`: `journey-play.mp4` and
 
 ## Enemy and environment expansion QA
 
-Run `npm test` and `npm run build` from this folder: 53 tests pass, including
+Run `npm test` and `npm run build` from this folder: 54 tests pass, including
 five complete routes with enemies removed, new enemy tells/routing, hostile-shot
 collision/parrying/pause, and old-save migration. Combat balance across a full
 five-stage run still needs human playtesting.
 
 Browser smoke check: open the local game, select Boar in Explore / practice,
-press Practice, approach with D, attack with J, jump with Space and play K.
+press Start practice, approach with D, attack with J, jump with Space and play K.
 Pause with P; repeat with Hunter and Living tree. Choose Explore Moss Cavern
 or Explore Ruined Chapel for the authored encounters. No console warnings or
 errors appeared during these checks. `../docs/poker-prototype/runner-combat.mp4`
@@ -401,3 +405,105 @@ fixture checks 81 terrain variant pairs per theme in both directions and both
 panorama edges after quantization. New screenshots: `moss-cavern-v2.jpg`,
 `ruined-chapel-v2.jpg`, `character-scale-v2.jpg`; sampled traversal clip:
 `environment-v2-play.mp4`, all under `../docs/poker-prototype/`.
+
+
+## Huntsman’s Bridge showcase
+
+The second clearing now uses authored stone arches, a windowed chapel ruin,
+rooted red-leaf oaks, mossy boughs and a candlelit lower passage. Separate distant
+ruins and waterfall scenery, subtle warm light pools, animated banners and leaves
+provide depth. Motion Off freezes decorative drift, flicker and background parallax.
+The hand keeps its existing card faces; the surrounding HUD and dock have darker
+storybook framing. Stable clearing IDs preserve existing journey saves.
+
+Run `npm run dev -- --dev-tools`, open **Developer tools** at the printed URL, and choose **Explore / practice →
+Explore The Huntsman’s Bridge → Start practice**. This leaves journey saves untouched.
+The area also appears normally as the second campaign clearing.
+
+The [foreground comparison](../docs/poker-prototype/bridge-stone-comparison.png)
+shows Lantern Wood and both bridge crossings at the same gameplay zoom. The [campaign screenshot](../docs/poker-prototype/bridge-stone-in-game.jpg)
+shows it with the combat HUD. The [lower-passage replay](../docs/poker-prototype/bridge-stone-crossing.mp4)
+follows Red across the deck and into the first arch with enemies removed.
+
+`tests/bridge-preview.html` compares 480×270 and 960×540 rendering, shows landing
+surfaces, pans the camera, and replays both routes using the real movement model
+with enemies removed. It is excluded from the production build.
+
+- Upper route: climb the left ruin, jump onto the oak bough for ember one, descend
+  across the bridge, climb the middle ruin for ember two, then follow the next
+  branches and right-hand ruin to ember three and the exit lantern.
+- Lower passage: reach the bridge deck, move above the candlelit alcove, press S
+  to drop to the lower shelf, move right, then jump to the root ledge and far bank.
+- Automated checks cover all five completion routes, the lower passage reconnect,
+  practice save isolation, combat, cards, animation and terrain edges.
+
+This is the first environment showcase, not a replacement of every clearing's
+art. Existing enemy sprites and combat abilities remain; a bespoke huntsman enemy
+and a full five-clearing combat-balance pass are still future work.
+Generated source assets and prompts are recorded in `assets/concept/ART_NOTES.md`.
+
+Bridge verification (2026-11-13): 54 tests pass and the production build succeeds.
+Browser review completed the upper replay with 3/3 embers and zero falls, and the
+lower passage with zero falls. Live checks covered the opening jump, sword hits,
+enemy damage/knockback, poker casting, card pickup and choice, dash, pause/resume,
+and Motion Off; no console warnings or errors were reported. The art fixture's
+sampled draw times were about 0.3–0.6 ms on this machine; this is not a full-game
+frame-rate benchmark. Full combat balance remains unmeasured.
+
+Evidence: `../docs/poker-prototype/huntsmans-bridge.jpg`, `bridge-combat.jpg`, and
+`bridge-lower-route.mp4` (a short sampled replay with enemies removed).
+
+
+## Atmospheric lighting pass
+
+The renderer adds clearing-specific light shafts and low background mist, warm
+lantern and collectible glows, platform-clipped character shadows, and luminous
+spell trails. Atmosphere stays behind terrain and actors. Reduced Motion freezes
+the new atmospheric drift and lantern flicker and removes spell-trail particles.
+Gameplay rules, controls, source artwork and license notices are unchanged.
+The reusable effects live in `lighting.mjs`, which is included in the static build.
+
+Verification (2026-11-21): `npm test` passes all 148 tests; `npm run build` succeeds.
+Browser checks covered all five clearings, Reduced Motion, sword combat, poker
+casting, jumping, pause/resume, Settings and Field guide navigation. No browser
+errors or warnings were reported. This was a visual smoke check, not a full
+campaign balance or low-end-device performance benchmark.
+
+To reproduce: run `npm run dev -- --dev-tools` from the repository root. Open
+`/tests/graphics-preview.html` at the printed local URL, choose a clearing and
+click **Show clearing**. **Reduced motion** toggles the display setting.
+**Record combat · 8 seconds** replays movement, sword attacks, a jump, a flush
+and a dash with practice invulnerability, then exposes a recording download.
+The fixture is excluded from the production build. For live control checks, use
+**Developer tools → Start practice**, D to approach, J to swing, K to cast,
+Space to jump and P to pause.
+
+Evidence in `../docs/poker-prototype/`: `graphics-wood.png` and
+`graphics-chapel.png` are native renderer captures (DOM HUD text is not part of
+the canvas); `graphics-gameplay.jpg` includes the live HUD;
+`graphics-combat.mp4` is the eight-second canvas recording.
+
+
+## Glowing woodland flora
+
+Sparse ivory lilies and red mushroom clusters now decorate outdoor ledges and
+banks; Moss Cavern uses teal mushrooms. The bridge opening has three clusters,
+and the other opening views have two to four. Lilies have warm halos around
+their bells, while cavern mushrooms glow teal. Lighting stays steady with
+Reduced Motion. Decorations sit behind characters, avoid collectibles and
+checkpoints, and do not alter collisions or controls.
+
+The atlas is `assets/environment/woodland-flora.png`; editable sprite source and
+provenance are in `../sources/woodland-flora/`. Placement and glow are handled
+by `flora.mjs`. To inspect, run `npm run dev -- --dev-tools` from the repository
+root, open `/tests/graphics-preview.html`, select a clearing and click **Show
+clearing**. Live bridge review is under **Developer tools → The Huntsman’s
+Bridge → Start practice**.
+
+Verification (2026-11-21): all 148 tests pass and the production build succeeds.
+Placement checks cover all five clearing geometries; browser review covered
+bridge and cavern art, Reduced Motion, movement, sword animation and menu
+pause/settings/resume. No browser errors or warnings were reported.
+Screenshots in `../docs/poker-prototype/`: `woodland-flora-bridge.png`,
+`woodland-flora-cave.png` (native renderer captures), and
+`woodland-flora-gameplay.jpg` (live game with HUD).

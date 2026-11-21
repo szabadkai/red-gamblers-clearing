@@ -1,6 +1,6 @@
 # Dependencies and engine caches
 node_modules/
-/ridingHood-web/dist/
+dist/
 .godot/
 .import/
 
@@ -17,7 +17,8 @@ Thumbs.db
 *.tmp
 /nul
 
-# Keep dist/: the local launchers use the prebuilt game.
-# The Pages workflow assembles these additional outputs from poker-web/.
-/dist/poker/
-/dist/.nojekyll
+# Editor and Python build caches
+*.swp
+*.swo
+__pycache__/
+*.pyc

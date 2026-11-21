@@ -1,97 +1,49 @@
-# RED — The Other Side
+# RED — The Gambler’s Clearing
 
-**[Play the game](https://szabadkai.github.io/red-local/)**
-
-A compact, complete browser puzzle-platformer. Carry a lantern home through
-12 authored clearings in three chapters: **The Lantern Wood**, **The Drowned
-Village**, and **The Thorn House**. Each attempt gives Red three single-use
-movement cards. Find a route, collect optional keepsakes, and retry instantly.
-
-## Browser poker platformer
-
-The new standalone poker platformer lives in `poker-web/`. Run `npm run play:poker`
-and open the printed local address. It preserves the moving five-card hand,
-poker attacks, and timed Dark Red transformation, with a scrolling platforming
-level and enemy patrol/chase/lunge/slam behavior. `npm run test:poker` tests its
-rules, movement, full level route, and enemy behavior; `npm run build:poker` builds
-its independent static site. The campaign below remains unchanged.
-
-## Godot poker combat prototype
-
-A separate combat sandbox restores the moving pixel-card hand: five cards, poker-powered
-attacks, and draws earned through sword hits. Open the Godot project and choose
-**Poker Combat Prototype**, or run `godot4 --path . Scenes/PokerPrototype.tscn`.
-See [controls, rules, and validation](docs/POKER_PROTOTYPE.md).
+A browser platformer in which Red builds poker hands to fight her way to Grandmother’s house. [Play the published game](https://szabadkai.github.io/red-gamblers-clearing/).
 
 ## Play locally
 
-```sh
-npm run play
-```
+Double-click **Play.command** on macOS or **Play.bat** on Windows. Both open the game in your browser and work with Node.js or Python 3.
 
-This opens the included build in your browser. Node.js is required. The Mac and
-Windows launchers also support Python 3; see [START_HERE.md](START_HERE.md).
-
-## Develop and verify
-
-Node.js 22.6+ (24 recommended):
+With Node.js installed, you can also run this from the repository root:
 
 ```sh
-npm ci
-npm run dev
-npm test
-npm run build
+npm start
 ```
 
-Pushes to `main` test and build the game on Linux, then deploy `dist/` through
-[GitHub Actions](.github/workflows/pages.yml). The Vite build uses relative URLs
-so the game works under the `/red-local/` GitHub Pages path.
+No dependency install or build is needed. The server normally opens http://127.0.0.1:4310/. If that port is busy, use the URL printed in the terminal. Leave the terminal open while playing and press Ctrl+C to stop.
 
-## Controls
+Move with **A/D**, jump with **Space**, and swing the sword with **J**. **K** casts the highlighted combination. Your strongest hand is selected first. **Q**, the **Cycle** button, or **LB** on a controller cycles through other scoring combinations. Press **1–5** or click a card to throw it, or replace that slot when you have a saved draw.
 
-| Action | Keyboard / mouse | Standard gamepad |
-| --- | --- | --- |
-| Move | A / D or left / right arrows | Left stick / D-pad |
-| Jump | Space | A |
-| Feather: upward launch | X | X |
-| Step: forward dash | C | B |
-| Briar: aim, then grow a platform | Hold V; mouse / arrows; release V | Hold Y; either stick / D-pad; release Y |
-| Pause and plan | Hold Shift / right mouse | Hold LB |
-| Retry | R | Back / View |
-| Settings | Controls & cards | Start / Menu |
+To try the opening encounter, choose **Begin journey**, meet the stranger, and face right at the ford. Press **Q** once and **K** to play the jacks against the first wolf. Press **K** again to send the sevens through the boar and wolf on the far bank. You can also spend both pairs together.
 
-Keyboard bindings and equipped action slots are configurable. In controller menus,
-use D-pad to navigate, A to choose, and B to close. Left/right adjusts a focused
-slider or selector. Controller button names use the standard Xbox layout.
+At the final lantern in Lantern Wood, choose **Keep my hand** or **Deal five** before facing the Briar Hart. Both choices restore five hearts. Press **R** during the fight to retry with the same starting cards. [Watch the 11-second gameplay clip](docs/poker-prototype/lantern-wood-to-hart.mp4).
 
-## A complete small journey
+Open **Settings** from the title or pause menu to adjust music, effects, motion and full screen. **Field guide** covers controls, cards and clearing grades. During play, **P**, **Esc** or controller **Start** pauses the game. Choose **Title screen**, confirm, then **Continue journey** to return to your last checkpoint. [Watch the menu walkthrough](docs/poker-prototype/menu-walkthrough.mp4).
 
-- Moving rafts carry Red; cracked ledges warn before falling. Planning pauses both.
-- Twelve optional keepsakes, a story ending, and an extra ending line for finding all twelve.
-- Layered, optional hints in every clearing; sequential room unlocks and replay via Journey.
-- Local saves for progress, keepsakes, best card counts, sound, and accessibility settings.
-- Separate music/effects volume, reduced decorative motion, larger text, and a gentle
-  70% simulation-speed option. These do not change puzzle geometry or rewards.
-- Transformation is cosmetic. Feather, Step, and Briar work identically in both forms.
-- No accounts, purchases, random draws, combat, or lives. Browser-local saves do not
-  sync across devices. A reload resumes at a room start with a fresh hand.
+## Develop
 
-The original action game remains available with `?classic`; its Godot source is
-also retained. [Historical documentation](docs/CLASSIC_GAME.md) describes that mode.
+| Command (repo root) | Result |
+| --- | --- |
+| `npm run dev` | Serve the game without opening a browser |
+| `npm run dev -- --dev-tools` | Enable the local practice selector, review fixtures and diagnostics |
+| `npm test` | Run the poker game’s tests |
+| `npm run build` | Build the static site in `poker-web/dist/` |
 
-## Validation
+Open **Developer tools** on the flagged loopback server to jump to a boss or try a preset hand. For the healing demonstration choose **Two pair · split the pairs** and **Start practice**. [Watch the practice replay](docs/poker-prototype/split-the-pairs.mp4).
 
-See [campaign routes](docs/red-concept/CAMPAIGN_ROUTES.md) and
-[release validation](docs/red-concept/RELEASE_VALIDATION.md) for checks and limits.
-Tests exercise the actual fixed-step simulation, including complete routes,
-platform behavior, reset, saves, and controller input edges.
+Game code, runtime assets, and practice tools live in [poker-web](poker-web/README.md). The [Pages workflow](.github/workflows/pages.yml) publishes the static build at the site root. The `/poker/` route within the current site redirects to it.
 
-## Asset rights
+The repository is named **red-gamblers-clearing**. See the
+[deployment guide](docs/DEPLOYMENT.md) for release checks and rename behavior.
+Editable artwork and music live in [sources](sources/README.md); reusable
+prototype assets live in [asset-archive](asset-archive/README.md). Original
+purchased packs remain in `Assets/` with their license notices.
 
-This repository contains purchased, licensed assets. Public availability does
-not grant permission to extract or reuse them. See [ASSET_RIGHTS.md](ASSET_RIGHTS.md)
-and the [asset inventory](docs/ASSET_INVENTORY.md). Original third-party licenses
-continue to apply. No blanket open-source license is granted.
+## Artwork and audio
+
+The [asset inventory](docs/ASSET_INVENTORY.md) lists the originals, archived web sprites, Godot art resources, music sources and concept references. Asset rights and credits are recorded in [ASSET_RIGHTS.md](ASSET_RIGHTS.md) and [the audio credits](poker-web/assets/AUDIO_CREDITS.md).
 
 ## Credits
 

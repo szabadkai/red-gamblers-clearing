@@ -39,9 +39,55 @@ test('every route requires three embers, then enters its own boss instead of adv
  for(let stage=0;stage<5;stage++){
   const w=new StoryWorld();w.reset(stage,{phase:'trail',seen:[STAGES[stage].encounter,'prologue']});
   w.x=w.clearing.exit.x;w.y=w.clearing.exit.y;w.step(1/60);assert.equal(w.storyPhase,'trail');
-  arrive(w);assert.equal(w.mode,'cutscene');assert.equal(w.dialogue.id,STAGES[stage].intro);
+  arrive(w);
+  if(stage===0){assert.equal(w.mode,'lantern');w.chooseLanternHand(true);}
+  assert.equal(w.mode,'cutscene');assert.equal(w.dialogue.id,STAGES[stage].intro);
   assert.equal(w.boss.kind,STAGES[stage].boss);assert.equal(w.storyPhase,'boss');assert.equal(w.health,5);
   assert.equal(w.worldWidth,960);skip(w);assert.equal(w.mode,'playing');assert.equal(w.advance(),false);
+ }
+});
+
+test('Lantern Wood opens with a wolf for the jacks and two foes in line for the sevens',()=>{
+ const w=new StoryWorld(()=>.4);skip(w);
+ for(let frame=0;frame<60&&w.mode==='playing';frame++)w.step(1/60,{axis:1});
+ assert.equal(w.dialogue?.id,'stranger');skip(w);
+ assert.match(w.banner,/JACKS/);
+ const [wolf,boar,secondWolf]=w.enemies;
+ w.step(1/60,{cycle:true,play:true});tick(w,42);
+ assert.ok(!w.enemies.includes(wolf));assert.deepEqual(w.deck.hand,[5,18,1]);
+ w.step(1/60,{play:true});tick(w,90);
+ assert.ok(!w.enemies.includes(boar)&&!w.enemies.includes(secondWolf));
+ assert.equal(w.kills,3);assert.equal(w.deck.hits,1);
+});
+
+test('both Hart lantern choices survive reload, an interrupted intro and combat retries',()=>{
+ for(const keep of [true,false]){
+  const w=new StoryWorld(()=>.4),s=storage();skip(w);w.seen.add('stranger');
+  w.deck.hit();const offer=w.deck.reward();w.deck.choose(offer.id,0);w.deck.reward();
+  const held=w.deck.checkpoint();arrive(w);
+  assert.equal(w.mode,'lantern');const time=w.time;tick(w,60,{play:true,axis:1});assert.equal(w.time,time);
+  saveStory(s,w);const atLantern=loadStory(s),r=new StoryWorld(()=>.6);
+  r.reset(atLantern.stage,atLantern);assert.equal(r.mode,'lantern');assert.deepEqual(r.deck.checkpoint(),held);
+  assert.ok(r.chooseLanternHand(keep));assert.equal(r.chooseLanternHand(!keep),false);
+  const chosen=r.deck.checkpoint();
+  if(keep)assert.deepEqual(chosen,held);
+  else{assert.equal(chosen.hand.length,5);assert.notDeepEqual(chosen.hand,held.hand);assert.equal(chosen.reserve,null);assert.equal(chosen.hits,0);}
+  assert.equal(r.health,5);r.advanceDialogue();saveStory(s,r);
+  const intro=loadStory(s);r.reset(intro.stage,intro);assert.equal(r.dialogue.index,1);skip(r);
+  r.step(1/60,{play:true});assert.notDeepEqual(r.deck.hand,chosen.hand);saveStory(s,r);
+  r.health=1;r.retry();assert.deepEqual(r.deck.checkpoint(),chosen);assert.equal(r.health,5);assert.equal(r.mode,'playing');
+  const fight=loadStory(s);r.reset(fight.stage,fight);assert.deepEqual(r.deck.checkpoint(),chosen);
+ }
+});
+
+test('an empty hand can be kept and damaged or misplaced lantern decks are rejected',()=>{
+ const w=new StoryWorld(()=>.4),s=storage();skip(w);
+ while(w.deck.hand.length)w.deck.play(0);
+ arrive(w);saveStory(s,w);const raw=JSON.parse(s.getItem(STORY_SAVE_KEY));
+ assert.ok(w.chooseLanternHand(true));assert.deepEqual(w.deck.hand,[]);w.retry();assert.deepEqual(w.deck.hand,[]);
+ for(const bad of [{clearing:'broken-crossing'},{phase:'trail'},{lanternDeck:null},
+  {lanternDeck:{...raw.lanternDeck,reserve:1}},{lanternDeck:{...raw.lanternDeck,pile:[0,0]}}]){
+  s.setItem(STORY_SAVE_KEY,JSON.stringify({...raw,...bad}));assert.equal(loadStory(s),null);
  }
 });
 
@@ -49,7 +95,7 @@ test('full story progression rescues Grandmother, fights the garden Wolf, then w
  const w=new StoryWorld();skip(w);
  for(let stage=0;stage<5;stage++){
   w.x=170;w.y=420;w.grounded=true;w.step(1/60);assert.equal(w.dialogue.id,STAGES[stage].encounter);skip(w);
-  arrive(w);skip(w);defeat(w);
+  arrive(w);if(stage===0)w.chooseLanternHand(true);skip(w);defeat(w);
   if(stage<4){assert.equal(w.dialogue.id,STAGES[stage].outro);skip(w);assert.equal(w.mode,'won');assert.equal(w.advance(),true);}
  }
  assert.equal(w.dialogue.id,'swallowed');assert.equal(w.storyPhase,'inside');skip(w);

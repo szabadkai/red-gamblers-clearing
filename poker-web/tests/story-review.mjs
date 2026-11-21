@@ -1,5 +1,6 @@
 // Local-only review fixture. Excluded from the standalone build.
-import {world,enterWorld} from '../game.mjs';
+import '../game.mjs';
+const {world,enterWorld}=window.__RED_REVIEW__;
 import {SCENES} from '../story-data.mjs';
 import {bossInput} from './support/story-player.mjs';
 const panel=document.createElement('aside');

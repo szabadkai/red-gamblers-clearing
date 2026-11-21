@@ -46,6 +46,17 @@ footer{display:block;margin:1cqw 0;font-size:.85cqw}footer p{display:block!impor
 .draft-option canvas{width:6.6667cqw;height:10cqw;image-rendering:pixelated;filter:drop-shadow(.3cqw .3cqw #08130f)}.draft-option kbd{position:absolute;top:.4cqw;left:.5cqw;font-size:.9cqw}.draft-option strong{font-size:1cqw;line-height:1.5;min-height:3cqw}.draft-option small{font-size:.75cqw;line-height:1.5;color:#d8c792;min-height:2.3cqw}
 .draft-option:focus-visible,.draft-option:hover{outline:.2cqw solid #ffe5a0;outline-offset:.2cqw;background:#334b35}#draft-skip{font-size:.95cqw;margin-top:1.2cqw;padding:.6cqw 1.2cqw}
 body.drafting #stage>nav{opacity:.4;pointer-events:none}
+#lantern{position:absolute;inset:0;z-index:70;display:grid;place-items:center;padding-bottom:15%;background:linear-gradient(#0b1319ad,#0b1319b8 74%,transparent 74%);text-align:center}
+#lantern[hidden]{display:none}
+#lantern .draft-panel{width:min(56cqw,560px);translate:none;background:#192822;border-color:#bc9e68}
+#lantern-copy{font-size:max(1cqw,10px)}
+.lantern-options{display:flex;justify-content:center;gap:1cqw}
+.lantern-options button{flex:1;padding:1cqw;background:#26352e;border:2px solid #776d52;color:#f0ead7}
+.lantern-options button:is(:hover,:focus-visible){outline:2px solid #e7c684;outline-offset:2px;background:#3a4534}
+.lantern-options strong,.lantern-options small{display:block}
+.lantern-options strong{font-size:max(1.35cqw,11px)}
+.lantern-options small{margin-top:.45cqw;font-size:max(.95cqw,9px);color:#dccea8}
+body.at-lantern :is(.hud,#journey-hud,#objective,#toast,#stage>nav,#touch){visibility:hidden}
 /* The journey, including its menus, lives inside the same console-like viewport. */
 #journey-hud{position:absolute;left:34%;top:1.3cqw;width:30%;text-align:center;pointer-events:none;color:#f2d59a;text-shadow:2px 2px #101a22;font-size:.95cqw}
 #trail-dots{display:flex;justify-content:center;gap:.8cqw;margin:.35cqw 0}#trail-dots i{width:.65cqw;height:.65cqw;border:.15cqw solid #9d9b78;background:#17282b;transform:rotate(45deg)}#trail-dots i.lit{background:#e7bd73}
@@ -69,6 +80,9 @@ body.at-title .intro h2{font-size:7cqw;letter-spacing:1cqw;line-height:1;color:#
 #stage>nav button{background:#111c24ce;border:1px solid #75664d;box-shadow:none;color:#c7bc9f}
 .table{color:#d8c9aa}.table .eyebrow{color:#aa8f70}.hand-info h2{color:#f0d29b}#flavour{color:#e3be7f}.hand-info #flavour{margin-top:-.3cqw}.draw-info strong{color:#e0bd85}
 #play{background:#592e39;border-color:#9d6c60;box-shadow:inset 1px 1px #ba8c6d}
+.hand-actions{display:flex;align-items:center;gap:.55cqw}
+#cycle{border-color:#806c4d;color:#efd8a8}
+@media(pointer:coarse){.hand-actions button{min-height:26px}.hand-actions kbd{display:none}}
 #pips i{background:#3e3537;border-color:#7b6654}#pips i.lit{background:#d5b176}
 /* Story dialogue replaces the hand dock while the simulation is paused. */
 #objective{position:absolute;top:5cqw;left:25%;width:50%;text-align:center;pointer-events:none;font-size:.86cqw;color:#dfcfaa;text-shadow:2px 2px #101820}

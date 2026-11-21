@@ -110,7 +110,7 @@ function cottageSet(c) {
   for (const x of [16, 456]) { R(x, 41, 9, 169, WOOD[2]); R(x, 41, 2, 169, WOOD[3]); R(x + 7, 41, 2, 169, WOOD[1]); }
   // chimney breast and stone hearth; the mantel is the left ledge (x 48-142, top 180)
   stoneBlock(c, 70, 118, 50, 62, 7);
-  stoneBlock(c, 48, 180, 94, 6, 9); R(48, 180, 94, 1, P.stone[4]); R(50, 186, 90, 1, P.stone[0]);
+  // The collision ledge supplies the mantel cap.
   stoneBlock(c, 60, 187, 12, 23, 13); stoneBlock(c, 118, 187, 12, 23, 15);
   R(72, 187, 46, 23, '#170f0c'); R(76, 191, 38, 17, '#2a1810'); R(60, 207, 70, 3, P.stone[2]); R(82, 203, 26, 3, WOOD[1]);
   // shelf with jars and hanging herbs
@@ -132,8 +132,9 @@ function cottageSet(c) {
   R(334, 156, 10, 3, GOLD[2]); R(336, 159, 6, 51, WOOD[2]); R(336, 159, 2, 51, WOOD[3]);
   R(426, 168, 10, 3, GOLD[2]); R(428, 171, 6, 39, WOOD[2]); R(428, 171, 2, 39, WOOD[3]);
   R(340, 186, 88, 10, WOOD[1]); R(340, 186, 88, 1, WOOD[2]); R(342, 196, 4, 14, WOOD[1]); R(422, 196, 4, 14, WOOD[1]);
-  R(340, 180, 88, 6, '#d3ceae'); R(340, 185, 88, 1, '#a99f88'); R(343, 174, 18, 6, '#e7d9af'); R(344, 174, 16, 1, '#f5ecd2');
-  R(362, 178, 66, 10, '#9e4051'); R(362, 178, 66, 2, '#d77869'); for (let x = 366; x < 426; x += 12) R(x, 182, 4, 3, GOLD[2]);
+  // The quilted ledge sits between the bedposts, below the pillow.
+  R(343, 174, 18, 6, '#e7d9af'); R(344, 174, 16, 1, '#f5ecd2');
+
 }
 const SETS = [hartSet, millSet, campSet, chapelSet, cottageSet];
 const cache = new Map();
@@ -160,7 +161,7 @@ function flame(c, x, y, time, reduced, size = 1) {
 }
 function wheel(c, cx, cy, time, reduced) {
   const { R, D } = painter(c);
-  const a0 = reduced ? 0 : time * .16, rad = 64, MOSS = ['#3a3f1e', '#5a6226', '#7e8832'];
+  const a0 = reduced ? 0 : time * .16, rad = 64, MOSS = P.moss;
   const at = (t, r, w) => [cx + Math.cos(t) * r - Math.sin(t) * w, cy + Math.sin(t) * r + Math.cos(t) * w];
   // spokes first (behind the rim): three-pixel timbers with a lit and a shaded edge
   for (let i = 0; i < 8; i++) {
@@ -217,13 +218,15 @@ function bell(c, x, y, time, ringing) {
   }
   R(x + sway - 3, y - 22, 1, 14, GOLD[4]); R(x + sway - 14, y - 1, 29, 2, GOLD[0]); R(x + sway - 1, y + 1, 3, 3, IRON[2]);
 }
-function cocoon(c, x, y, time) {
+// Set-pixel anchor shared by the captive, her silk and the dialogue staging.
+export const CHAPEL_COCOON = {x:240, y:136};
+function cocoon(c, x, y) {
   const { R, D } = painter(c);
   for (let i = 0; i < 34; i++) {
     const t = i / 33, half = Math.round(11 * Math.sin(Math.PI * Math.min(1, t * 1.05)) + 1);
     for (let dx = -half; dx <= half; dx++) { const band = (i + Math.round(dx * .6)) % 5 === 0; D(x + dx, y - 17 + i, band ? SILK[0] : dx < -half * .3 ? SILK[3] : dx > half * .5 ? SILK[1] : SILK[2]); }
   }
-  R(x - 1, y - 60, 1, 43, SILK[2]);
+  R(x - 1, 103, 1, y - 17 - 103, SILK[2]);
 }
 
 // Painted concept props per arena, in world units (context scaled back from set pixels).
@@ -250,7 +253,7 @@ export function drawArena(c, stage, time, reduced, world, images) {
   if (stage === 2) { flame(c, 127, 205, t, reduced, 1.1); lantern(c, 411, 170, t, reduced); }
   if (stage === 3) {
     bell(c, 240, 100, t, !world?.boss || world.boss.hp <= 0);
-    cocoon(c, 240, 174, t);
+    cocoon(c, CHAPEL_COCOON.x, CHAPEL_COCOON.y);
   }
   if (stage === 4) flame(c, 95, 203, t, reduced, 1.3);
   c.restore();

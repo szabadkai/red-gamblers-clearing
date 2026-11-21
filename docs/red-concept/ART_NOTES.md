@@ -1,6 +1,6 @@
 # Local revision art
 
-Five new raster assets in ridingHood-web/public/assets/concept were generated with OpenAI image generation for this revision: forest.png, stone.png, feather.png, step.png, briar.png.
+Five new raster assets in asset-archive/web/concept were generated with OpenAI image generation for this revision: forest.png, stone.png, feather.png, step.png, briar.png.
 
 Direction: atmospheric teal woodland, twisted trees, scarlet leaves and amber lantern light; restrained dark fairy-tale palette. The environment image has no UI or foreground collision geometry. Stone is a repeating chipped mossy masonry texture. Card images show a luminous feather, a shadow movement trail, and a magical briar branch, with no baked-in labels or frames.
 

@@ -10,6 +10,14 @@ export function tuneFor(world){
 }
 export function createMusic(volume=.1,sfxVolume=.16){
  let ctx=null,track=null,paused=null,wanted='',cue='';
+ let musicBus, effectsBus, musicLevel=1, effectsLevel=1;
+ function setLevels(music, effects){
+  musicLevel=music;effectsLevel=effects;
+  if(ctx){
+   musicBus.gain.setTargetAtTime(music,ctx.currentTime,.015);
+   effectsBus.gain.setTargetAtTime(effects,ctx.currentTime,.015);
+  }
+ }
  const rendered=new Map(),pending=new Set(),failed=new Set();
  const worker=new Worker(new URL('./music-worker.mjs',import.meta.url),{type:'module'});
  worker.onmessage=({data})=>{
@@ -22,19 +30,27 @@ export function createMusic(volume=.1,sfxVolume=.16){
   pending.add(name);worker.postMessage({name,text});
  }
  for(const [name,{text}] of Object.entries(SFX))preload(name,text);
- function unlock(){if(!ctx)ctx=new AudioContext();if(ctx.state==='suspended')ctx.resume();}
- function source(name,level){
+ function unlock(){
+  if(!ctx){
+   ctx=new AudioContext();
+   musicBus=ctx.createGain();effectsBus=ctx.createGain();
+   musicBus.gain.value=musicLevel;effectsBus.gain.value=effectsLevel;
+   musicBus.connect(ctx.destination);effectsBus.connect(ctx.destination);
+  }
+  if(ctx.state==='suspended')ctx.resume();
+ }
+ function source(name,level,bus){
   const data=rendered.get(name),node=ctx.createBufferSource(),gain=ctx.createGain();
   if(!data.buffer){data.buffer=ctx.createBuffer(1,data.samples.length,data.rate);data.buffer.copyToChannel(data.samples,0);}
-  node.buffer=data.buffer;gain.gain.value=level;node.connect(gain);gain.connect(ctx.destination);return {node,gain};
+  node.buffer=data.buffer;gain.gain.value=level;node.connect(gain);gain.connect(bus);return {node,gain};
  }
  // `rate` repitches the sample (the dialogue voices use it for their syllables).
  function sfx(name,when=0,rate=1){
   if(!rendered.has(name))return 0;
-  unlock();const {node}=source(name,sfxVolume*SFX[name].gain);node.playbackRate.value=rate;node.start(when);return node.buffer.duration;
+  unlock();const {node}=source(name,sfxVolume*SFX[name].gain,effectsBus);node.playbackRate.value=rate;node.start(when);return node.buffer.duration;
  }
  function begin(name,when,fade,offset=0){
-  const {node,gain}=source(name,volume);node.loop=true;
+  const {node,gain}=source(name,volume,musicBus);node.loop=true;
   if(fade){gain.gain.setValueAtTime(0,when);gain.gain.linearRampToValueAtTime(volume,when+fade);}
   node.start(when,offset);track={name,node,gain,start:when-offset,beat:60/rendered.get(name).tempo};
  }
@@ -68,5 +84,5 @@ export function createMusic(volume=.1,sfxVolume=.16){
   if(track?.name===name)return;
   if(rendered.has(name))change();else preload(name);
  }
- return {play,preload,unlock,sfx};
+ return {play,preload,unlock,sfx,setLevels};
 }

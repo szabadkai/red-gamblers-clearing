@@ -1,104 +1,176 @@
-import {snap} from './art.mjs';
-import {tileVariant,TERRAIN_TILE_SIZE} from './tiles.mjs';
+import {snap,PIXEL} from './art.mjs';
+import {WOOD_TILE_SIZE as TILE} from './tiles.mjs';
+import {surfaceRuns,surfaceTiles,drawSurface} from './autotile.mjs';
 
 // Source rectangles reference the original project sheets; source pixels always render at 2x.
 function painter(ctx,images){
  const rect=(x,y,w,h,color)=>{ctx.fillStyle=color;ctx.fillRect(snap(x),snap(y),snap(w),snap(h))};
- const sprite=(sheet,sx,sy,w,h,x,y)=>ctx.drawImage(sheet==='terrain-ledge'?ledgeSheet(images):images.get(sheet),sx,sy,w,h,snap(x),snap(y),w*2,h*2);
+ const sprite=(sheet,sx,sy,w,h,x,y)=>ctx.drawImage(images.get(sheet),sx,sy,w,h,snap(x),snap(y),w*PIXEL,h*PIXEL);
  return {rect,sprite};
 }
 
-// Floating ledges use a copy of the grass top tiles where only the green leaf tips survive in the lower rows,
-// so the hanging fringe shows the scenery behind it instead of a solid dark box.
-let fringe=null;
-function ledgeSheet(images){
- if(fringe)return fringe;
- const src=images.get('terrain');if(!src?.complete)return src;
- const cv=document.createElement('canvas');cv.width=src.width;cv.height=src.height;
- const c=cv.getContext('2d');c.drawImage(src,0,0);
- const d=c.getImageData(16,16,48,16),p=d.data;
- for(let y=9;y<16;y++)for(let x=0;x<48;x++){const i=(y*48+x)*4;if(!(p[i+1]>p[i]&&p[i+1]>p[i+2]&&p[i+1]>90))p[i+3]=0;}
- c.putImageData(d,16,16);
- return fringe=cv;
+const terrainPlans = new WeakMap();
+
+const terrainStyles = {
+ wood: {floor:'wood', ledge:'oak-root', details:'wood'},
+ cave: {floor:'cave', ledge:'schist', details:'cave'},
+ chapel: {floor:'chapel', ledge:'cornice', details:'chapel'},
+ house: {floor:'house', ledge:'thorn-root', details:'house'},
+ mill: {floor:'mill-board', ledge:'mill-board'},
+ camp: {floor:'cave', ledge:'mill-board', details:'cave'},
+ cottage: {floor:'oak-board', ledge:'oak-board'},
+ inside: {floor:'rib', ledge:'rib'}
+};
+
+function terrainStyle(theme,location) {
+ if (location==='inside') return terrainStyles.inside;
+ if (location==='home') return terrainStyles.wood;
+ if (location==='arena') {
+  if (theme==='bridge') return terrainStyles.mill;
+  if (theme==='cave') return terrainStyles.camp;
+  if (theme==='house') return terrainStyles.cottage;
+ }
+ return terrainStyles[theme] ?? terrainStyles.wood;
 }
 
-export function drawTerrain(ctx,images,platforms,time,reduced,theme='wood'){
- const tileSize=TERRAIN_TILE_SIZE,tileWorld=tileSize*2;
+// Derive every stamp from the landing geometry, including furniture that Red can stand on.
+export function terrainRegions(platforms,theme,location='trail') {
+ const style = terrainStyle(theme,location);
+ return surfaceRuns(platforms.map(p => {
+  const x = Math.round(p.x/PIXEL), y = Math.round(p.y/PIXEL);
+  const furniture = p.kind==='bed' || p.kind==='mantel';
+  const material = furniture ? (p.kind==='bed' ? 'quilt' : 'cornice') : p.ground ? style.floor : style.ledge;
+  const h = p.ground ? 80 : p.kind==='bed' ? 12 : p.kind==='mantel' ? 8 : 16;
+  return {x,y,w:Math.round((p.x+p.w)/PIXEL)-x,h,material,group:furniture ? p.kind : style.floor};
+ }));
+}
+
+const detailRows = ['wood','cave','chapel','house'];
+const detailSize = 32, detailTop = 12;
+function decorateSurface(c,atlas,r,regions,family) {
+ const row = detailRows.indexOf(family);
+ if (row<0 || r.w<detailSize+10) return;
+ // Give each run a stable, uneven rhythm. Leave both ends clear for jumps.
+ let seed = (Math.imul(r.x+41,1597334677) ^ Math.imul(r.y+7,3812015801)) >>> 0;
+ function next() {
+  seed = (Math.imul(seed,1664525)+1013904223) >>> 0;
+  return seed >>> 8;
+ }
+ let x = r.x+5+next()%Math.min(24,r.w-detailSize-9);
+ let v = next()%4;
+ while (x+detailSize<=r.x+r.w-5) {
+  const pendant = r.material==='cornice' || r.material==='schist' && v%2===1;
+  const y = r.y-detailTop+(pendant ? r.h-7 : 0);
+  // An adjoining platform can cover only part of a cell at a step.
+  if (!regions.some(q=>q!==r && q.x<x+detailSize && q.x+q.w>x && q.y<y+detailSize && q.y+q.h>y))
+   c.drawImage(atlas,v*detailSize,row*detailSize,detailSize,detailSize,x,y,detailSize,detailSize);
+  x += 56+next()%54;
+  v = (v+1+next()%3)%4;
+ }
+}
+
+// A macro pattern is four by three native cells. Adjacent sections share their
+// boundary code so a single rock stratum or ashlar can cross an atlas boundary.
+function foundation(c,sheet,r,row) {
+ const sectionWidth=4*TILE, sectionHeight=3*TILE;
+ const edge=(col,course) => {
+  const n=Math.imul(col+51,1597334677)^Math.imul(course+row+13,3812015801);
+  return (n^(n>>>15))&1;
+ };
+ for (let y=0; y<r.h; y+=TILE) for (let x=0; x<r.w; x+=TILE) {
+  const col=Math.floor(x/sectionWidth)+Math.floor(r.x/sectionWidth);
+  const course=Math.floor(y/sectionHeight);
+  const code=edge(col,course)*4+edge(col+1,course)*2+((col+course)&1);
+  const sx=code*sectionWidth+x%sectionWidth, sy=row*sectionHeight+y%sectionHeight;
+  const w=Math.min(TILE,r.w-x), h=Math.min(TILE,r.h-y);
+  c.drawImage(sheet,sx,sy,w,h,r.x+x,r.y+y,w,h);
+ }
+}
+
+function drawBracket(c,sheet,r,regions,family) {
+ const seed=(Math.imul(r.x+19,2654435761)^Math.imul(r.y,1597334677))>>>0;
+ if (r.w<48 || seed%3===0) return;
+ const x=r.x+5+(seed>>>8)%(r.w-detailSize-9);
+ const y=r.y+r.h-4;
+ let height=detailSize;
+ for(const q of regions)
+  if(q.y>r.y && q.x<x+detailSize && q.x+q.w>x) height=Math.min(height,q.y-y);
+ if (height<=0) return;
+ const row=detailRows.indexOf(family)+detailRows.length;
+ const variant=family==='chapel' && height===detailSize ? 1+(seed&1) : (seed>>>6)%4;
+ c.drawImage(sheet,variant*detailSize,row*detailSize,detailSize,height,x,y,detailSize,height);
+}
+
+function terrainPlan(platforms,theme,location,images) {
+ let plans = terrainPlans.get(platforms);
+ if (!plans) terrainPlans.set(platforms, plans = new Map());
+ const style = terrainStyle(theme,location);
+ if (plans.has(style)) return plans.get(style);
+ const atlas = images.get('autotiles'), regions = terrainRegions(platforms,theme,location);
+ const runs = regions.map(r => {
+  const image = document.createElement('canvas');
+  image.width = r.w;
+  image.height = r.h+detailTop+detailSize;
+  const c = image.getContext('2d'), y = r.y-detailTop;
+  c.imageSmoothingEnabled = false;
+  c.translate(-r.x,-y);
+  const details = images.get('stage-details');
+  if (style.details && r.material===style.ledge && r.material!==style.floor && r.material!=='mill-board')
+   drawBracket(c,details,r,regions,style.details);
+  drawSurface(c,atlas,surfaceTiles(r,regions));
+  const foundationRow = detailRows.indexOf(r.material);
+  if (foundationRow>=0) {
+   c.globalCompositeOperation = 'source-atop';
+   foundation(c,images.get('stage-foundations'),r,foundationRow);
+   c.globalCompositeOperation = 'source-over';
+   drawSurface(c,atlas,surfaceTiles(r,regions,r.material+'-trim'));
+  }
+  // Decorations grow from a compatible surface. Keep the camp's sawn beams bare.
+  if (style.details && r.material!=='mill-board')
+   decorateSurface(c,details,r,regions,style.details);
+  return {x:r.x*PIXEL,y:y*PIXEL,image};
+ });
+ plans.set(style,runs);
+ return runs;
+}
+
+export function drawTerrain(ctx,images,platforms,time,reduced,theme='wood',location='trail'){
  const {rect,sprite}=painter(ctx,images),ground=platforms.filter(p=>p.ground).sort((a,b)=>a.x-b.x);
+ const runs=terrainPlan(platforms,theme,location,images);
+ ctx.save();ctx.imageSmoothingEnabled=false;
  for(let i=1;i<ground.length;i++){
   const left=ground[i-1].x+ground[i-1].w,right=ground[i].x,y=ground[i].y;
   if(right<=left)continue;
+  // The shadowed returns inside a pit use the actual banks' native faces.
+  // Sample below the turf so the returns never read as another landing.
+  rect(left,y,right-left,200,'#09151e');
   ctx.save();ctx.beginPath();ctx.rect(left,y,right-left,200);ctx.clip();
-  rect(left,y,right-left,200,'#09121d');
-  if(theme==='cave'||theme==='chapel'){
-   const tiles=images.get('tiles-'+theme);ctx.globalAlpha=.45;
-   for(let row=0;row<4;row++){
-    const variant=tileVariant(i,row);ctx.drawImage(tiles,variant*tileSize,0,tileSize,tileSize,snap(left-tileWorld+18-row*4),y+row*tileWorld,tileWorld,tileWorld);
-    ctx.drawImage(tiles,variant*tileSize,0,tileSize,tileSize,snap(right-18+row*4),y+row*tileWorld,tileWorld,tileWorld);
+  ctx.globalAlpha=.42;
+  for (const [edge,direction] of [[left,1],[right,-1]]) {
+   const bank=runs.find(run=>run.y+detailTop*PIXEL===y &&
+    (direction===1 ? run.x+run.image.width*PIXEL : run.x)===edge);
+   if (!bank) continue;
+   for(let row=0;row<5;row++){
+    const width=Math.min(bank.image.width,Math.ceil((right-left)/(PIXEL*2)),12-row*2);
+    const sx=direction===1 ? bank.image.width-width : 0;
+    const sy=detailTop+TILE+(row%3)*TILE;
+    const x=direction===1 ? edge : edge-width*PIXEL;
+    ctx.drawImage(bank.image,sx,sy,width,TILE,x,y+row*TILE*PIXEL,width*PIXEL,TILE*PIXEL);
    }
-   ctx.globalAlpha=1;ctx.restore();continue;
-  }
-  // Recessed rock faces recede toward the dark center, behind the actual landing edges.
-  ctx.globalAlpha=.35;
-  for(let row=0;row<6;row++){
-   sprite('terrain',48,32,16,16,left+10-row*4,y+row*32);
-   sprite('terrain',16,32,16,16,right-42+row*4,y+row*32);
-  }
-  ctx.globalAlpha=1;
-  for(let j=0;j<3;j++){
-   const drift=reduced?0:snap((time*7+j*18)%28);
-   rect(left+28+j*18+drift,y+30+j*24,20,2,'#1b2d36');
   }
   ctx.restore();
  }
- for(const p of platforms){
-  if(theme==='cave'||theme==='chapel'){
-   const cave=theme==='cave',depth=p.ground?160:24,tiles=images.get('tiles-'+theme);
-   ctx.save();ctx.beginPath();ctx.rect(p.x,p.y,p.w,depth);ctx.clip();
-   for(let row=0;row*tileWorld<depth;row++)for(let col=0;col*tileWorld<p.w;col++){
-    const variant=tileVariant(col+Math.floor(p.x/tileWorld),row);
-    ctx.drawImage(tiles,variant*tileSize,0,tileSize,tileSize,p.x+col*tileWorld,p.y+row*tileWorld,tileWorld,tileWorld);
-   }
-   rect(p.x,p.y,p.w,2,cave?'#96976c':'#b4c6ac');
-   rect(p.x,p.y+2,p.w,2,cave?'#687356':'#687b78');
-   // Small broken moss clusters vary along a continuous readable landing lip.
-   if(cave)for(let x=p.x+4;x<p.x+p.w;x+=14){
-    const n=tileVariant(Math.floor(x/14),p.id);rect(x,p.y+4,6+(n%3)*2,2+(n%2)*2,'#495241');
-   }
-   rect(p.x,p.y+depth-2,p.w,2,'#101820');
-   rect(p.x,p.y+4,2,depth-6,'#477077');rect(p.x+p.w-2,p.y+4,2,depth-6,'#101820');
-   ctx.restore();
-   continue;
-  }
-  // Clip the final tile instead of stretching it, preserving the exact collision span.
-  // Floating ledges keep the tile's own alpha: no backing fill, full leaf fringe hanging free.
-  const depth=p.ground?160:32;
-  ctx.save();ctx.beginPath();ctx.rect(p.x,p.y,p.w,depth);ctx.clip();
-  if(p.ground)rect(p.x,p.y,p.w,depth,'#111d29');
-  for(let y=p.y;y<p.y+depth;y+=32){
-   const sy=y===p.y?16:32;
-   const sheet=p.ground?'terrain':'terrain-ledge';
-   for(let x=p.x+32;x<p.x+p.w-32;x+=32)sprite(sheet,32,sy,16,16,x,y);
-   sprite(sheet,16,sy,16,16,p.x,y);sprite(sheet,48,sy,16,16,p.x+p.w-32,y);
-  }
-  if(theme!=='wood'&&images.has('paint-stone')){
-   for(let y=p.y+10;y<p.y+depth;y+=192)for(let x=p.x;x<p.x+p.w;x+=192)ctx.drawImage(images.get('paint-stone'),x,y,192,192);
-   rect(p.x,p.y+10,p.w,depth,theme==='house'?'#21162770':'#142e3650');
-  }
-  ctx.restore();
-  // Keep low plants clear of takeoff/landing edges. Lantern Wood's painted
-  // undergrowth supplies the larger silhouettes without repeated oval bushes.
-  if(p.ground){
-   for(let x=p.x+76;x<p.x+p.w-50;x+=142){
-    sprite('terrain',368,32,16,16,x,p.y-32);
-   }
-   if(p.w>300){
-    sprite('terrain',416,32,32,16,p.x+140,p.y-28);
-    if(theme==='house')sprite('house-bushes',(p.id%2)*32,0,32,16,p.x+p.w-168,p.y-32);
-   }
-  }else{
-   sprite('terrain',368,32,16,16,p.x+18,p.y-32);
-   if(p.w>140)sprite('terrain',384,32,16,16,p.x+p.w-60,p.y-32);
+ ctx.restore();
+ ctx.save();
+ ctx.imageSmoothingEnabled=false;
+ for(const {image,x,y} of runs)
+  ctx.drawImage(image,x,y,image.width*PIXEL,image.height*PIXEL);
+ ctx.restore();
+ // Larger plants root in the banks. The native motifs carry the floating ledges.
+ if (location!=='inside' && (theme==='wood' || theme==='house' && location!=='arena')) {
+  for (const p of ground) if (p.w>300) {
+   if (theme==='house') ctx.drawImage(images.get('house-bushes'),0,0,32,16,snap(p.x+140),p.y-28,64,32);
+   else sprite('terrain',416,32,32,16,p.x+140,p.y-28);
   }
  }
  // Broken timber and hanging rope mark the two sides of each missing crossing.

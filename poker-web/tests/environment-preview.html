@@ -8,7 +8,7 @@
 <section><h2>Original gothic sheet</h2><img src="../assets/environment/gothic.png"></section>
 <script type="module">
 import {drawTerrain,drawHome} from '../environment.mjs';import {level} from '../model.mjs';
-const images=new Map();await Promise.all(['terrain','gothic',...Array.from({length:6},(_,i)=>'forest'+(i+2))].map(key=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{images.set(key,im);resolve()};im.onerror=reject;im.src=key.startsWith('forest')?'../assets/forest/'+key.slice(6)+'.png':'../assets/environment/'+key+'.png'})));
+const images=new Map();await Promise.all(['terrain','stage-foundations','stage-details','autotiles','gothic',...Array.from({length:6},(_,i)=>'forest'+(i+2))].map(key=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{images.set(key,im);resolve()};im.onerror=reject;im.src=key.startsWith('forest')?'../assets/forest/'+key.slice(6)+'.png':'../assets/environment/'+key+'.png'})));
 await document.fonts.ready;
 for(const [id,cam,embers] of [['cliff',280,0],['locked',1440,0],['open',1440,3]]){
  const ctx=document.getElementById(id).getContext('2d');ctx.imageSmoothingEnabled=false;ctx.scale(.5,.5);ctx.translate(0,-80);

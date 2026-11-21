@@ -1,21 +1,90 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0b1416"><meta name="description" content="A fairy-tale platformer powered by a living hand of poker cards. Climb the forest, play your hand, awaken Dark Red."><title>RED — The Gambler's Clearing</title><link rel="stylesheet" href="./style.css"></head>
-<body><main>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0b1416"><meta name="description" content="A fairy-tale platformer powered by a living hand of poker cards. Climb the forest, play your hand, awaken Dark Red."><title>RED — The Gambler's Clearing</title><link rel="stylesheet" href="./style.css"><link rel="stylesheet" href="./menu.css"></head>
+<body class="at-title"><main>
 
-<section id="stage" tabindex="0" aria-label="Platforming game. A and D move, Space jumps, Shift dashes, J attacks, K plays poker hand.">
+<section id="stage" tabindex="0" aria-label="Platforming game. A and D move, Space jumps, Shift dashes, J attacks, Q cycles scoring combinations and K plays the highlighted cards. Keys 1 to 5 throw a single card or replace it with your saved draw.">
 <canvas id="game" width="960" height="540" aria-label="Forest platforming game"></canvas>
-<nav aria-label="Game settings"><button id="fullscreen" class="touch-only">Full screen</button><button id="sound" aria-pressed="true">Sound on</button><button id="motion" aria-pressed="true">Motion on</button><button id="pause">Pause <kbd>P</kbd></button></nav><div class="hud"><div><span class="eyebrow">HEALTH</span><div id="health" aria-label="Health"></div></div><div class="quest"><span class="eyebrow">FOREST EMBERS</span><strong id="quest">0 / 3 embers</strong></div></div>
+<nav aria-label="Game menu" inert><button id="pause" aria-label="Pause game" aria-keyshortcuts="P Escape">Pause <kbd>P</kbd></button></nav><div class="hud"><div><span class="eyebrow">HEALTH</span><div id="health" aria-label="Health"></div></div><div class="quest"><span class="eyebrow">FOREST EMBERS</span><strong id="quest">0 / 3 embers</strong></div></div>
 <div id="journey-hud"><span id="chapter-label">I · LANTERN WOOD</span><div id="trail-dots" aria-label="Journey progress"></div></div>
 <div id="objective" aria-live="polite"></div>
 <div id="boss-hud" hidden><strong id="boss-name"></strong><div id="boss-health" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i id="boss-fill"></i></div><small id="boss-tell"></small></div>
 <div id="dark-meter" hidden><span>DARK RED <b id="dark-time">6.0s</b></span><i></i><small>Double sword damage · faster movement</small></div>
 <div id="toast" aria-live="polite"></div>
 <div id="touch" class="touch" aria-hidden="true"><div id="stickzone"><div id="stick"><i id="knob"></i></div></div><button tabindex="-1" data-hold="Space" class="big" style="--x:8cqw;--y:8cqw;--s:11cqw">JUMP</button><button tabindex="-1" data-hold="KeyJ" style="--x:23cqw;--y:6cqw;--s:8.5cqw">SWORD</button><button tabindex="-1" data-hold="ShiftLeft" style="--x:19cqw;--y:19cqw;--s:7.5cqw">DASH</button><button tabindex="-1" data-hold="KeyK" style="--x:6.5cqw;--y:24cqw;--s:7.5cqw">HAND</button></div>
-<section class="table" aria-label="Poker hand">
-<div class="hand-info"><p class="eyebrow">POKER HAND</p><h2 id="combo">Pair</h2><p id="effect">Heavy bolt · 14 damage</p><p id="flavour" hidden></p><button id="play" class="cast-button">Play hand <kbd>K</kbd></button></div>
+<section class="table" aria-label="Poker hand" inert>
+<div class="hand-info"><p class="eyebrow" id="hand-label">POKER HAND</p><h2 id="combo">Pair</h2><p id="effect">Heavy bolt · 14 damage</p><p id="flavour" hidden></p><div class="hand-actions"><button id="play" class="cast-button">Play <kbd>K</kbd></button><button id="cycle" class="cast-button" hidden aria-keyshortcuts="Q">Cycle <kbd>Q</kbd></button></div><span id="play-description" class="sr-only" role="status"></span></div>
 <div id="hand" aria-label="Five card slots"></div>
 <div class="draw-info"><p class="eyebrow">DRAW METER</p><strong id="draw-label">Land 3 sword hits</strong><div id="pips"><i></i><i></i><i></i></div><p id="draw-help">Touch a card drop to choose your draw.</p><small id="deck-count">47 in deck · 0 spent</small></div>
-</section><div id="overlay"><div class="intro"><p class="eyebrow" id="story-eyebrow">A POKER-POWERED FAIRY TALE</p><img id="logo" src="./assets/ui/logo.png" width="84" height="36" alt="RED"><h2 id="story-title">RED</h2><p id="story-copy">A basket for Grandmother. A forest full of borrowed voices.<br>Follow the lanterns. Beware the familiar voice.</p><div id="journey-trail"><span>01 · Lantern Wood</span><i>◇</i><span>02 · Huntsman’s Bridge</span><i>◇</i><span>03 · Moss Cavern</span><i>◇</i><span>04 · Ruined Chapel</span><i>◇</i><span>05 · Thorn House</span></div><div id="grade" hidden><b id="grade-letter"></b><p><span id="grade-line"></span><strong id="grade-note"></strong></p></div><button class="primary" id="begin" disabled>Opening the forest…</button><button id="continue" hidden>Continue journey</button><small id="save-status"></small><small id="loading">Loading your cards and character</small><footer><p><kbd>A</kbd><kbd>D</kbd> move <kbd>Space</kbd> jump <kbd>Shift</kbd> dash <kbd>J</kbd> sword <kbd>K</kbd> poker <kbd>S</kbd> drop</p><div class="practice"><label for="practice">Explore / practice</label><select id="practice"><optgroup label="Poker hands"><option value="0">Pair</option><option value="1">Flush → Dark Red</option><option value="2">Four of a kind → Dark Red</option><option value="3">Card drop → choose a draw</option></optgroup><optgroup label="Foes"><option value="4">Boar · lunge</option><option value="5">Hunter · aimed arrow</option><option value="6">Living tree · slam</option><option value="20">Living tree · erupting roots</option><option value="15">Raven · dive</option><option value="16">Stag · charge</option><option value="17">Wisp · blinks away</option><option value="18">Witch · bolt and hex</option><option value="19">Brambles · rooted lash</option><option value="21">Mushroom · spore cloud</option><option value="22">Ghost hunter · phases through</option><option value="23">Bear · roar and rage</option></optgroup><optgroup label="Bosses"><option value="10">Briar Hart</option><option value="11">Tollkeeper</option><option value="12">Rowan the Huntsman</option><option value="13">Bell Widow</option><option value="14">The Wolf</option></optgroup><optgroup label="Explore"><option value="9">The Huntsman’s Bridge</option><option value="7">Moss Cavern</option><option value="8">Ruined Chapel</option></optgroup></select><button id="deal">Practice</button><button id="restart">Retry clearing <kbd>R</kbd></button><button id="new-journey">New journey</button></div></footer><details><summary>How do I draw cards?</summary><p>You start with five cards. Every three sword swings that hit an enemy drop one card. Touch it to pause the action and reveal two choices. Click a card or press 1 / 2 to take it; the other is discarded and play resumes. Esc leaves the pickup untouched: step away before touching it again. With a full hand, your chosen card is saved. Click a hand card or press 1–5 to replace it, or play with K to fill an empty slot with the saved card. Getting hit never takes your cards.</p><p>Pairs hit hard, two pair explodes, trips and straights pierce. The suits a pair or better spends add flavours: spades pierce every foe in line, each diamond fills a notch of the draw meter, clubs knock foes back and daze them (bosses shrug it off), and hearts mend one heart. Each clearing is graded S to D on hearts lost, retries and time against par; your best grade shows beside its name. Flushes and higher transform you into Dark Red for six seconds. Collect three embers and reach each lantern to enter its boss encounter. Free the guardians, find the Huntsman, ring the chapel bell, and rescue Grandmother. Every boss has a checkpoint with full health and a fresh hand. Enter or Space advances dialogue; hold Esc or use Skip scene to skip it. Runners lunge, mages commit to an aimed shot you can dodge or slash, and guards telegraph a heavy slam. New journey starts from Lantern Wood. Progress saves at story and boss checkpoints in this browser; Continue resumes the saved scene or encounter with full health. R retries the current encounter or clearing. Practice is separate from your saved journey.</p><a href="./assets/AUDIO_CREDITS.md">Audio credits</a> · <a href="./assets/ASSET_RIGHTS.md">Asset rights</a><p>Pixel font: <a href="./assets/FONT_LICENSE.txt">Silkscreen / SIL Open Font License</a>.</p></details></div></div>
+</section><section id="overlay" role="dialog" aria-modal="true" aria-label="Game menu">
+ <div id="menu-home" class="menu-page">
+  <div class="menu-heading">
+   <h1 id="title-brand"><img src="./assets/ui/logo.png" width="84" height="36" alt="RED"><span>The Gambler’s Clearing</span></h1>
+   <p class="menu-kicker" id="story-eyebrow" hidden></p>
+   <h2 id="story-title" hidden></h2>
+   <p id="story-copy">Carry Grandmother’s cards into the woods.</p>
+   <div id="grade" hidden><b id="grade-letter"></b><p><span id="grade-line"></span><strong id="grade-note"></strong></p></div>
+  </div>
+  <div class="menu-actions">
+   <button class="menu-primary" id="continue" hidden>Continue journey</button>
+   <button class="menu-primary" id="begin" disabled>Begin journey</button>
+   <button id="open-settings">Settings</button>
+   <button id="open-guide">Field guide</button>
+   <button id="restart" hidden>Retry clearing</button>
+   <button id="return-title" hidden>Title screen</button>
+  </div>
+  <p id="save-status" class="menu-note"></p>
+  <p id="loading" class="menu-note">Opening the forest…</p>
+  <button class="menu-link" id="open-credits">Credits</button>
+ </div>
+ <section id="menu-settings" class="menu-page menu-sheet" aria-labelledby="settings-title" hidden>
+  <h2 id="settings-title">Settings</h2>
+  <fieldset><legend>Audio</legend>
+   <label class="menu-row" for="sound">Sound<input id="sound" type="checkbox" checked></label>
+   <label class="menu-row level" for="music-level"><span id="music-name">Music</span><input aria-labelledby="music-name" id="music-level" type="range" min="0" max="100" step="5"><output for="music-level"></output></label>
+   <label class="menu-row level" for="effects-level"><span id="effects-name">Sound effects</span><input aria-labelledby="effects-name" id="effects-level" type="range" min="0" max="100" step="5"><output for="effects-level"></output></label>
+  </fieldset>
+  <fieldset><legend>Display</legend>
+   <label class="menu-row" for="motion">Motion<select id="motion"><option value="system">Match device</option><option value="reduced">Reduced</option><option value="full">Full</option></select></label>
+   <div id="fullscreen-row" class="menu-row" hidden><span>Screen</span><button id="fullscreen">Enter full screen</button></div>
+  </fieldset>
+  <p id="settings-status" class="menu-note" role="status"></p>
+  <button class="menu-back">Back</button>
+ </section>
+ <section id="menu-guide" class="menu-page menu-sheet" aria-labelledby="guide-title" hidden>
+  <h2 id="guide-title">Field guide</h2>
+  <h3>On the trail</h3>
+  <p>Defeat the foes at each briar gate. Gather three embers and reach the lantern to face the guardian.</p>
+  <h3>Playing your hand</h3>
+  <p>Play the highlighted cards together, or cycle to save a pair for later. Throw a single card for 6 damage. Flushes and higher awaken Dark Red for six seconds.</p>
+  <p>Every third landed sword swing earns a card drop. Touch it to choose between two cards. With a full hand, choose a slot to replace or play a combination to make room. Esc leaves the drop for later.</p>
+  <p>Pairs hit hard, two pair explodes, and trips and straights pierce. Spades pierce, diamonds fill the draw meter, clubs stagger ordinary foes, and hearts heal.</p>
+  <h3>Controls</h3>
+  <table class="control-list"><thead><tr><th>Action</th><th>Keyboard</th><th>Gamepad</th></tr></thead><tbody>
+   <tr><th>Move / drop</th><td>A, D / S or arrows</td><td>Stick or D-pad</td></tr>
+   <tr><th>Jump / dash</th><td>Space / Shift</td><td>A / B</td></tr>
+   <tr><th>Sword / play hand</th><td>J / K</td><td>X / Y</td></tr>
+   <tr><th>Cycle play</th><td>Q</td><td>LB</td></tr>
+   <tr><th>Use a card slot</th><td>1–5 or click</td><td>—</td></tr>
+   <tr><th>Pause</th><td>P or Esc</td><td>Start</td></tr>
+  </tbody></table>
+  <p>On touchscreens, steer with your left thumb. Tap the action buttons, Cycle, or a card to use it.</p>
+  <h3>Journey record</h3>
+  <div id="journey-trail"><span>Lantern Wood</span><span>The Huntsman’s Bridge</span><span>Moss Cavern</span><span>Ruined Chapel</span><span>Thorn House</span></div>
+  <p>Each clearing earns a grade for hearts lost, retries and time. Your best grades stay in this browser.</p>
+  <button class="menu-back">Back</button>
+ </section>
+ <section id="menu-credits" class="menu-page menu-sheet" aria-labelledby="credits-title" hidden>
+  <h2 id="credits-title">Credits</h2>
+  <h3>Music &amp; sound</h3><p>RED’s original stage themes, boss music and effects are synthesized as you play.</p>
+  <h3>Artwork &amp; type</h3><p>Character animation, pixel scenery and Silkscreen lettering bring the forest to life.</p>
+  <div class="credit-links"><a href="./assets/AUDIO_CREDITS.md" target="_blank" rel="noopener">Audio credits ↗</a><a href="./assets/ASSET_RIGHTS.md" target="_blank" rel="noopener">Artwork rights ↗</a><a href="./assets/FONT_LICENSE.txt" target="_blank" rel="noopener">Silkscreen license ↗</a></div>
+  <button class="menu-back">Back</button>
+ </section>
+ <section id="menu-confirm" class="menu-page menu-sheet" aria-labelledby="confirm-title" hidden>
+  <h2 id="confirm-title"></h2><p id="confirm-copy"></p>
+  <div class="menu-actions"><button id="confirm-cancel" class="menu-primary">Go back</button><button id="confirm-go"></button></div>
+ </section>
+</section>
 <section id="dialogue" hidden role="dialog" aria-modal="true" aria-labelledby="scene-title" aria-describedby="dialogue-text">
  <div class="scene-heading"><span class="eyebrow">RED · A WOODLAND TALE</span><h2 id="scene-title"></h2><p id="scene-caption"></p></div>
  <div class="dialogue-panel"><div class="portrait-frame"><canvas id="portrait" width="100" height="100" aria-hidden="true"></canvas></div>
@@ -34,6 +103,17 @@
  </div>
 </section>
 
+<section id="lantern" role="dialog" aria-modal="true" aria-labelledby="lantern-title" aria-describedby="lantern-copy" hidden>
+ <div class="draft-panel">
+  <p class="eyebrow">LANTERN WOOD</p>
+  <h2 id="lantern-title">Face the Briar Hart</h2>
+  <p id="lantern-copy">The lantern restores all five hearts. Choose your opening hand.</p>
+  <div class="lantern-options">
+   <button id="lantern-keep"><strong>Keep my hand</strong><small id="lantern-hand"></small></button>
+   <button id="lantern-deal"><strong>Deal five</strong><small>Five fresh cards</small></button>
+  </div>
+ </div>
+</section>
 </section>
 <button id="rotate" aria-label="Turn your phone sideways to play, or tap to play anyway"><span class="phone" aria-hidden="true"></span><strong>Turn your phone sideways</strong><small>Tap to play upright anyway</small></button>
 </main><script type="module" src="./game.mjs"></script></body></html>

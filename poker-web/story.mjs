@@ -1,4 +1,4 @@
-import {World} from './model.mjs';
+import {World,SPLIT_PAIRS} from './model.mjs';
 import {CLEARINGS,loadJourney} from './journey.mjs';
 import {STAGES,SCENES,arenaPlatforms} from './story-data.mjs';
 import {makeBoss,damageBoss,updateBoss,updateHazards} from './bosses.mjs';
@@ -25,7 +25,7 @@ export function saveRecord(storage,id,result){
  try{storage.setItem(RECORDS_KEY,JSON.stringify(all));}catch{}
  return {better,faster,first:!old};
 }
-const PHASES=['trail','boss','inside','garden','cleared','home','complete'];
+const PHASES=['trail','lantern','boss','inside','garden','cleared','home','complete'];
 const allScenes=new Set(Object.keys(SCENES));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export class StoryWorld extends World{
@@ -38,7 +38,13 @@ export class StoryWorld extends World{
   if(progress?.tally)this.tally={...progress.tally};
   this.result=progress?.phase==='cleared'&&progress.tally?gradeClearing(stageIndex,this.tally):null;
   const phase=progress?.phase||'trail';
-  if(phase==='boss'||phase==='garden')this.setupArena(phase);
+  this.lanternDeck=progress?.lanternDeck??null;
+  if(phase==='trail'&&stageIndex===0&&!progress?.gates)this.deck.preset(SPLIT_PAIRS);
+  if(phase==='lantern'){
+   this.resume(this.gates.length,[]);this.enemies=[];this.x=this.clearing.exit.x;this.y=this.clearing.exit.y;
+   this.deck.restore(this.lanternDeck);this.storyPhase='lantern';this.mode='lantern';
+  }
+  else if(phase==='boss'||phase==='garden')this.setupArena(phase);
   else if(phase==='inside')this.setupInside();
   else if(phase==='cleared'){this.setupArena(stageIndex===4?'garden':'boss');this.enemies=[];this.boss=null;this.storyPhase='cleared';this.mode='won';}
   else if(phase==='home'||phase==='complete'){this.setupHome();if(phase==='complete'){this.storyPhase='complete';this.mode='won';}}
@@ -52,7 +58,10 @@ export class StoryWorld extends World{
  get objective(){
   if(this.practice)return this.arena?'Practice arena':`Find the three embers · ${this.collected}/3`;
   if(this.dialogue)return SCENES[this.dialogue.id].title;
-  if(this.storyPhase==='inside')return `Free Grandmother · ${3-this.knots.filter(k=>k.hp>0).length}/3 knots`;
+  if(this.storyPhase==='inside'){
+   const remaining=this.knots.filter(k=>k.hp>0).length;
+   return remaining ? `Free Grandmother · ${3-remaining}/3 knots` : 'Follow the bell to the opening on the right';
+  }
   if(this.storyPhase==='home')return 'Walk home with Grandmother';
   if(this.boss)return this.boss.kind==='rowan'?'Disarm the Huntsman':this.boss.garden?'Open the road home':this.stageStory.title;
   return this.stageStory.objective;
@@ -68,24 +77,33 @@ export class StoryWorld extends World{
   if(!skip&&index<SCENES[id].lines.length-1){this.dialogue.index++;this.storyRevision++;return true;}
   this.seen.add(id);this.dialogue=null;this.mode='playing';this.storyRevision++;
   this.invincible=Math.max(this.invincible,1);this.vx=0;this.vy=0;this.buffer=0;this.swordPending=0;
+  if(id==='stranger'&&!this.hinted.has('split-pairs')&&this.deck.hand.join(',')===SPLIT_PAIRS.join(',')){
+   this.hinted.add('split-pairs');this.banner='CYCLE TO THE JACKS · SAVE THE SEVENS TO PIERCE';this.bannerTime=5;
+  }
   if(id===this.stageStory.outro&&id!=='breakfast'){this.storyPhase='cleared';this.mode='won';}
   if(id==='swallowed')this.startScene('inside');
   if(id==='breakfast'){this.setupHome();this.startScene('epilogue');}
   return true;
  }
- setupRoom(location){
+ chooseLanternHand(keep){
+  if(this.mode!=='lantern')return false;
+  if(!keep){this.deck.reset();this.lanternDeck=this.deck.checkpoint();}
+  this.setupArena();this.startScene(this.stageStory.intro);return true;
+ }
+ setupRoom(location,checkpoint=null){
   this.arena=true;this.storyLocation=location;this.worldWidth=960;this.gates=[];
   this.platforms=arenaPlatforms(this.stageIndex,location);this.x=210;this.y=420;this.surface=0;
   this.vx=0;this.vy=0;this.grounded=true;this.coyote=.12;this.buffer=0;
   this.checkpoint={x:210,y:420};this.health=5;this.invincible=1;
-  this.deck.reset();this.bolts=[];this.enemyShots=[];this.patches=[];this.cardDrops=[];this.activeDraft=null;
+  if(checkpoint)this.deck.restore(checkpoint);else this.deck.reset();
+  this.bolts=[];this.enemyShots=[];this.patches=[];this.cardDrops=[];this.activeDraft=null;
   this.enemies=[];this.embers=[];this.hazards=[];this.impacts=[];this.corpses=[];this.rings=[];this.dust=[];
   this.dark=0;this.transform=0;this.dash=0;this.attack=0;this.swordPending=0;this.cast=0;
   this.hitStop=0;this.shakeTime=0;this.dying=0;this.banner='';this.bannerTime=0;this.boss=null;this.bossCorpse=null;this.victoryDelay=0;
   this.mode='playing';this.storyRevision++;
  }
  setupArena(phase='boss'){
-  this.setupRoom(phase==='garden'?'garden':'arena');this.storyPhase=phase;
+  this.setupRoom(phase==='garden'?'garden':'arena',phase==='boss'?this.lanternDeck:null);this.storyPhase=phase;
   this.boss=makeBoss(this.stageStory.boss,this.nextId++,phase==='garden');this.enemies=[this.boss];
   this.collected=3;
  }
@@ -98,8 +116,9 @@ export class StoryWorld extends World{
   this.setupRoom('home');this.storyPhase='home';this.x=180;this.collected=3;
  }
  retry(){
-  const phase=this.practice?'trail':this.storyPhase,open=this.practice||phase!=='trail'?0:this.gates.filter(g=>g.open).length,left=this.embers;
-  const seen=[...this.seen],tally=this.tally;this.reset(this.stageIndex,{phase:phase==='cleared'?'boss':phase,seen});this.resume(open,left);
+  const progress=this.practice?{phase:'trail',seen:[...this.seen]}:this.snapshot(),tally=this.tally;
+  if(progress.phase==='cleared')progress.phase='boss';
+  this.reset(this.stageIndex,{...progress,dialogue:null});
   this.tally=tally;tally.retries++;
   if(this.boss){this.banner=this.stageStory.hint;this.bannerTime=4;}
  }
@@ -160,7 +179,12 @@ export class StoryWorld extends World{
   if(this.mode!=='playing'&&this.mode!=='won')return;
   if(this.storyPhase==='trail'){
    // Reaching the lantern opens an authored encounter room rather than completing the story stage.
-   if(this.mode==='won'){this.setupArena();this.startScene(this.stageStory.intro);return;}
+   if(this.mode==='won'){
+    if(this.stageIndex===0){
+     this.lanternDeck=this.deck.checkpoint();this.storyPhase='lantern';this.mode='lantern';this.storyRevision++;
+    }else{this.setupArena();this.startScene(this.stageStory.intro);}
+    return;
+   }
    if(this.x>=160&&this.grounded&&!this.seen.has(this.stageStory.encounter)){
     this.startScene(this.stageStory.encounter);return;
    }
@@ -181,6 +205,7 @@ export class StoryWorld extends World{
    tally:{time:Math.round(t.time*10)/10,hurt:t.hurt,retries:t.retries,best:t.best}};
   const gates=this.storyPhase==='trail'?this.gates.filter(g=>g.open).length:0;
   if(gates){save.gates=gates;save.embers=this.embers.map(e=>this.clearing.embers.findIndex(([x,y])=>x===e.x&&y===e.y));}
+  if(this.lanternDeck)save.lanternDeck=this.lanternDeck;
   return save;
  }
 }
@@ -194,9 +219,19 @@ export function loadStory(storage){
   if(!Array.isArray(data.seen)||data.seen.some(id=>!allScenes.has(id)))return null;
   const d=data.dialogue;
   if(d&&(!allScenes.has(d.id)||!Number.isInteger(d.index)||d.index<0||d.index>=SCENES[d.id].lines.length))return null;
-  const allowed={trail:[stage===0?'prologue':null,STAGES[stage].encounter],boss:[STAGES[stage].intro],inside:['swallowed','inside'],garden:['garden'],cleared:[STAGES[stage].outro],home:['epilogue'],complete:[]};
+  const allowed={trail:[stage===0?'prologue':null,STAGES[stage].encounter],lantern:[],boss:[STAGES[stage].intro],inside:['swallowed','inside'],garden:['garden'],cleared:[STAGES[stage].outro],home:['epilogue'],complete:[]};
   if(d&&!allowed[data.phase].includes(d.id))return null;
   const trail={};
+  if(data.lanternDeck!==undefined||data.phase==='lantern'){
+   if(stage!==0||!['lantern','boss','cleared'].includes(data.phase))return null;
+   const deck=data.lanternDeck;
+   if(!deck||![deck.hand,deck.pile,deck.discard].every(Array.isArray)||deck.hand.length>5||
+    !Number.isInteger(deck.hits)||deck.hits<0||deck.hits>3||(deck.reserve!==null&&deck.hand.length!==5))return null;
+   const cards=[...deck.hand,...deck.pile,...deck.discard];
+   if(deck.reserve!==null)cards.push(deck.reserve);
+   if(cards.length!==52||new Set(cards).size!==52||cards.some(id=>!Number.isInteger(id)||id<0||id>51))return null;
+   trail.lanternDeck=deck;
+  }
   if(data.gates!==undefined){
    const g=data.gates,e=data.embers;
    if(data.phase!=='trail'||!Number.isInteger(g)||g<1||g>CLEARINGS[stage].gates.length)return null;

@@ -1,21 +1,15 @@
 # Asset inventory
 
-The campaign reuses the assets already included in this project. No additional
-purchased packs were downloaded or added during expansion.
+| Location | Contents |
+| --- | --- |
+| `poker-web/assets/` | Images, animation frames, card faces, audio, music scores and font used by the playable game. The build copies these with their rights notices. |
+| `Assets/` | Original character packs, tiles, backgrounds, playing cards, UI, layered PSDs, author readmes and import metadata. |
+| `asset-archive/web/` | Former web game's sprite frames, background layers, tilemaps, audio, five illustrated concept assets and red icon. Animation definitions and procedural scenery are archived alongside them. |
+| `asset-archive/godot/` | Reusable Godot art scenes with atlas rectangles, sprite animation timing, and the original tile layout. Texture paths refer to the root `Assets/` collection. |
+| `sources/lrrh_sprites/` and `sources/chiptune/` | Source sprite sheets, scores, rendered tracks and music tools. |
+| `sources/bridge/` and `sources/terrain/` | Editable generators for stone arches, stage surfaces and terrain atlases. |
+| `sources/woodland-flora/` | Editable lily and mushroom sprite generator; runtime atlas and provenance in `poker-web/assets/environment/woodland-flora.png` and `WOODLAND_FLORA.md`. |
+| `sources/generated-images/` | Locally generated scenery images. |
+| `docs/red-concept/` and `docs/poker-prototype/` | Concept references, art notes, stills and gameplay footage. |
 
-| Material | Location | Provenance recorded in this repository |
-| --- | --- | --- |
-| Light/dark character and transformation frames | `Assets/`, `ridingHood-web/public/assets/sprites/` | Owner reports purchased licensed assets. Exact pack names, vendors, and purchase terms are not recorded here. |
-| Original tiles and environment art | `Assets/`, `ridingHood-web/public/assets/tilemaps/` | Includes resources identified in the README; confirm exact pack-level license records before redistributing source art elsewhere. |
-| Action/UI effects and music | `ridingHood-web/public/assets/audio/` | README retains the existing CC0 and Creative Commons source credits. These have not been independently re-audited during campaign development. |
-| Forest, stone texture, card illustrations | `ridingHood-web/public/assets/concept/` | Generated for the previous local revision; details in `red-concept/ART_NOTES.md`. |
-| Village silhouettes, house, thorns, raft/crumble graphics | `ridingHood-web/src/prototype/game.ts` | Drawn in code for this campaign; no additional image pack. |
-| Reference concept images | `red-concept/references/` | Design references, not gameplay terrain or character sprites. |
-
-Copies in `dist/` retain the same underlying rights. `ASSET_RIGHTS.md` is included
-in the deployed build. Keep receipts, personal purchase information, and license
-documents that contain personal details outside this public repository.
-
-The owner’s exact purchased-asset license records are still needed to verify
-permissions for raw-source redistribution. The public rights notice is not a
-substitute for those records.
+The former web build repeated its public assets. Its original files are retained in the archive. See the [asset rights notice](../ASSET_RIGHTS.md), [audio credits](../poker-web/assets/AUDIO_CREDITS.md) and [concept art notes](red-concept/ART_NOTES.md) for provenance.

@@ -20,20 +20,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-      - run: npm ci
       - run: npm test
-      - name: Test poker prototype
-        run: npm --prefix poker-web test
       - run: npm run build
-      - name: Build poker prototype
-        run: npm --prefix poker-web run build
-      - name: Assemble both games for Pages
-        run: node Scripts/prepare-pages.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: poker-web/dist
 
   deploy:
     needs: build

@@ -2,12 +2,16 @@
 <style>body{margin:24px;background:#0a161d;color:#dccca9;font:14px system-ui}main{max-width:1200px;margin:auto}canvas{width:100%;image-rendering:pixelated;border:1px solid #8d7554}nav{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}button,select{background:#22323a;color:#e6d1a7;padding:8px;border:1px solid #8d7554}p{line-height:1.6}a{color:#f1c278}output{font-variant-numeric:tabular-nums}</style>
 <main><h1>The Huntsman’s Bridge</h1><p>Runtime art and movement review. Routes use the actual game physics with enemies removed. Combat balance is checked separately in the game.</p>
 <nav><label>Resolution <select id="resolution"><option value="960">960 × 540</option><option value="480">480 × 270</option></select></label><button id="upper">Play upper route</button><button id="lower">Play lower passage</button><button id="pause">Pause / resume</button><button id="pan">Pan 240px</button><button id="reset">Reset view</button><label><input id="collision" type="checkbox"> Show landing surfaces</label></nav>
-<canvas id="view" width="960" height="540"></canvas><p><output id="status">Loading…</output></p><p><a href="../">Open playable game</a> → Explore / practice → Explore The Huntsman’s Bridge.</p></main>
+<canvas id="view" width="960" height="540"></canvas><p><output id="status">Loading…</output></p><p><a href="../">Open playable game</a> → Developer tools → Explore / practice → Explore The Huntsman’s Bridge → Start practice.</p></main>
 <script type="module">
 import {World} from '../model.mjs';
+import {playerOffset} from '../art.mjs';
 import {drawBridgeBackdrop,drawBridgeArchitecture,drawBridgeAtmosphere,drawBriarDock} from '../bridge.mjs';
 const images=new Map(),canvas=document.querySelector('canvas'),status=document.querySelector('output');
-const paths=Object.fromEntries(['bridge-atlas-v1','bridge-distance-v1','bridge-bough-v1'].map(n=>['concept-'+n,'concept/'+n+'.png']));
+const paths=Object.fromEntries(['bridge-atlas-v1','bridge-distance-v1'].map(n=>['concept-'+n,'concept/'+n+'.png']));
+paths['bridge-bough']='bridge/moss-bough.png';
+paths['autotiles']='environment/autotiles.png';
+paths['bridge-tiles']='bridge/stone-tiles.png';
 paths.player='light/idle_blink/idle_blink0.png';
 await Promise.all(Object.entries(paths).map(([k,url])=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>{images.set(k,im);resolve()};im.onerror=reject;im.src='../assets/'+url})));
 const w=new World();let running=false,cam=0,instruction=0,frames=0,time=0,route=[],begun=false,last=0,acc=0;
@@ -32,7 +36,7 @@ function draw(now){const dt=Math.min(.05,(now-last)/1000||0);last=now;if(running
  const start=performance.now(),c=canvas.getContext('2d');c.imageSmoothingEnabled=false;c.save();c.scale(canvas.width/960,canvas.width/960);c.clearRect(0,0,960,540);c.save();c.beginPath();c.rect(0,0,960,400);c.clip();c.translate(0,-80);
  drawBridgeBackdrop(c,images,cam,time,false);c.save();c.translate(-cam,0);drawBridgeArchitecture(c,images,w.platforms,time,false);
  for(const e of w.embers){c.fillStyle='#ffdb8d';c.fillRect(e.x-4,e.y-4,8,8);}
- const im=images.get('player');c.drawImage(im,w.x-16,w.y-36,im.width*2,im.height*2);
+ const im=images.get('player'),offset=playerOffset('light','idle_blink',im.width,im.height);c.drawImage(im,Math.round(w.x+offset.x),Math.round(w.y+offset.y),im.width*2,im.height*2);
  if(document.querySelector('#collision').checked){c.fillStyle='#70ffca';for(const p of w.platforms)c.fillRect(p.x,p.y,p.w,2);}
  c.restore();drawBridgeAtmosphere(c,cam,time,false);c.restore();drawBriarDock(c);c.fillStyle='#e5cd9f';c.font='16px Georgia';c.fillText('THE HUNTSMAN’S BRIDGE',24,438);c.font='13px monospace';c.fillText('Art review · original game movement · no enemies',24,468);c.restore();
  const ms=performance.now()-start;status.textContent=`${running?'Playing':'Stopped'} · x ${Math.round(w.x)} · feet ${Math.round(w.y)} · embers ${w.collected}/3 · falls ${w.fallCount} · ${w.mode} · draw ${ms.toFixed(1)} ms · step ${instruction}/${route.length}`;

@@ -1,28 +1,33 @@
+import {drawFlora} from './flora.mjs';
+import {drawAtmosphere,drawContactShadows,drawGlow,drawSpellLight} from './lighting.mjs';
 import {drawBridgeBackdrop,drawBridgeArchitecture,drawBridgeAtmosphere,drawBriarDock} from './bridge.mjs';
 import {CLEARINGS} from './journey.mjs';
 import {StoryWorld,loadStory,saveStory,BOSS_DEATH,loadRecords,saveRecord} from './story.mjs';
 import {STAGES,SCENES,CAST} from './story-data.mjs';
 import {STORY_IMAGES,drawStoryActor,drawStorySet,drawStoryPortrait,bedCover} from './story-art.mjs';
-import {drawHazardArt} from './arena-art.mjs';
-import {bossBox} from './bosses.mjs';
+import {CHAPEL_COCOON,drawHazardArt} from './arena-art.mjs';
+import {installLocalTools} from './runtime.mjs';
+import {createMenu} from './menu.mjs';
+import {loadSettings,bindSettings} from './settings.mjs';
 import {createMusic,tuneFor,BOSS_TUNES} from './music.mjs';
 import {prepareScenery,drawBackdrop,drawLandmarks,drawTrailGate,drawGates,drawForeground} from './scenery.mjs';
 import {PLAYER_CLIPS,playerClip,playerFrame} from './animation.mjs';
 import {drawTerrain,drawHome} from './environment.mjs';
 import {snap,characterSize,playerOffset,castShape,shakeOffset} from './art.mjs';
-import {World,evaluate,flavourText,EFFECTS,HANDS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE,DEATH_TIME} from './model.mjs';
+import {World,evaluate,previewDraw,DAMAGE,flavourText,EFFECTS,HANDS,WIDTH,cardName,CORPSE_LIFE,DUST_LIFE,DEATH_TIME} from './model.mjs';
 import {CAST as ROSTER,CELL,castFrame,castTop,deathFrame,idleFrame} from './cast.mjs';
 const $=id=>document.getElementById(id),canvas=$('game'),screen=canvas.getContext('2d'),raster=document.createElement('canvas');
 raster.width=960;raster.height=540;const ctx=raster.getContext('2d');
-const world=new StoryWorld(),keys=new Set(),edges=new Set();let releaseJump=false,started=false,loaded=false,muted=false;
-let reduced=matchMedia('(prefers-reduced-motion: reduce)').matches,cam=0,accumulator=0,last=0,visual=0,hover=-1,toast='';
+const world=new StoryWorld(),keys=new Set(),edges=new Set();let releaseJump=false,started=false,loaded=false,loadFailed=false;
+let reduced=false,cam=0,accumulator=0,last=0,visual=0,hover=-1,toast='';
 let camLead=340,leadFacing=1,facingFor=9,settledFacing=1,previousMode='ready',lastHand='',formClock=0,lastAnim='',cameraSnap=true,lastDraft=null;
 const images=new Map(),cards=new Map();
 const storage={getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)};
 // Advice already shown stays shown across visits; a new journey shows it again.
 let hintCount=0;try{for(const key of JSON.parse(storage.getItem('red.poker.hints')||'[]'))world.hinted.add(key);hintCount=world.hinted.size}catch{}
-// Sound is on unless this browser was told otherwise; it starts with the first click or key press.
-try{muted=storage.getItem('red.poker.sound')==='off'}catch{}
+const settings=loadSettings(storage),deviceMotion=matchMedia('(prefers-reduced-motion: reduce)');
+const menu=createMenu(()=>{if(started&&world.mode==='paused')pause()});
+let checkpointSaved=true;
 let savedJourney=loadStory(storage),persistedCompletion=false,lastStoryRevision=-1,lastSceneLine="",skipHeld=0,skipStarted=null;
 const defs=PLAYER_CLIPS;
 // Clearing grades: the best per clearing sits beside its name on the title trail; recorded once per result.
@@ -38,31 +43,90 @@ for(const [form,fx] of [['light','FX_light'],['light','FX_lighttodark'],['dark',
 loadImage('cave','./assets/environment/cave.png');
 loadImage('terrain','./assets/environment/terrain.png');loadImage('gothic','./assets/environment/gothic.png');
 for(const name of ['forest','stone','thorn-house','oaks','moss-cavern-v2','ruined-chapel-v2','interior-props-v2','masonry-v2'])loadImage('concept-'+name,`./assets/concept/${name==='oaks'?'parallax-oaks':name}.png`);
-for(const name of ['bridge-atlas-v1','bridge-distance-v1','bridge-bough-v1'])loadImage('concept-'+name,`./assets/concept/${name}.png`);
+for(const name of ['bridge-atlas-v1','bridge-distance-v1'])loadImage('concept-'+name,`./assets/concept/${name}.png`);
 for(const [key,url] of Object.entries(STORY_IMAGES))loadImage(key,url);
+loadImage('bridge-bough','./assets/bridge/moss-bough.png');
+loadImage('stage-foundations','./assets/environment/stage-foundations.png');
+loadImage('stage-details','./assets/environment/stage-details.png');
+loadImage('woodland-flora','./assets/environment/woodland-flora.png');
+loadImage('autotiles','./assets/environment/autotiles.png');
+loadImage('bridge-tiles','./assets/bridge/stone-tiles.png');
 loadImage('cards','./assets/cards.png');loadImage('dock-branch','./assets/ui/dock_branch.png');loadImage('dock-corner','./assets/ui/dock_corner.png');loadImage('dungeon','./assets/dungeon.png');for(const name of Object.keys(ROSTER))loadImage('cast/'+name,`./assets/cast/${name}_sheet.png`);
 const total=tasks.length;let done=0;tasks.forEach(p=>p.then(()=>{$('loading').textContent=`Opening the forest · ${Math.round(++done/total*100)}%`},()=>{}));
-Promise.all(tasks).then(()=>{prepareScenery(images);loaded=true;$('begin').disabled=false;$('begin').textContent='Begin journey';$('continue').hidden=!savedJourney;$('continue').textContent=savedJourney?.complete?'Replay final encounter':'Continue journey';$('save-status').textContent=savedJourney?`Saved: ${CLEARINGS[savedJourney.stage].name} · this browser`:'';$('loading').textContent=(matchMedia('(pointer: coarse)').matches?'Touch controls':'Keyboard controls')+' · headphones welcome';updateUI(true)}).catch(err=>{$('begin').textContent='Reload to retry';$('loading').textContent=err.message;console.error(err)});
-function sound(name){if(!muted)music.sfx(name)}
+function titleMenu() {
+ const saved=savedJourney;
+ $('title-brand').hidden=false;
+ $('story-eyebrow').hidden=$('story-title').hidden=$('grade').hidden=true;
+ $('story-copy').textContent='Carry Grandmother’s cards into the woods.';
+ $('begin').disabled=!loaded&&!loadFailed;
+ $('begin').textContent=loadFailed?'Reload game':saved?'New journey':'Begin journey';
+ $('begin').classList.toggle('menu-primary',!saved||loadFailed);
+ $('continue').hidden=!loaded||!saved;
+ $('continue').textContent=saved?.complete?'Replay final encounter':'Continue journey';
+ $('save-status').textContent=saved?'Last checkpoint · '+CLEARINGS[saved.stage].name:'';
+ $('restart').hidden=$('return-title').hidden=true;
+ $('open-credits').hidden=false;
+}
+function focusTitleAction() {
+ if(document.activeElement===document.body||document.activeElement===$('stage'))menu.focusPrimary();
+}
+Promise.all(tasks).then(()=>{
+ prepareScenery(images);loaded=true;titleMenu();$('loading').textContent='';updateUI(true);focusTitleAction();
+}).catch(err=>{
+ loadFailed=true;titleMenu();$('loading').textContent='The forest could not be loaded. Check your connection and try again.';focusTitleAction();console.error(err);
+});
+function sound(name){if(settings.sound)music.sfx(name)}
 // Haptics on touch screens (where the browser supports them): getting hurt, a finisher, a kill, the bear's roar.
 const BUZZ={player_hurt:70,finisher:20,enemy_death:12,roar:[40,40,60]};
 function buzz(name){if(BUZZ[name]&&navigator.vibrate&&(document.body.classList.contains('touch-seen')||matchMedia('(pointer: coarse)').matches))try{navigator.vibrate(BUZZ[name])}catch{}}
 const music=createMusic();
 function syncMusic(){
- const silent=muted||!started||world.mode==='paused'||world.mode==='dead'||document.hidden;
+ const silent=!settings.sound||!started||world.mode==='paused'||world.mode==='dead'||document.hidden;
  music.play(silent?'':tuneFor(world),world.storyPhase==='cleared'?'victory':'');if(started)music.preload(BOSS_TUNES[world.stageIndex]);
 }
-function focusGame(){if(!['drafting','cutscene'].includes(world.mode))$('stage').focus({preventScroll:true})}
+function focusGame(){if(started&&world.mode==='playing')$('stage').focus({preventScroll:true})}
 function clearInput(){skipStarted=null;skipHeld=0;keys.clear();edges.clear();releaseJump=false;accumulator=0}
 function enterWorld(){lastAnim='';lastHand='';formClock=0;cam=0;cameraSnap=true;cardPositions.clear();departing.length=0;clearInput();started=true;persistedCompletion=false;$('overlay').hidden=true;updateUI(true);focusGame()}
-function persistJourney(){if(world.practice){$('save-status').textContent='Practice leaves your saved journey untouched';return;}const ok=saveStory(storage,world);if(ok)savedJourney=loadStory(storage);lastStoryRevision=world.storyRevision;$('save-status').textContent=ok?'Story checkpoint saved · this browser':'Saving unavailable · keep this tab open';}
+function persistJourney(){
+ if(world.practice)return;
+ checkpointSaved=saveStory(storage,world);
+ if(checkpointSaved)savedJourney=loadStory(storage);
+ lastStoryRevision=world.storyRevision;
+}
 function reset(fresh=false){if(fresh){world.hinted.clear();cardSeen.clear();world.reset();}else if(world.practice&&world.bossPractice){world.practiceDeal(world.stageIndex+10)}else if(world.practice){world.reset(savedJourney?.stage||0,savedJourney)}else world.retry();enterWorld();persistJourney()}
 function nextClearing(){if(world.advance()){enterWorld();persistJourney();sound('checkpoint')}}
-function pause(){if(!started)return;clearInput();if(world.mode==='playing')world.mode='paused';else if(world.mode==='paused')world.mode='playing';updateUI(true)}
+function pause(){
+ if(!started||!['playing','paused'].includes(world.mode))return;
+ clearInput();
+ world.mode=world.mode==='playing'?'paused':'playing';
+ updateUI(true);focusGame();
+}
+function returnToTitle(){
+ started=false;clearInput();previousMode='ready';
+ $('overlay').hidden=false;$('loading').textContent='';
+ titleMenu();menu.home();updateUI(true);
+}
 function press(code){if(keys.has(code))return;keys.add(code);edges.add(code)}
 function release(code){keys.delete(code);if(code==='Space')releaseJump=true}
-const controls=['KeyA','KeyD','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight','KeyJ','KeyK','KeyS','ArrowDown','Enter','KeyE','KeyP','Escape','KeyR','Digit1','Digit2','Digit3','Digit4','Digit5'];
+const controls=['KeyA','KeyD','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight','KeyJ','KeyK','KeyQ','KeyS','ArrowDown','Enter','KeyE','KeyP','Escape','KeyR','Digit1','Digit2','Digit3','Digit4','Digit5'];
 window.addEventListener('keydown',e=>{
+ if(!$('overlay').hidden){
+  if(!e.repeat&&e.code==='KeyR'&&started&&!$('menu-home').hidden){
+   if(world.mode==='dead')reset();else if(world.mode==='paused')$('restart').click();
+  }else menu.key(e);
+  return;
+ }
+ if(started&&world.mode==='lantern'){
+  const keep=$('lantern-keep'),deal=$('lantern-deal');
+  if(!['Tab','ArrowLeft','ArrowRight','Digit1','Digit2','Enter','Space'].includes(e.code))return;
+  e.preventDefault();if(e.repeat)return;
+  if(e.code==='Digit1'||e.code==='Digit2')finishLantern(e.code==='Digit1');
+  else if(e.code==='Enter'||e.code==='Space')finishLantern(document.activeElement!==deal);
+  else if(e.code==='ArrowLeft')keep.focus();
+  else if(e.code==='ArrowRight')deal.focus();
+  else (document.activeElement===keep?deal:keep).focus();
+  return;
+ }
  if(started&&world.mode==='cutscene'){
   if(['Enter','Space','KeyE','Escape','Tab'].includes(e.code))e.preventDefault();
   if(e.repeat)return;
@@ -76,29 +140,49 @@ window.addEventListener('keydown',e=>{
   if(e.code==='Digit1'||e.code==='Digit2'){e.preventDefault();finishDraft(Number(e.code.slice(-1))-1)}
   else if(e.code==='Escape'||e.code==='KeyP'){e.preventDefault();finishDraft(null)}
   else if(e.code==='Tab'){e.preventDefault();const buttons=[$('draft-left'),$('draft-right'),$('draft-skip')],i=buttons.indexOf(document.activeElement);buttons[(i+(e.shiftKey?2:1)+3)%3].focus()}
-  else if(controls.includes(e.code))e.preventDefault();
+  else if(controls.includes(e.code)&&!['Enter','Space'].includes(e.code))e.preventDefault();
   return;
  }
+ if(e.target.closest('button,summary,a')&&['Enter','Space'].includes(e.code))return;
  if(e.target.matches('select,input')||!controls.includes(e.code))return;e.preventDefault();if(e.repeat)return;
- if(e.code==='KeyP'||e.code==='Escape'){pause();return}if(e.code==='KeyR'){if(loaded)reset();return}if(!started||world.mode!=='playing')return;press(e.code)});
-window.addEventListener('keyup',e=>{if(e.code==='Escape'){skipStarted=null;skipHeld=0;}if(controls.includes(e.code)){e.preventDefault();release(e.code)}});
+ if(e.code==='KeyP'||e.code==='Escape'){pause();return}if(e.code==='KeyR'){if(started&&world.mode==='playing')reset();return}if(!started||world.mode!=='playing')return;press(e.code)});
+window.addEventListener('keyup',e=>{if(!$('overlay').hidden)return;if(e.code==='Escape'){skipStarted=null;skipHeld=0;}if(controls.includes(e.code)){if(!e.target.closest('button,summary,a'))e.preventDefault();release(e.code)}});
 window.addEventListener('blur',()=>{clearInput();if(started&&world.mode==='playing'){world.mode='paused';updateUI(true)}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();if(started&&world.mode==='playing'){world.mode='paused';updateUI(true)}}});
-$('begin').onclick=()=>{if(!loaded)return;if(world.mode==='paused'){world.mode='playing';clearInput();$('overlay').hidden=true;focusGame()}else if(world.mode==='won'&&world.practice)reset();else if(world.mode==='won'&&world.stageIndex<CLEARINGS.length-1)nextClearing();else reset(!started||world.mode==='won')};
+function newJourney() {
+ if(savedJourney)menu.confirm($('begin'),'Start a new journey?','Your new journey will replace the saved checkpoint in '+CLEARINGS[savedJourney.stage].name+'. Your clearing records stay with you.','Start new journey',()=>reset(true));
+ else reset(true);
+}
+$('begin').onclick=()=>{
+ if(loadFailed){location.reload();return;}
+ if(!loaded)return;
+ if(!started){newJourney();return;}
+ if(world.mode==='paused')pause();
+ else if(world.mode==='won'&&!world.practice){if(world.stageIndex<CLEARINGS.length-1)nextClearing();else newJourney();}
+ else reset();
+};
 $('continue').onclick=()=>{if(loaded&&savedJourney){world.reset(savedJourney.stage,savedJourney.complete?{phase:'boss',seen:savedJourney.seen}:savedJourney);enterWorld();persistJourney()}};
-$('new-journey').onclick=()=>{if(loaded)reset(true)};
-$('restart').onclick=()=>{if(loaded)reset()};$('pause').onclick=()=>{pause();focusGame()};
+$('restart').onclick=()=>{
+ if(world.practice){reset();return;}
+ menu.confirm($('restart'),'Retry from the checkpoint?','You will lose progress since the last checkpoint.','Retry',()=>reset());
+};
+$('return-title').onclick=()=>{
+ if(world.mode!=='paused'||world.practice){returnToTitle();return;}
+ menu.confirm($('return-title'),'Return to the title?',checkpointSaved?'Continue will pick up at your last checkpoint.':'Browser storage is unavailable. Progress from this visit may be lost.','Return to title',returnToTitle);
+};
+$('pause').onclick=pause;
 $('play').onclick=()=>{if(started&&world.mode==='playing'){world.play();updateUI(true);focusGame()}};
-function showSound(){$('sound').textContent=muted?'Sound off':'Sound on';$('sound').setAttribute('aria-pressed',String(!muted))}showSound();
-$('sound').onclick=()=>{muted=!muted;showSound();try{storage.setItem('red.poker.sound',muted?'off':'on')}catch{}if(!muted){music.unlock();sound('meter_full')}focusGame()};
-function motion(){document.body.classList.toggle('reduced',reduced);$('motion').textContent=reduced?'Motion off':'Motion on';$('motion').setAttribute('aria-pressed',String(!reduced))}motion();
-$('motion').onclick=()=>{reduced=!reduced;motion();focusGame()};
-// Full screen (and landscape, where the browser allows locking it) for touch devices whose browser supports it.
-const fullscreen=$('fullscreen');fullscreen.hidden=!document.documentElement.requestFullscreen;
-fullscreen.onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else{await document.documentElement.requestFullscreen({navigationUI:'hide'});await screen.orientation?.lock?.('landscape').catch(()=>{});}}catch{}};
-document.addEventListener('fullscreenchange',()=>{fullscreen.textContent=document.fullscreenElement?'Exit full screen':'Full screen'});
+$('cycle').onclick=()=>{if(started&&world.cyclePlay()){updateUI();focusGame()}};
+function applySettings(){
+ reduced=settings.motion==='system'?deviceMotion.matches:settings.motion==='reduced';
+ document.body.classList.toggle('reduced',reduced);
+ music.setLevels(settings.sound?settings.music/100:0,settings.sound?settings.effects/100:0);
+}
+bindSettings(settings,storage,applySettings);
+deviceMotion.addEventListener('change',applySettings);
+$('effects-level').addEventListener('change',()=>sound('pickup_essence'));
+$('sound').addEventListener('change',()=>sound('pickup_essence'));
 $('rotate').onclick=()=>document.body.classList.add('portrait-ok');
-$('deal').onclick=()=>{if(!loaded)return;world.practiceDeal(Number($('practice').value));enterWorld()};
 $('stage').addEventListener('pointerdown',event=>{if(world.mode!=='drafting'&&!event.target.closest('button,select,summary,a'))focusGame()});
 $('draft-left').onclick=()=>finishDraft(0);$('draft-right').onclick=()=>finishDraft(1);$('draft-skip').onclick=()=>finishDraft(null);
 // Touch controls: a floating joystick on the left half of the world (it centres wherever the thumb lands and
@@ -125,12 +209,18 @@ zone.oncontextmenu=e=>e.preventDefault();
 window.addEventListener('touchstart',()=>document.body.classList.add('touch-seen'),{once:true,passive:true});
 function holdTouch(){if(started&&world.mode==='playing')for(const code of ['KeyA','KeyD','KeyJ'])if(touchHeld.has(code))keys.add(code);}
 // Gamepad (standard mapping): stick or d-pad moves, A jumps, X swings, Y plays the hand, B/RB/RT dash, Start pauses.
-const PAD_BUTTONS={0:'Space',1:'ShiftLeft',2:'KeyJ',3:'KeyK',5:'ShiftLeft',7:'ShiftLeft',9:'KeyP',13:'KeyS',14:'KeyA',15:'KeyD'};
+const PAD_BUTTONS={0:'Space',1:'ShiftLeft',2:'KeyJ',3:'KeyK',4:'KeyQ',5:'ShiftLeft',7:'ShiftLeft',9:'KeyP',12:'MenuUp',13:'KeyS',14:'KeyA',15:'KeyD'};
 const padHeld=new Set();
 function padDown(code){
- if(!loaded)return;
- if(!started||!$('overlay').hidden){if(code==='Space')($('continue').hidden?$('begin'):$('continue')).click();else if(code==='KeyP')pause();return;}
+ if(!$('overlay').hidden){menu.pad(code);return;}
+ if(!loaded||!started)return;
  if(world.mode==='cutscene'){if(code==='Space')finishDialogue(false);else if(code==='KeyP')finishDialogue(true);return;}
+ if(world.mode==='lantern'){
+  if(code==='KeyA')$('lantern-keep').focus();
+  else if(code==='KeyD')$('lantern-deal').focus();
+  else if(code==='Space')finishLantern(document.activeElement!==$('lantern-deal'));
+  return;
+ }
  if(world.mode==='drafting'){if(code==='KeyA')finishDraft(0);else if(code==='KeyD')finishDraft(1);else if(code==='ShiftLeft')finishDraft(null);return;}
  if(code==='KeyP')pause();else if(world.mode==='playing')press(code);
 }
@@ -138,7 +228,7 @@ function pollGamepad(){
  const pad=[...(navigator.getGamepads?.()||[])].find(p=>p?.connected),now=new Set();
  if(pad){
   for(const [i,code] of Object.entries(PAD_BUTTONS))if(pad.buttons[i]?.pressed)now.add(code);
-  const [x=0,y=0]=pad.axes;if(x<-.4)now.add('KeyA');if(x>.4)now.add('KeyD');if(y>.7)now.add('KeyS');
+  const [x=0,y=0]=pad.axes;if(x<-.4)now.add('KeyA');if(x>.4)now.add('KeyD');if(y>.7)now.add('KeyS');if(y<-.7)now.add('MenuUp');
  }
  for(const code of now)if(!padHeld.has(code))padDown(code);
  for(const code of padHeld)if(!now.has(code))release(code);
@@ -146,21 +236,25 @@ function pollGamepad(){
  // Held directions and the sword survive a pause or scene that cleared the keyboard state.
  if(started&&world.mode==='playing')for(const code of ['KeyA','KeyD','KeyJ'])if(now.has(code))keys.add(code);
 }
-window.addEventListener('gamepadconnected',()=>{if(!started)$('loading').textContent='Gamepad ready · A jump · X sword · Y hand · B dash'});
 function finishDraft(index){
  if(world.mode!=='drafting')return;
  if(index===null)world.dismissDraft();else if(!world.chooseDraft(index))return;
  clearInput();updateUI(true);focusGame();
 }
+function finishLantern(keep){
+ if(!world.chooseLanternHand(keep))return;
+ clearInput();cameraSnap=true;persistJourney();updateUI(true);
+}
+$('lantern-keep').onclick=()=>finishLantern(true);
+$('lantern-deal').onclick=()=>finishLantern(false);
 function draftHint(card){
- const hand=world.deck.hand,candidates=hand.length<5?[[...hand,card]]:hand.map((_,slot)=>hand.map((id,i)=>i===slot?card:id));
- const best=candidates.map(evaluate).sort((a,b)=>b.tier-a.tier)[0],suit=Math.floor(card/13),suited=hand.filter(id=>Math.floor(id/13)===suit).length;
- if(suited>=2&&best.tier<=evaluate(hand).tier)return `${Math.min(5,suited+1)} ${['spades','diamonds','clubs','hearts'][suit]} available`;
- const fl=flavourText(best);return (hand.length===5?'Best swap: ':'Hand becomes: ')+best.name+(fl?' · '+fl:'');
+ const best=previewDraw(world.deck.hand,card).sort((a,b)=>b.result.tier-a.result.tier)[0];
+ const flavour=flavourText(best.result);
+ return `${best.slot===null?'Add to hand':`Replace slot ${best.slot+1}`} → ${best.result.name} · ${best.result.damage} damage${best.result.tier>=5?' · Dark Red':''}${flavour?' · '+flavour:''}`;
 }
 function updateDraftUI(){
- const choosing=world.mode==='drafting';$('draft-overlay').hidden=!choosing;
- $('overlay').inert=choosing;document.body.classList.toggle('drafting',choosing);document.querySelector('.table').inert=choosing;document.querySelector('#stage>nav').inert=choosing;
+ const choosing=started&&world.mode==='drafting';$('draft-overlay').hidden=!choosing;
+ $('overlay').inert=choosing;document.body.classList.toggle('drafting',choosing);
  if(!choosing){lastDraft=null;return;}
  if(lastDraft===world.activeDraft)return;
  lastDraft=world.activeDraft;clearInput();
@@ -187,7 +281,7 @@ function speak(dt){
  speech.clock+=dt*36;
  while(speech.clock>=1&&speech.shown<speech.text.length&&speech.wait<=0){
   speech.clock--;const i=speech.shown++,c=speech.text[i].toLowerCase();
-  if(c in VOWEL&&i-speech.last>=2&&!muted){
+  if(c in VOWEL&&i-speech.last>=2&&settings.sound){
    // Vowels set the pitch, with a little wander; a question lifts at the end.
    speech.last=i;const lift=speech.text.endsWith('?')&&speech.text.length-i<8?3:0,[name,rate]=speech.voice;
    music.sfx(name,0,rate*2**((VOWEL[c]+i*7%3-1+lift)/12));
@@ -208,10 +302,21 @@ $('dialogue').addEventListener('click',e=>{if(!e.target.closest('button'))finish
 $('dialogue-skip').onclick=()=>finishDialogue(true);
 function updateStoryUI(){
  const active=started&&world.mode==='cutscene'&&world.dialogue;
+ const atLantern=started&&world.mode==='lantern';
+ if(atLantern&&$('lantern').hidden){
+  clearInput();
+  const {hand,reserve}=world.deck;
+  $('lantern-hand').textContent=hand.length?`${evaluate(hand).name} · ${hand.length} ${hand.length===1?'card':'cards'}`:'Empty hand';
+  $('lantern-keep').setAttribute('aria-label',['Keep my hand',...hand.map(cardName),reserve===null?'':'Saved '+cardName(reserve)].filter(Boolean).join(', '));
+  $('lantern').hidden=false;
+  $(hand.length?'lantern-keep':'lantern-deal').focus({preventScroll:true});
+ }else if(!atLantern)$('lantern').hidden=true;
+ document.body.classList.toggle('at-lantern',atLantern);
  $('dialogue').hidden=!active;
  document.body.classList.toggle('in-cutscene',!!active);
- document.querySelector('.table').inert=!!active||world.mode==='drafting';
- document.querySelector('#stage>nav').inert=!!active||world.mode==='drafting';
+ const locked=!started||world.mode!=='playing';
+ document.querySelector('.table').inert=locked;
+ document.querySelector('#stage>nav').inert=locked;
  $('objective').textContent=started?world.objective:'';
  const b=world.boss;
  $('boss-hud').hidden=!started||!b||!!active||world.mode==='won';
@@ -229,7 +334,7 @@ function updateStoryUI(){
  if(signature===lastSceneLine)return;
  lastSceneLine=signature;clearInput();
  const actor=CAST[line.speaker];
- $('scene-title').textContent=scene.title;$('scene-caption').textContent=scene.caption;
+ $('scene-title').textContent=scene.title;$('scene-caption').textContent=line.caption;
  $('dialogue-speaker').textContent=actor.name;$('dialogue-speaker').style.color=actor.color;
  const who=line.speaker==='grandma'&&world.dialogue.id==='wolfIntro'?'disguise':line.speaker;
  say(line.text,who==='disguise'?['voice_gruff',1.3]:actor.voice);
@@ -253,8 +358,8 @@ function drawStoryCharacters(){
    if(id==='red'||id===world.boss?.kind)continue;
    if(id==='grandma'&&world.dialogue.id==='wolfIntro'&&world.dialogue.index===scene.lines.length-1)id='wolf';
    const bound=world.storyPhase==='inside'&&id==='grandma',inBed=world.dialogue.id==='wolfIntro',inSilk=world.dialogue.id==='widowIntro'&&id==='wren';
-   if(inBed&&id==='grandma'){drawStoryActor(ctx,images,'disguise',744,368,visual,{facing:-1});ctx.save();ctx.scale(2,2);bedCover(ctx);ctx.restore();continue;}
-   drawStoryActor(ctx,images,id,bound?820:inBed?670:inSilk?480:world.x+100+(i++)*80,bound?412:inBed?380:inSilk?356:world.y,0,{facing:-1});
+   if(inBed&&id==='grandma'){drawStoryActor(ctx,images,'disguise',744,368,visual,{facing:-1});ctx.save();ctx.scale(2,2);bedCover(ctx,images);ctx.restore();continue;}
+   drawStoryActor(ctx,images,id,bound?820:inBed?670:inSilk?CHAPEL_COCOON.x*2:world.x+100+(i++)*80,bound?412:inBed?380:inSilk?(CHAPEL_COCOON.y+4)*2:world.y,0,{facing:-1});
   }
  }else if(world.storyPhase==='inside')drawStoryActor(ctx,images,'grandma',820,412,visual,{facing:-1});
  else if(world.storyPhase==='home'){
@@ -267,7 +372,6 @@ function drawStoryCharacters(){
   const id=['stranger','pip','rowan','wren','rowan'][world.stageIndex];drawStoryActor(ctx,images,id,245,420,visual,{facing:-1});
  }
 }
-function storyFloor(){return world.storyLocation==='inside'||world.storyLocation==='arena'&&[1,4].includes(world.stageIndex);}
 // Arrow from a bowman: shaft, iron head and pale fletching on the 2-unit pixel grid.
 const tintCanvas=document.createElement('canvas');
 function tinted(img,color){
@@ -282,42 +386,11 @@ function drawChainSweep(){
  for(let i=0;i<=n;i++){const t=i/n,x=hx+(tx-hx)*t,y=hy+(ty-hy)*Math.sqrt(t)+Math.sin(t*Math.PI)*6;rect(x-2,y-2,4,4,i%2?'#4d4b5a':'#a9a5b8');}
  rect(tx-4,ty-6,8,4,'#e2e4ea');rect(tx+(tx>b.x?2:-6),ty-2,4,6,'#a9a5b8');
 }
-// ?hitboxes overlays boss body boxes, Red's feet and the sword reach (development aid).
-const DEBUG_HITBOX=typeof location!=='undefined'&&new URLSearchParams(location.search).has('hitboxes');
-function drawHitboxes(){
- ctx.save();ctx.lineWidth=2;ctx.strokeStyle='#ff4dd2';
- for(const e of world.enemies){const box=e.boss&&bossBox(e);if(box)ctx.strokeRect(box.x0,box.y0,box.x1-box.x0,box.y1-box.y0);else ctx.strokeRect(e.x-4,e.y-4,8,8);}
- ctx.strokeStyle='#4dffea';ctx.strokeRect(world.x-9,world.y-36,18,36);
- if(world.attack>0){const f=world.attackFacing;ctx.strokeStyle='#ffe04d';ctx.strokeRect(f>0?world.x-10:world.x-76,world.y-56,86,56);}
- ctx.restore();
-}
 function drawArrow(b){
  const len=Math.hypot(b.vx,b.vy)||1,ux=b.vx/len,uy=b.vy/len;
  for(let i=-10;i<=8;i+=2)rect(b.x+ux*i,b.y+uy*i,2,2,i<-6?'#d8c9a8':'#8a6a48');
  rect(b.x+ux*10,b.y+uy*10,2,2,'#e2e4ea');rect(b.x+ux*8-uy*2,b.y+uy*8+ux*2,2,2,'#a9a5b8');rect(b.x+ux*8+uy*2,b.y+uy*8-ux*2,2,2,'#a9a5b8');
  rect(b.x-ux*10-uy*2,b.y-uy*10+ux*2,2,2,'#c4b49a');rect(b.x-ux*10+uy*2,b.y-uy*10-ux*2,2,2,'#c4b49a');
-}
-function drawStoryPlatforms(){
- const inside=world.storyLocation==='inside',cottage=world.storyLocation==='arena'&&world.stageIndex===4;
- if(!storyFloor())return false;
- for(const p of world.platforms){
-  if(cottage&&!p.ground)continue;
-  const depth=p.ground?120:18;
-  // Inside the Wolf the ledges are flesh with a bone lip.
-  rect(p.x,p.y,p.w,depth,inside?'#3f1f2c':'#4b3b36');
-  rect(p.x,p.y,p.w,4,inside?'#d3ceae':'#b69a6a');
-  rect(p.x,p.y+4,p.w,4,inside?'#8a6a70':'#6e5543');
-  for(let x=p.x+4,k=0;x<p.x+p.w-4;x+=32,k++){
-   const tone=inside?['#45222f','#3c1d29','#4b2633'][k%3]:['#4b3b36','#433430','#54423b'][(k*7+p.id)%3];
-   rect(x+2,p.y+8,30,depth-8,tone);rect(x+2,p.y+8,30,2,inside?'#5a2c3b':'#5e4a40');
-   for(let y=p.y+16+(k%3)*6;y<p.y+depth-4;y+=22)rect(x+8+(k%4)*4,y,10,2,inside?'#2a1420':'#3a2c28');
-   rect(x,p.y+8,2,depth-8,inside?'#1d0e17':'#28282b');
-   rect(x+4,p.y+10,16,2,inside?'#6b3446':'#765c47');
-   rect(x+20,p.y+6,2,2,'#c0ad87');
-  }
-  if(!p.ground){rect(p.x+10,p.y+depth,8,8,inside?'#5a2c3b':'#3c3030');rect(p.x+p.w-18,p.y+depth,8,8,inside?'#5a2c3b':'#3c3030');}
- }
- return true;
 }
 // Boss title card: a band across the arena with the boss's name and role, the first time each fight begins.
 const cardSeen=new Set();let cardStart=-9;
@@ -415,42 +488,84 @@ function updateUI(force=false){
  $('chapter-label').textContent=world.arena&&world.practice?'PRACTICE ARENA':`${['I','II','III','IV','V'][world.stageIndex]} · ${world.clearing.name.toUpperCase()}`;
  const trailKey=world.arena?'arena':String(world.stageIndex);
  if($('trail-dots').dataset.stage!==trailKey){$('trail-dots').dataset.stage=trailKey;$('trail-dots').innerHTML=CLEARINGS.map((c,i)=>`<i class="${!world.practice&&i<=world.stageIndex?'lit':''}" title="${c.name}"></i>`).join('');$('trail-dots').setAttribute('aria-label',`Clearing ${world.stageIndex+1} of ${CLEARINGS.length}`);}
- const mends=started&&evaluate(world.deck.hand).heal;$('health').innerHTML=Array.from({length:5},(_,i)=>`<i class="heart ${i<world.health?'full':mends&&i===world.health?'mend':''}"></i>`).join('');$('health').setAttribute('aria-label',`${world.health} of 5 health`);$('health').classList.toggle('low',started&&world.health===1);
+ const deck=world.deck,r=deck.selectedPlay,playCount=deck.plays.length;
+ const mends=started&&r.heal;$('health').innerHTML=Array.from({length:5},(_,i)=>`<i class="heart ${i<world.health?'full':mends&&i===world.health?'mend':''}"></i>`).join('');$('health').setAttribute('aria-label',`${world.health} of 5 health`);$('health').classList.toggle('low',started&&world.health===1);
  $('quest').textContent=world.storyLocation==='trail'&&!world.arena?`${world.collected} / 3 embers · ${world.foesAhead} ${world.foesAhead===1?'foe':'foes'} ahead`:world.storyPhase==='inside'?`${3-world.knots.filter(k=>k.hp>0).length} / 3 knots`:world.boss?'Boss encounter':world.storyPhase==='home'?'The road is open':'Lantern lit';
- const r=evaluate(world.deck.hand);$('combo').textContent=r.name;$('effect').textContent=r.tier<0?'Land sword hits to refill':`${EFFECTS[r.tier]} · ${r.damage} damage`;const fl=flavourText({...r,suits:r.suits.filter(s=>s<3||world.health<5)});$('flavour').textContent=fl;$('flavour').hidden=!fl;
- $('play').disabled=!started||world.mode!=='playing'||!world.deck.hand.length;
+ $('hand-label').textContent=playCount>1?`COMBO ${deck.playIndex+1} / ${playCount}`:'POKER HAND';
+ $('cycle').hidden=playCount<=1;
+ $('cycle').disabled=!started||world.mode!=='playing'||world.dying>0;
+ const rank=deck.hand[r.indices[0]]%13;
+ $('combo').textContent=r.tier===1?`Pair of ${['twos','threes','fours','fives','sixes','sevens','eights','nines','tens','jacks','queens','kings','aces'][rank]}`:r.name;
+ $('effect').textContent=r.tier<0?'Land sword hits to refill':`${EFFECTS[r.tier]} · ${r.damage} damage`;const fl=flavourText({...r,suits:r.suits.filter(s=>s<3||world.health<5)});$('flavour').textContent=fl;$('flavour').hidden=!fl;
+ $('play').disabled=!started||world.mode!=='playing'||world.dying>0||!deck.hand.length;
  $('draw-label').textContent=world.deck.banked?'Saved: '+cardName(world.deck.reserve):`Sword hits ${world.deck.hits} / 3`;
- $('draw-help').textContent=world.deck.banked?'1–5: replace a slot with your saved card.':world.cardDrops.length?'Touch a card drop to reveal two choices.':'Three landed swings drop one card.';
  $('deck-count').textContent=`${world.deck.pile.length} in deck · ${world.deck.discard.length} spent${world.cardDrops.length?' · '+world.cardDrops.length+' dropped':''}`;
  [...$('pips').children].forEach((p,i)=>p.classList.toggle('lit',world.deck.banked||i<world.deck.hits));
- const sig=world.deck.hand.join(',');if(sig!==lastHand||force){lastHand=sig;
+ const sig=deck.hand.join(',')+':'+deck.reserve+':'+deck.playIndex;if(sig!==lastHand||force){lastHand=sig;
+  const spent=r.indices.map(i=>cardName(deck.hand[i])).join(', ');
+  const description=spent?`${r.name}, ${r.damage} damage. Spend ${spent}. ${flavourText(r)}`:'Empty hand';
+  if($('play-description').textContent!==description)$('play-description').textContent=description;
+  const swaps=world.deck.banked?previewDraw(world.deck.hand,world.deck.reserve):[];
   for(const [id,el] of cards)if(!world.deck.hand.includes(id)){el.classList.add('out');setTimeout(()=>el.remove(),280);cards.delete(id)}
   $('hand').querySelectorAll('.empty-slot').forEach(e=>e.remove());
   for(let i=0;i<5;i++){const slot=document.createElement('div');slot.className='empty-slot';slot.style.left=`${i*72+15}px`;slot.style.setProperty('--slot',i);$('hand').append(slot)}
-  world.deck.hand.forEach((id,i)=>{let el=cards.get(id);if(!el){el=document.createElement('button');el.className='card in';el.innerHTML='<span class="slot"></span><canvas width="32" height="48"></canvas>';const c=el.querySelector('canvas').getContext('2d');let rank=id%13+2;if(rank===14)rank=1;let sx=32+(Math.floor((rank-1)/3)*4+Math.floor(id/13))*32,sy=32+((rank-1)%3)*48;c.drawImage(images.get('cards'),sx,sy,32,48,0,0,32,48);el.onclick=()=>{if(!started||world.mode!=='playing')return;let index=world.deck.hand.indexOf(id);if(world.deck.replace(index)){sound('meter_full');updateUI(true)}else{world.banner='TOUCH A CARD DROP TO CHOOSE YOUR DRAW';world.bannerTime=1.8}focusGame()};el.onpointerenter=()=>hover=id;el.onpointerleave=()=>hover=-1;$('hand').append(el);cards.set(id,el)}
-   const rank=id%13+2,label=rank===14?'Ace':rank===13?'King':rank===12?'Queen':rank===11?'Jack':rank;el.setAttribute('aria-label',`Card ${i+1}: ${label} of ${['spades','diamonds','clubs','hearts'][Math.floor(id/13)]}. Click to use a saved replacement.`);el.querySelector('.slot').textContent=String(i+1);el.style.left=`${i*72+13}px`;el.classList.toggle('match',r.indices.includes(i));el.dataset.slot=i;el.style.setProperty('--slot',i);
+  world.deck.hand.forEach((id,i)=>{let el=cards.get(id);if(!el){el=document.createElement('button');el.className='card in';el.innerHTML='<span class="slot"></span><canvas width="32" height="48"></canvas>';const c=el.querySelector('canvas').getContext('2d');let rank=id%13+2;if(rank===14)rank=1;let sx=32+(Math.floor((rank-1)/3)*4+Math.floor(id/13))*32,sy=32+((rank-1)%3)*48;c.drawImage(images.get('cards'),sx,sy,32,48,0,0,32,48);el.onclick=()=>{
+    if(!started||world.mode!=='playing')return;
+    const wasBanked=world.deck.banked;
+    if(world.useSlot(world.deck.hand.indexOf(id))){
+     if(wasBanked)sound('meter_full');
+     updateUI(true);
+    }
+    focusGame();
+   };el.onpointerenter=()=>hover=id;el.onpointerleave=()=>hover=-1;$('hand').append(el);cards.set(id,el)}
+   const replacement=swaps.find(option=>option.slot===i);
+   let description;
+   if(replacement){
+    const result=replacement.result;
+    description=`Replace with ${cardName(world.deck.reserve)} → ${result.name} · ${result.damage} damage${result.tier>=5?' · Dark Red':''}`;
+   }else{
+    const remaining=evaluate(world.deck.hand.filter(card=>card!==id));
+    const next=remaining.tier<0?'Hand will be empty':`Keep ${remaining.name} · ${remaining.damage} damage`;
+    description=`Throw for ${DAMAGE[0]} damage. ${next}.`;
+   }
+   el.setAttribute('aria-label',`Card ${i+1}: ${cardName(id)}. ${description}`);el.title=description;el.querySelector('.slot').textContent=String(i+1);el.style.left=`${i*72+13}px`;el.classList.toggle('match',r.indices.includes(i));el.dataset.slot=i;el.style.setProperty('--slot',i);
   });
  }
+ const focused=document.activeElement;
+ const inspected=focused?.matches('#hand .card:not(.out)')?focused:cards.get(hover);
+ let drawHelp='Three landed swings drop one card.';
+ if(inspected)drawHelp=inspected.title;
+ else if(world.deck.banked)drawHelp='1–5 or click: replace a card with your saved draw.';
+ else if(world.cardDrops.length)drawHelp='Touch a card drop to reveal two choices.';
+ else if(world.deck.hand.length)drawHelp='1–5 or click: throw one card. K: play the combo.';
+ $('draw-help').textContent=drawHelp;
  $('dark-meter').hidden=world.dark<=0;$('dark-time').textContent=world.dark.toFixed(1)+'s';$('dark-meter').querySelector('i').style.transform=`scaleX(${world.dark/6})`;
  const nextToast=world.bannerTime>0?world.banner:'';if(nextToast!==toast){toast=nextToast;$('toast').textContent=toast}
- $('pause').innerHTML=(world.mode==='paused'?'Resume':'Pause')+' <kbd>P</kbd>';
  if(started&&(world.mode!==previousMode||force)){
-  previousMode=world.mode;const overlay=$('overlay');overlay.hidden=['playing','drafting','cutscene'].includes(world.mode);
-  $('continue').hidden=true;
+  const changed=previousMode!==world.mode||$('overlay').hidden;
+  previousMode=world.mode;
+  const overlay=$('overlay');overlay.hidden=['playing','drafting','cutscene','lantern'].includes(world.mode);
   if(!overlay.hidden){
-   const won=world.mode==='won',final=world.stageIndex===CLEARINGS.length-1;
-   $('story-eyebrow').textContent=won?(final?'THE ROAD IS OPEN':'CLEARING '+(world.stageIndex+1)+' / '+CLEARINGS.length+' · LANTERN LIT'):world.clearing.name.toUpperCase();
-   $('story-title').textContent=won?(final?'Room for one more.':'A light in the dark.'):world.mode==='dead'?'One more hand?':'By the lantern.';
-   $('story-copy').textContent=won?(world.practice?'Practice complete. Your journey is safe.':final?'Grandmother is safe. The voices are free. There is enough bread to share.':'The way is clear. '+CLEARINGS[world.stageIndex+1]?.name+' lies ahead.'):world.mode==='dead'?(world.arena?'Return to the encounter with full health and a fresh hand.':'Take a fresh hand and try this clearing again.'):'Your hand and the forest will wait right here.';
-   $('begin').textContent=won?(world.practice?(world.bossPractice?'Retry encounter':'Back to journey'):final?'Play a new journey':'On to '+CLEARINGS[world.stageIndex+1]?.name):world.mode==='paused'?'Back to the forest':(world.arena?'Retry encounter':'Retry clearing');
+   const won=world.mode==='won',final=world.stageIndex===CLEARINGS.length-1,paused=world.mode==='paused';
+   $('title-brand').hidden=$('continue').hidden=$('open-credits').hidden=true;
+   $('story-title').hidden=$('story-eyebrow').hidden=false;
+   $('restart').hidden=!paused;$('return-title').hidden=false;
+   $('restart').textContent=world.practice&&!world.bossPractice?'Leave practice':world.arena?'Retry encounter':'Retry clearing';
+   $('story-eyebrow').textContent=world.clearing.name;
+   $('story-title').textContent=paused?'Journey paused':world.mode==='dead'?'One more hand?':world.practice?'Practice complete':final?'Room for one more.':'A light in the dark.';
+   $('story-copy').textContent=paused?world.objective:world.mode==='dead'?(world.lanternDeck?'Return to the Hart with the hand you chose at the lantern.':'Take a fresh hand and try again.'):won&&world.practice?'Your campaign checkpoint is safe.':final?'Grandmother is safe. There is enough bread to share.':'The way to '+CLEARINGS[world.stageIndex+1]?.name+' is open.';
+   $('begin').classList.add('menu-primary');
+   $('begin').textContent=paused?'Resume journey':won&&!world.practice?(final?'New journey':'Continue to '+CLEARINGS[world.stageIndex+1].name):world.practice&&!world.bossPractice?'Back to journey':world.arena?'Retry encounter':'Retry clearing';
    const best=world.bestHand>=0?' · best hand: '+HANDS[world.bestHand]:'',r=won&&!world.practice?world.result:null;
-   $('loading').textContent=won&&!r?`${world.kills} foes defeated · ${world.fallCount} falls · ${clock(world.time)}${best}`:won?'':'P / Esc resumes · R retries this clearing';
+   $('loading').textContent=won&&!r?`${world.kills} foes defeated · ${world.fallCount} falls · ${clock(world.time)}${best}`:'';
    $('grade').hidden=!r;
    if(r){$('grade-letter').textContent=r.grade;$('grade-letter').className='grade-'+r.grade;
     const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`,note=recordNote&&recorded===r&&!recordNote.first?[recordNote.better&&'NEW BEST GRADE',recordNote.faster&&'NEW BEST TIME'].filter(Boolean).join(' · '):'';
     $('grade-line').textContent=`${plural(r.hurt,'heart')} lost · ${r.retries} ${r.retries===1?'retry':'retries'} · ${clock(r.time)} / par ${clock(r.par)}${r.best>=0?' · best hand: '+HANDS[r.best]:''}`;
     $('grade-note').textContent=note;}
    if(won&&!persistedCompletion){persistedCompletion=true;persistJourney();}
+   $('save-status').textContent=world.practice?'Practice session':checkpointSaved?'Checkpoints save in this browser.':'Saving unavailable · keep this tab open';
+   if(changed)menu.home();
   }
  }
 
@@ -475,6 +590,7 @@ function drawEmber(e){
   rect(x-2,y+side*reach-2,4,4,ink);
   rect(x-2,y+side*reach,2,2,cream);
  }
+ drawGlow(ctx,x,y,42,'gold',.8);
  circle(x,y,12,ink);circle(x,y,10,gold);circle(x-2,y-2,8,cream);circle(x-2,y-2,5,white);
  // Hard shadow and offset specular highlight give the orb a drawn, rounded silhouette.
  rect(x+4,y+4,4,2,'#ce7627');rect(x,y+8,4,2,'#ce7627');
@@ -497,7 +613,7 @@ function drawDust(d){
 const cardPositions=new Map(),departing=[];
 function drawDock(){
  drawBriarDock(ctx,images);
- const combo=evaluate(world.deck.hand),t=visual;
+ const combo=world.deck.selectedPlay,hasChoice=world.deck.plays.length>1,t=visual;
  for(const [id,p] of cardPositions)if(!world.deck.hand.includes(id)){departing.push({...p,id,time:t});cardPositions.delete(id)}
  world.deck.hand.forEach((id,i)=>{
   const active=world.mode==='playing'&&(hover===id||document.activeElement===cards.get(id));
@@ -507,6 +623,11 @@ function drawDock(){
   let rank=id%13+2;if(rank===14)rank=1;const sx=32+(Math.floor((rank-1)/3)*4+Math.floor(id/13))*32,sy=32+((rank-1)%3)*48;
   const pulse=reduced?0:Math.sin(t*2+id)*2,angle=reduced?0:(i-2)*.025+Math.sin(t*2.3+id)*.018;
   ctx.save();ctx.translate(snap(p.x+32),snap(p.y+48+pulse));ctx.rotate(angle);
+  if(hasChoice&&combo.indices.includes(i)){
+   for(const x of [-34,26])for(const y of [-50,48]){
+    rect(x,y,8,2,'#ffe3a3');rect(x<0?x:x+6,y<0?y:y-6,2,8,'#ffe3a3');
+   }
+  }
   if(active){rect(-36,-52,72,104,'#101c19');rect(-34,-50,68,100,'#f6dda0')}
   ctx.drawImage(images.get('cards'),sx,sy,32,48,-32,-48,64,96);ctx.restore();
  });
@@ -519,21 +640,24 @@ function draw(){
  // The walk home is back in Lantern Wood at dawn, whatever clearing the story ended in.
  const theme=world.storyLocation==='home'?'wood':world.clearing.theme;
  if(bridge)drawBridgeBackdrop(ctx,images,cam,visual,reduced);else drawBackdrop(ctx,images,cam,visual,reduced,theme,world.worldWidth);
+ drawAtmosphere(ctx,cam,visual,reduced,theme);
  if(world.dark>0){ctx.fillStyle='#31184c36';ctx.fillRect(0,0,960,480)}
  ctx.save();ctx.translate(-snap(cam),0);
  drawStorySet(ctx,images,world,reduced?0:visual,reduced);
- if(bridge)drawBridgeArchitecture(ctx,images,world.platforms,visual,reduced);else if(!drawStoryPlatforms())drawTerrain(ctx,images,world.platforms,visual,reduced,theme);
+ if(bridge)drawBridgeArchitecture(ctx,images,world.platforms,visual,reduced);else drawTerrain(ctx,images,world.platforms,visual,reduced,theme,world.storyLocation);
  if(!world.arena){
   if(!bridge)drawLandmarks(ctx,images,world,visual,reduced);
   if(world.clearing.theme==='house')drawHome(ctx,images,world.collected,visual,reduced,world.clearing.exit.x);else drawTrailGate(ctx,images,world,visual,reduced);
   drawGates(ctx,world,visual,reduced);
  }
+ drawFlora(ctx,images,world,cam);
+ drawContactShadows(ctx,world,cam);
  drawStoryCharacters();
  drawHazards();
  // Ground loot sits behind combatants; cards must never mask an enemy pose.
  for(const drop of world.cardDrops){
   const x=snap(drop.x),y=snap(drop.y-26-(reduced?0:Math.sin(visual*3+drop.id)*2)-Math.sin(Math.min(1,drop.age/.4)*Math.PI)*18);
-  circle(x,y,22,'#eac77c18');rect(x-14,y-20,28,40,'#101824');rect(x-12,y-18,24,36,'#e6cc93');rect(x-10,y-16,20,32,'#713843');
+  drawGlow(ctx,x,y,48,'gold',.55);circle(x,y,22,'#eac77c18');rect(x-14,y-20,28,40,'#101824');rect(x-12,y-18,24,36,'#e6cc93');rect(x-10,y-16,20,32,'#713843');
   rect(x-8,y-14,16,2,'#ad6262');diamond(x,y,8,'#f6dfa5');diamond(x,y,4,'#8f424d');
   rect(x-8,y-12,2,2,'#ffeab6');rect(x+6,y+10,2,2,'#ffeab6');text('CARD',x-14,y-26,10,'#fff0bc');
  }
@@ -547,7 +671,7 @@ function draw(){
  if(e.state==='lunge'&&!e.fly){rect(e.x-e.strikeDir*30,e.y-20,e.strikeDir*28,3,'#f1c17d')}
  if(e.state==='chase'&&!e.fly&&e.hopCD<.1)text('•',e.x-2,e.y-h-18,10,'#caa16d');}
  drawChainSweep();
- if(DEBUG_HITBOX)drawHitboxes();
+ drawLocalOverlay?.(ctx);
  for(const b of world.enemyShots){
   if(b.arrow){drawArrow(b);continue;}
   // A mushroom spits a spore puff with a smaller one trailing; a witch throws a violet bolt; wisps a teal orb.
@@ -573,6 +697,17 @@ function draw(){
  ctx.restore();
  if(world.transform>0)effect(world.morphFrom==='light'?'FX_lighttodark':'FX_darktolight',(1-world.transform/world.morphDuration)*36,world.x,world.y,2,world.facing);
  for(const b of world.bolts){
+  if(b.card!==undefined){
+   const rank=(b.card%13+1)%13,suit=Math.floor(b.card/13);
+   const sx=32+(Math.floor(rank/3)*4+suit)*32,sy=32+(rank%3)*48;
+   ctx.save();
+   ctx.translate(snap(b.x),snap(b.y));
+   ctx.rotate(reduced?0:b.dir*(1.5-b.life)*15);
+   ctx.drawImage(images.get('cards'),sx,sy,32,48,-8,-12,16,24);
+   ctx.restore();
+   continue;
+  }
+  drawSpellLight(ctx,b,visual,reduced);
   const shape=castShape(b.tier),dark=b.tier>=5,c=dark?'#b46bfa':'#f35a47',phase=Math.floor((1.5-b.life)*18)%3;
   ctx.save();ctx.translate(snap(b.x),snap(b.y));ctx.scale(b.dir,1);
   // Three stepped silhouettes, never a scaled-up aura sprite. Bright core and ink outline.
@@ -595,12 +730,12 @@ function draw(){
  if(!reduced)for(const d of world.dust)drawDust(d);
  for(const p of world.particles)rect(p.x,p.y,3,3,'#eacd88');for(const n of world.texts)text(n.text,n.x,n.y,20,'#ffe4a2');
  // Depth foreground around the floor rather than across landing surfaces.
- ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else if(!storyFloor())drawForeground(ctx,images,cam,world,reduced);
+ ctx.restore();if(bridge)drawBridgeAtmosphere(ctx,cam,visual,reduced);else drawForeground(ctx,images,cam,world,reduced);
  // Ground marks, roots, flames and spore clouds go over the foreground foliage so a bush never hides a tell.
  ctx.save();ctx.translate(-snap(cam),0);drawPatches();ctx.restore();drawBossCard();if(world.dying>0||world.mode==='dead'){ctx.fillStyle=`rgba(11,8,16,${(world.mode==='dead'?1:1-world.dying/DEATH_TIME)*.55})`;ctx.fillRect(0,0,960,480);}ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
 }
-function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();holdTouch();if(loaded){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
-  while(accumulator>=1/60){const input={axis:Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),sword:keys.has('KeyJ')};if(first&&world.hitStop<=0){input.jump=edges.has('Space');input.jumpRelease=releaseJump;input.dash=edges.has('ShiftLeft')||edges.has('ShiftRight');input.play=edges.has('KeyK');input.drop=edges.has('KeyS')||edges.has('ArrowDown');for(let i=0;i<5;i++)if(edges.has('Digit'+(i+1)))input.replace=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}
+function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();holdTouch();if(loaded&&started){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
+  while(accumulator>=1/60){const input={axis:Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),sword:keys.has('KeyJ')};if(first&&world.hitStop<=0){input.jump=edges.has('Space');input.jumpRelease=releaseJump;input.dash=edges.has('ShiftLeft')||edges.has('ShiftRight');input.play=edges.has('KeyK');input.cycle=edges.has('KeyQ');input.drop=edges.has('KeyS')||edges.has('ArrowDown');for(let i=0;i<5;i++)if(edges.has('Digit'+(i+1)))input.cardSlot=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}
   for(const event of world.events.splice(0)){sound(event);buzz(event);}
  }else accumulator=0;
  if(started&&world.mode==='cutscene')speak(dt);
@@ -618,8 +753,4 @@ function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepa
  const t=visual,wiggle=reduced?0:Math.sin(t*2.3+id)*1.4+Math.sin(t*18)*Math.pow(Math.max(0,Math.sin(t*1.5+i*1.7)),12)*5;
  el.style.transform=`translateY(${(match?-7:0)+(active?-10:0)+(reduced?0:Math.sin(t*2+i)*2)}px) rotate(${reduced?0:(i-2)*2+wiggle}deg)`;el.style.zIndex=active?20:5+i;
  }}requestAnimationFrame(frame)}requestAnimationFrame(frame);
-// Read-only state for checking the live game; no cheat functions are exposed.
-Object.defineProperty(window,'__POKER_STATE__',{get:()=>({cam:Math.round(cam),x:world.x,y:world.y,vx:world.vx,vy:world.vy,mode:started?world.mode:'ready',grounded:world.grounded,hand:[...world.deck.hand],hits:world.deck.hits,banked:world.deck.banked,dark:world.dark,collected:world.collected,health:world.health,practice:world.practice,stage:world.stageIndex,storyPhase:world.storyPhase,storyLocation:world.storyLocation,dialogue:world.dialogue?{...world.dialogue}:null,boss:world.boss?{kind:world.boss.kind,hp:world.boss.hp,max:world.boss.max,state:world.boss.state,pattern:world.boss.pattern}:null,objective:world.objective,hitStop:world.hitStop,shakeTime:world.shakeTime,reserve:world.deck.reserve,cardDrops:world.cardDrops.map(d=>({id:d.id,x:d.x,y:d.y,blocked:d.blocked})),draft:world.deck.drafts.find(d=>d.id===world.activeDraft)?.cards??null})});
-
-// Named exports support the separate local review fixture; the player page exposes no mutation controls.
-export {world,enterWorld};
+const drawLocalOverlay=installLocalTools({world,enterWorld,menu,ready:()=>loaded,camera:()=>cam,started:()=>started});

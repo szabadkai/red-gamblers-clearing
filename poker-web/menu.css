@@ -1,0 +1,92 @@
+/* The title uses the Thorn House painting. The same panel opens over the live clearing when paused. */
+#overlay {
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 3.5cqw 7cqw;
+  background: linear-gradient(90deg, #0a1519fa 8%, #0b161ced 41%, #07111877 77%);
+  color: #eee4ce;
+  isolation: isolate;
+}
+body.at-title #overlay {
+  background: linear-gradient(90deg, #071315f5 0%, #0a1719ed 27%, #0b191b93 51%, transparent 78%),
+              linear-gradient(0deg, #071316b8, transparent 23%),
+              url('./assets/concept/thorn-house.png') 68% center / cover;
+}
+#overlay::before {
+  content: ""; position: absolute; inset: 1.35cqw; z-index: -1; pointer-events: none;
+  border: 1px solid #d1b27a55;
+}
+#overlay [hidden], #overlay[hidden], body.at-title #stage>nav, body:has(#overlay:not([hidden])) #touch { display: none; }
+.menu-page { width: min(100%, 46cqw); max-height: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-color: #897552 #142023; scrollbar-width: thin; padding: .5cqw; }
+#title-brand { margin: 0 0 1.1cqw; }
+#title-brand img { display: block; width: 18.5cqw; height: auto; image-rendering: pixelated; filter: drop-shadow(.3cqw .35cqw #081115); }
+#title-brand span { display: block; margin-top: .6cqw; font: italic 3.15cqw/1.12 Georgia, serif; color: #f5dfae; letter-spacing: -.06cqw; }
+#overlay h2 { display: block; margin: .4cqw 0 1cqw; color: #f5dfae; font: normal 3.75cqw/1.05 Georgia, serif; letter-spacing: -.08cqw; }
+#overlay p, #overlay .menu-row, .control-list { font: normal clamp(12px, 1.45cqw, 21px)/1.45 system-ui, sans-serif; }
+#overlay p { margin: .55cqw 0 1.15cqw; }
+#overlay .menu-kicker, #overlay h3, #overlay legend { color: #dbc18a; font: 1.05cqw/1.4 Silkscreen, monospace; letter-spacing: .08em; }
+#overlay .menu-kicker { margin-bottom: .45cqw; }
+.menu-actions { display: grid; gap: .45cqw; max-width: 29cqw; margin: 1.7cqw 0 .65cqw; }
+#overlay button, #overlay select { border: 1px solid #9b89635c; box-shadow: none; background: #142627e8; color: #f2e1be; font: max(10px,1.1cqw)/1.3 Silkscreen, monospace; }
+#overlay .menu-actions button { margin: 0; text-align: left; padding: .9cqw 1.3cqw; }
+#overlay .menu-actions button::after { content: "›"; float: right; color: #b6a781; }
+#overlay button.menu-primary { background: #e7c88b; border-color: #ffe7b6; color: #1b2625; }
+#overlay button.menu-primary::after { color: #493e2e; }
+#overlay button:hover, #overlay select:hover { border-color: #e8cc92; background-color: #36443a; }
+#overlay button.menu-primary:hover { background: #f8de9e; }
+#overlay :is(button,input,select,a):focus-visible { outline: 2px solid #fff0bc; outline-offset: 2px; }
+#overlay .menu-link { color: #cbbfa5; background: transparent; border-color: transparent; padding: .35cqw 0; margin: .4cqw 1.35cqw 0 0; }
+#overlay .menu-note { color: #c3bda9; font-size: max(10px,1.02cqw); margin: .7cqw 0 0; }
+#overlay .menu-note:empty { display: none; }
+#overlay .menu-sheet { width: min(100%, 52cqw); padding: 2.2cqw 2.8cqw; border: 1px solid #b39b686b; background: #111f23f5; box-shadow: 0 .5cqw 2cqw #07101466; }
+#overlay fieldset { min-width: 0; border: 0; padding: 0; margin: 1.25cqw 0 0; }
+#overlay legend, #overlay h3 { padding: 0; margin: 1cqw 0 .45cqw; }
+.menu-row { display: flex; align-items: center; justify-content: space-between; gap: 1cqw; min-height: 3.6cqw; padding: .45cqw 0; border-top: 1px solid #baa4773d; }
+#overlay input { accent-color: #e7c88b; }
+#overlay input[type="checkbox"] { width: max(17px,1.5cqw); height: max(17px,1.5cqw); }
+.menu-row.level { display: grid; grid-template-columns: 1fr 45% 4ch; }
+.menu-row input[type="range"] { margin: 0; width: 100%; }
+.menu-row output { text-align: right; font-variant-numeric: tabular-nums; }
+#overlay .menu-row button, #overlay select, #overlay .menu-back { padding: .55cqw 1cqw; }
+#overlay .menu-back { margin: 1.15cqw 0 .25cqw; }
+#overlay .menu-back::before { content: "‹ "; }
+#overlay .credit-links { display: grid; gap: .6cqw; margin: 1.3cqw 0; }
+#overlay a { color: #ecd39a; text-underline-offset: .2em; }
+.control-list { width: 100%; border-collapse: collapse; text-align: left; }
+.control-list th, .control-list td { border-top: 1px solid #baa4773d; padding: .4cqw .35cqw .4cqw 0; }
+.control-list tbody th { font-weight: 500; }
+#overlay #journey-trail { display: grid; justify-content: start; gap: .2cqw; margin: .7cqw 0; font-size: max(10px,1cqw); }
+#overlay #grade { justify-content: flex-start; }
+body:has(#overlay:not([hidden])) #stage>nav { visibility: hidden; }
+@media (max-width: 680px), (max-height: 450px) {
+  #overlay { padding: 2.5cqw 5cqw; }
+  .menu-page { width: 59cqw; }
+  #overlay .menu-sheet { width: min(100%, 72cqw); padding: 1.5cqw 2.5cqw; }
+  .menu-actions { max-width: 38cqw; }
+  #overlay .menu-actions button, #overlay .menu-back, #overlay select, #overlay .menu-link { min-height: 28px; }
+  #overlay .menu-actions button { padding: .55cqw 1.1cqw; }
+  #overlay h3, #overlay legend, #overlay .menu-kicker { font-size: max(9px,1.05cqw); }
+}
+
+@media (pointer: coarse) {
+  #stage>nav #pause { min-height: 36px; min-width: 46px; }
+  #overlay .menu-actions button, #overlay .menu-row, #overlay select, #overlay .menu-back, #overlay .menu-link { min-height: 38px; }
+}
+@media (orientation: portrait) and (max-width: 680px), (orientation: portrait) and (pointer: coarse) {
+  body:has(#overlay:not([hidden])) #rotate { display: none; }
+  body:has(#overlay:not([hidden])) #stage { height: 100dvh; }
+  #overlay { padding: max(18px, env(safe-area-inset-top)) 6cqw max(18px, env(safe-area-inset-bottom)); }
+  .menu-page, #overlay .menu-sheet { width: 100%; }
+  #overlay .menu-sheet { padding: 5cqw; }
+  #title-brand img { width: 41cqw; }
+  #title-brand span, #overlay h2 { font-size: 8cqw; }
+  #overlay p, #overlay .menu-row, .control-list { font-size: 14px; }
+  #overlay .menu-actions { max-width: 100%; gap: 6px; margin: 18px 0 10px; }
+  #overlay .menu-actions button, #overlay select, #overlay .menu-back, #overlay .menu-link { font-size: 12px; }
+  #overlay button, #overlay .menu-actions button, #overlay .menu-back, #overlay .menu-link, #overlay .menu-row { min-height: 44px; }
+  #overlay h3, #overlay legend { margin: 12px 0 4px; }
+}
+#stage:has(#overlay:not([hidden])) > :is(.hud, .table, #journey-hud, #objective, #toast, #boss-hud, #dark-meter) { visibility: hidden; }

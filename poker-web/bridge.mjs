@@ -1,6 +1,7 @@
 // Authored architecture follows collision surfaces; see bridge-art.mjs for the pixel scenery.
 import {drawBridgePixels} from './bridge-art.mjs';
-import {drawMirrored} from './art.mjs';
+import {drawMirrored,PIXEL} from './art.mjs';
+import {bridgeLayout} from './bridge-stone.mjs';
 // Coordinates are world units. The original character sprites retain their 2x scale.
 const ink='#111c24';
 const snap=n=>Math.round(n/2)*2;
@@ -9,16 +10,31 @@ function lightPool(c,x,y,r,time,reduced,strength=.2){
  const flicker=reduced?1:.94+Math.sin(time*4+x)*.04+Math.sin(time*7)*.02;
  const g=c.createRadialGradient(x,y,2,x,y,r);g.addColorStop(0,`rgba(255,197,97,${strength*flicker})`);g.addColorStop(.35,`rgba(244,165,69,${strength*.45*flicker})`);g.addColorStop(1,'rgba(241,160,65,0)');c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);
 }
-const DEER=['x.x...x.x','.x.x.x.x.','..x.x.x..','...xxx...','...xxx...','....x....','...xxx...','...x.x...'];
-function banner(c,x,y,time,reduced){
- x=snap(x);y=snap(y);rect(c,x-4,y-4,40,4,'#b69565');rect(c,x-4,y-4,4,4,'#7a5c3a');rect(c,x+32,y-4,4,4,'#7a5c3a');
- const sway=reduced?0:Math.sin(time*1.7+x);
- for(let col=0;col<16;col++){
-  const dx=Math.round(sway*col/16*2)*2/2,len=col<8?56-col*2:42+col*2-14;
-  rect(c,x+col*2+dx,y,2,len,col<2||col>13?'#4a1621':col%5===0?'#5e1a28':'#7a2230');
-  rect(c,x+col*2+dx,y+len-2,2,2,'#4a1621');
+const STAG = [
+ 'x.x.......x.x', 'x.x.x...x.x.x', '.xx.x...x.xx.', '..xxx...xxx..',
+ '...xx...xx...', '....xx.xx....', '.xx..xxx..xx.', '..xxxxxxxxx..',
+ '....xxxxx....', '.....xxx.....', '.....xxx.....', '......x......'
+];
+function banner(c, x, y, time, reduced) {
+ const wave = reduced ? 0 : Math.sin(time * 1.7 + x);
+ const shift = row => Math.round(wave * row / 22) * 2;
+ const folds = ['#461d29','#6b2534','#85303b','#722a35','#54222e','#772936','#682431','#451e29'];
+ rect(c, x - 4, y - 4, 40, 4, '#705846');
+ rect(c, x - 2, y - 4, 36, 2, '#b69c74');
+ for (let fold = 0; fold < folds.length; fold++) {
+  const hem = 22 + Math.round(Math.abs(fold - 3.5) * 1.5);
+  for (let first = 0; first < hem;) {
+   const offset = shift(first);
+   let end = first + 1;
+   while (end < hem && shift(end) === offset) end++;
+   rect(c, x + offset + fold * 4, y + first * 2, 4, (end - first) * 2, folds[fold]);
+   first = end;
+  }
+  rect(c, x + shift(hem - 2) + fold * 4, y + (hem - 2) * 2, 4, 2, '#a37558');
  }
- DEER.forEach((row,j)=>[...row].forEach((ch,i)=>{if(ch==='x')rect(c,x+7*2+(i-4)*2+Math.round(sway)*2,y+10+j*2,2,2,'#d9b98a')}));
+ STAG.forEach((row, j) => [...row].forEach((pixel, i) => {
+  if (pixel === 'x') rect(c, x + 4 + i * 2 + shift(j + 4), y + 8 + j * 2, 2, 2, '#d3b78b');
+ }));
 }
 function lamp(c,x,y,time,reduced){
  rect(c,x,y-54,4,54,'#342c2a');rect(c,x,y-56,28,3,'#a28c65');rect(c,x+23,y-53,2,13,'#75674d');
@@ -33,21 +49,27 @@ export function drawBridgeBackdrop(c,images,cam,time,reduced){
  // A separate veil gives atmospheric separation without flattening the architecture.
  const fog=c.createLinearGradient(0,230,0,510);fog.addColorStop(0,'#152b3300');fog.addColorStop(1,'#10212c9c');c.fillStyle=fog;c.fillRect(0,80,960,440);
 }
-// The falls pour behind each bridge's arches (world space, under the cached masonry).
+// The ravine painting already carries the distant falls. A few separated rivulets catch
+// their reflected light under the span without filling the openings with bright stripes.
 function falls(c,x0,time,reduced){
  const t=reduced?0:time;
- rect(c,x0,372,520,188,'#1d3a44');
- for(let x=x0;x<x0+520;x+=6){
-  const n=(x*37)%11;rect(c,x,372,4,188,n>6?'#5d93a0':'#3f6f7c');
-  for(let k=0;k<3;k++){const y=372+((k*83+n*19+t*(90+n*6))%188);rect(c,x,y,2,12+n,n>4?'#cfe8ea':'#93c2c8');}
+ for(const [dx,width,phase] of [[56,10,2],[73,4,11],[354,16,17],[375,6,29]]){
+  const x=x0+dx;
+  rect(c,x,386,width,154,'#6b99a01c');
+  for(let i=0;i<5;i++){
+   const y=386+(phase+i*31+t*54)%150;
+   rect(c,x+2+(i%2)*2,y,2,6+(i%3)*4,'#abc7c54a');
+  }
  }
- for(let x=x0;x<x0+520;x+=4){const y=468+Math.round(Math.sin(x*.3+t*6)*2/2)*2;rect(c,x,y,4,4,'#e3f1f0');rect(c,x+2,y+4,2,2,'#a9d0d3');}
 }
 export function drawBridgeArchitecture(c,images,platforms,time,reduced){
  const bridges=platforms.filter(p=>p.kind==='bridge');
  for(const b of bridges)falls(c,b.x+70,time,reduced);
  drawBridgePixels(c,platforms,images);
- for(const b of bridges)banner(c,b.x+b.w*.48,b.y+18,time,reduced);
+ for(const b of bridges){
+  const {piers}=bridgeLayout(b), pier=piers[Math.floor(piers.length/2)];
+  banner(c,b.x+(pier.x+pier.width/2)*PIXEL-16,b.y+8,time,reduced);
+ }
  for(const [x,y] of [[100,420],[730,360],[985,420],[1560,420],[1800,420],[2220,300],[2520,420],[3190,360],[3445,420],[4120,420],[4620,300]])lamp(c,x,y,time,reduced);
  rect(c,1874,316,4,104,'#342c2a');rect(c,1866,312,20,4,'#a28c65');banner(c,1864,320,time,reduced);
  lightPool(c,52,250,110,time,reduced,.16);lightPool(c,4510,488,60,time,reduced,.2);
@@ -55,7 +77,7 @@ export function drawBridgeArchitecture(c,images,platforms,time,reduced){
 export function drawBridgeAtmosphere(c,cam,time,reduced){
  // Sparse airborne leaves and sparks. Never resemble collectible ember halos.
  for(let i=0;i<18;i++){
-  const t=reduced?0:time,x=((i*149-cam*.65+t*(5+i%3))%1100+1100)%1100-70;
+  const t=reduced?0:time,x=((i*149-(reduced?0:cam)*.65+t*(5+i%3))%1100+1100)%1100-70;
   const y=105+(i*73)%330+(reduced?0:Math.sin(t+i)*10);
   rect(c,x,y,i%3?3:6,2,i%3?'#e1bb7466':'#ae424c');
  }

@@ -1,0 +1,51 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Graphics review</title>
+<style>
+body{margin:20px;background:#0b141a;color:#ecd9ae;font:14px system-ui}button,select,a{font:inherit;padding:8px;background:#213a3e;color:#ffe5b2;border:1px solid #657d73;margin:4px}iframe{display:block;width:960px;height:540px;border:0;max-width:100%}canvas{display:block;width:960px;max-width:100%;image-rendering:pixelated}p{max-width:900px;line-height:1.6}
+</style>
+<h1>Graphics review</h1><p>Render fixture using the real game renderer and simulation. Practice only; journey saves stay untouched. The replay grants invulnerability to keep the demonstration running.</p>
+<label for="scene">Clearing </label><select id="scene"><option value="0">Lantern Wood</option><option value="1">Huntsman’s Bridge</option><option value="2">Moss Cavern</option><option value="3">Ruined Chapel</option><option value="4">Thorn House</option><option value="combat">Combat replay</option></select>
+<button id="load" disabled>Show clearing</button><button id="motion" disabled>Reduced motion</button><button id="record" disabled>Record combat · 8 seconds</button><a id="still" hidden download="graphics-review.png">Save screenshot</a><a id="video" hidden download="graphics-combat.webm">Save recording</a><p id="status">Loading assets…</p><iframe title="Live game review"></iframe>
+<script type="module">
+const $=id=>document.getElementById(id),frame=document.querySelector('iframe');
+const html=await(await fetch('/index.html')).text();
+frame.srcdoc=html.replace('<head>','<head><base href="/"><script>window.requestAnimationFrame=cb=>{window.renderFrame=cb;return 0}</scr'+'ipt>');
+await new Promise(r=>frame.onload=r);const g=frame.contentWindow;
+for(let i=0;i<480&&(!g.renderFrame||g.document.getElementById('begin').disabled);i++)await new Promise(r=>setTimeout(r,100));
+if(!g.renderFrame||g.document.getElementById('begin').disabled)throw Error('Game assets failed to load');
+let now=g.performance.now(),reduced=g.document.getElementById('motion').value==='reduced',busy=false;
+const run=n=>{for(let i=0;i<n;i++)g.renderFrame(now+=1000/60)};
+const key=(code,down)=>g.document.body.dispatchEvent(new g.KeyboardEvent(down?'keydown':'keyup',{code,bubbles:true,cancelable:true}));
+const review=g.__RED_REVIEW__,world=review.world,canvas=g.document.getElementById('game');
+const still=()=>{$('still').href=canvas.toDataURL('image/png');$('still').hidden=false};
+function show(){
+ if(busy)return;
+ if($('scene').value==='combat')world.practiceDeal(1);
+ else{world.reset(Number($('scene').value),{phase:'trail',seen:['prologue']});world.practice=true;world.mode='playing';world.dialogue=null;}
+ review.enterWorld();world.invincible=30;run(30);world.mode='paused';run(1);still();
+ $('status').textContent=`Ready · ${world.clearing.name} · ${reduced?'Reduced':'Full'} motion`;
+ // Keep the static game unobscured by the pause menu.
+ world.mode='playing';run(1);still();
+}
+$('load').onclick=show;
+$('motion').onclick=()=>{if(busy)return;reduced=!reduced;const select=g.document.getElementById('motion');select.value=reduced?'reduced':'full';select.dispatchEvent(new g.Event('change',{bubbles:true}));show()};
+$('record').onclick=async()=>{
+ if(busy)return;
+ $('scene').value='combat';show();busy=true;$('status').textContent='Recording combat…';
+ const stream=canvas.captureStream(30),chunks=[],recorder=new MediaRecorder(stream);
+ recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+ const done=new Promise(resolve=>recorder.onstop=resolve);recorder.start();
+ for(let i=0;i<480;i++){
+  if(i===0)key('KeyD',true);if(i===26){key('KeyD',false);key('KeyJ',true)}
+  if(i===85)key('Space',true);if(i===86)key('Space',false);
+  if(i===140)key('KeyK',true);if(i===141)key('KeyK',false);
+  if(i===190){key('KeyD',true);key('ShiftLeft',true)}if(i===191)key('ShiftLeft',false);
+  if(i===250)key('KeyD',false);
+  run(1);await new Promise(r=>setTimeout(r,1000/60));
+ }
+ key('KeyJ',false);recorder.stop();await done;stream.getTracks().forEach(t=>t.stop());
+ const recording=new Blob(chunks,{type:recorder.mimeType});
+ $('video').href=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(recording)});$('video').hidden=false;
+ $('status').textContent=`Recorded 8 seconds · ${world.kills} foes defeated`;busy=false;still();
+};
+for(const id of ['load','motion','record'])$(id).disabled=false;show();
+</script></html>

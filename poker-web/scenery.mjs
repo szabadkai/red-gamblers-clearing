@@ -1,10 +1,17 @@
+import {drawGlow} from './lighting.mjs';
 import {snap,drawMirrored} from './art.mjs';
 import {periodicPixels,compatibleTile,TERRAIN_TILE_SIZE} from './tiles.mjs';
 
-const SCENERY_PALETTE=['101820','17252b','20343a','2b4449','38585b','477077','5b8989','83aaa0','b4c6ac','ece0ad','262128','3a2b32','543840','73424a','99504f','b76955','495241','687356','96976c','c5ad7a']
- .map(hex=>[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16)));
+// Match the paintings to their original value groups first. Each clearing can
+// then color its mist, foliage and lamplight without changing the pixel clusters.
+const palette = colors => colors.split(' ').map(hex => [0,2,4].map(i => parseInt(hex.slice(i,i+2),16)));
+const SOURCE = palette('101820 17252b 20343a 2b4449 38585b 477077 5b8989 83aaa0 b4c6ac ece0ad 262128 3a2b32 543840 73424a 99504f b76955 495241 687356 96976c c5ad7a');
+const WOOD = palette('0d1723 10292f 153c40 1b514d 286957 38816b 509780 83bd9e bcdbab f6df95 281c2e 47243b 672d46 8d3450 b8444d d96a4d 324f37 537942 84a44e d1af63');
+const CAVE = palette('0c1727 102834 103744 144a57 1a6067 267b7f 40a0a0 78c5b6 b1e3c5 f6db8d 241c31 39253b 51304a 753758 a23f58 cc6356 2e4e40 4a7955 87ab6b d1a865');
+const CHAPEL = palette('111726 1a2537 263548 33495a 3f5f70 487b89 66a0a6 92c3ba c7dbc0 ffdf91 2a1b31 41223c 602c49 853151 ae4057 d86252 394b40 637957 9da467 dab468');
+const HOUSE = palette('141525 1b2438 28344a 35455b 435873 516d85 688b9b 91adad c5cfb4 f8dc91 2b1a32 48223c 682943 8c3051 b43d5c dc6156 324b3b 55734d 8c9d5e cfaa62');
 const WARM=new Set([9,19]);
-function crispScenery(context,w,h){
+function crispScenery(context,w,h,colors){
  const pixels=context.getImageData(0,0,w,h),data=pixels.data,cache=new Map();
  let indices=new Int16Array(w*h);
  for(let i=0;i<indices.length;i++){
@@ -12,7 +19,7 @@ function crispScenery(context,w,h){
   const key=(data[p]<<16)|(data[p+1]<<8)|data[p+2];let nearest=cache.get(key);
   if(nearest===undefined){
    let distance=Infinity;
-   SCENERY_PALETTE.forEach(([r,g,b],index)=>{const d=(r-data[p])**2+1.4*(g-data[p+1])**2+(b-data[p+2])**2;if(d<distance){distance=d;nearest=index}});
+   SOURCE.forEach(([r,g,b],index)=>{const d=(r-data[p])**2+1.4*(g-data[p+1])**2+(b-data[p+2])**2;if(d<distance){distance=d;nearest=index}});
    cache.set(key,nearest);
   }indices[i]=nearest;
  }
@@ -22,7 +29,7 @@ function crispScenery(context,w,h){
   const next=indices.slice();
   for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
    const i=y*w+x,current=indices[i];if(current<0)continue;
-   const counts=new Uint8Array(SCENERY_PALETTE.length);
+   const counts=new Uint8Array(SOURCE.length);
    for(const d of [-w-1,-w,-w+1,-1,1,w-1,w,w+1])if(indices[i+d]>=0)counts[indices[i+d]]++;
    // Lone warm lights (lit windows, lamps) are the point of a dark painting: never merge them away.
    if(counts[current]>1||WARM.has(current))continue;
@@ -32,25 +39,25 @@ function crispScenery(context,w,h){
  }
  for(let i=0;i<indices.length;i++){
   const p=i*4,index=indices[i];data[p+3]=index<0?0:255;
-  if(index>=0){const [r,g,b]=SCENERY_PALETTE[index];data[p]=r;data[p+1]=g;data[p+2]=b;}
+  if(index>=0){const [r,g,b]=colors[index];data[p]=r;data[p+1]=g;data[p+2]=b;}
  }context.putImageData(pixels,0,0);
 }
 // Every prepared image is native logical-pixel art at render time. Source files
 // stay intact; palette conversion and edge matching happen once during loading.
 function surface(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
-function finishSurface(canvas,periodic='',profile='mean'){
+function finishSurface(canvas,colors,periodic='',profile='mean'){
  const context=canvas.getContext('2d'),{width:w,height:h}=canvas;
  if(periodic){const p=context.getImageData(0,0,w,h);p.data.set(periodicPixels(p.data,w,h,periodic,Math.min(24,Math.floor(w/16)),profile));context.putImageData(p,0,0);}
- crispScenery(context,w,h);return canvas;
+ crispScenery(context,w,h,colors);return canvas;
 }
 export function prepareScenery(images){
- for(const [name,w,h] of [['forest',560,244],['thorn-house',560,244],['oaks',860,244],['stone',96,96],['moss-cavern-v2',768,256],['ruined-chapel-v2',768,256],['masonry-v2',96,96]]){
+ for(const [name,w,h,colors] of [['forest',560,244,WOOD],['thorn-house',560,244,HOUSE],['oaks',860,244,WOOD],['stone',96,96,WOOD],['moss-cavern-v2',768,256,CAVE],['ruined-chapel-v2',768,256,CHAPEL],['masonry-v2',96,96,SOURCE]]){
   const canvas=surface(w,h),context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
   const image=images.get('concept-'+name);
   if(name==='masonry-v2'){
    const inset=Math.round(image.width*.055);context.drawImage(image,inset,0,image.width-inset*2,image.height,0,0,w,h);
   }else context.drawImage(image,0,0,w,h);
-  images.set('paint-'+name,finishSurface(canvas,name==='masonry-v2'?'xy':name.endsWith('-v2')?'x':'',name==='masonry-v2'?'interior':'mean'));
+  images.set('paint-'+name,finishSurface(canvas,colors,name==='masonry-v2'?'xy':name.endsWith('-v2')?'x':'',name==='masonry-v2'?'interior':'mean'));
  }
  const atlas=images.get('concept-interior-props-v2');
  // The atlas cells are independent objects, not scaled instances at draw time.
@@ -63,14 +70,14 @@ export function prepareScenery(images){
   context.drawImage(terrain,416,32,64,16,0,0,64,16);
   const pixels=context.getImageData(0,0,64,16),d=pixels.data;
   for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;const l=(d[i]*.3+d[i+1]*.59+d[i+2]*.11)/255;
-   const [r,g,b]=l<.25?[32,36,44]:l<.4?[43,58,58]:l<.55?[56,82,74]:[90,112,88];d[i]=r;d[i+1]=g;d[i+2]=b;}
-  for(const [x,y] of [[6,7],[11,5],[19,9],[25,6],[38,7],[44,4],[51,9],[57,6]]){const i=(y*64+x)*4;if(d[i+3]){d[i]=209;d[i+1]=110;d[i+2]=88;}}
+   const [r,g,b]=l<.25?[25,33,43]:l<.4?[30,57,54]:l<.55?[37,87,70]:[74,122,80];d[i]=r;d[i+1]=g;d[i+2]=b;}
+  for(const [x,y] of [[6,7],[11,5],[19,9],[25,6],[38,7],[44,4],[51,9],[57,6]]){const i=(y*64+x)*4;if(d[i+3]){d[i]=221;d[i+1]=83;d[i+2]=79;}}
   context.putImageData(pixels,0,0);images.set('house-bushes',canvas);
  }
  for(const [index,name,w,h] of [[0,'root-column',64,96],[1,'hanging-roots',128,112],[2,'moss-rock',64,56],[3,'blue-mushrooms',40,40],[4,'chapel-column',64,112],[5,'ruined-arch',128,128],[6,'carved-rubble',64,48],[7,'candle-shrine',40,64]]){
   const canvas=surface(w,h),context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
   context.drawImage(atlas,index%4*atlas.width/4,Math.floor(index/4)*atlas.height/2,atlas.width/4,atlas.height/2,0,0,w,h);
-  images.set('prop-'+name,finishSurface(canvas));
+  images.set('prop-'+name,finishSurface(canvas,index < 4 ? CAVE : CHAPEL));
  }
  prepareTerrain(images);
 }
@@ -91,7 +98,7 @@ function prepareTerrain(images){
   }
   const canonical=raw[4].data;
   const tiles=surface(size*9,size),tc=tiles.getContext('2d');
-  raw.forEach((p,i)=>{p.data.set(compatibleTile(p.data,canonical,size,size));const c=surface(size,size),cc=c.getContext('2d');cc.putImageData(p,0,0);finishSurface(c);tc.drawImage(c,i*size,0);});
+  raw.forEach((p,i)=>{p.data.set(compatibleTile(p.data,canonical,size,size));const c=surface(size,size),cc=c.getContext('2d');cc.putImageData(p,0,0);finishSurface(c,theme==='cave' ? CAVE : CHAPEL);tc.drawImage(c,i*size,0);});
   images.set('tiles-'+theme,tiles);
  }
 }
@@ -165,27 +172,19 @@ export function drawBackdrop(ctx,images,cam,time,reduced,theme,width=2400){
  }
 }
 export function drawForeground(ctx,images,cam,world,reduced){
- // The opening forest is already framed by its oak canopy and undergrowth.
- // Repeated oval bushes below the ground line look detached from that scenery.
- if(reduced||world.clearing.theme==='wood')return;
+ // Outdoor clearings are framed by their painted scenery; only interiors
+ // need extra foreground props below the ground line.
+ if(reduced)return;
  if(['cave','chapel'].includes(world.clearing.theme)){
   const offset=-(cam*1.12)%640;
   for(let x=offset-640;x<960;x+=640){
    const left=cam+x-64;if(!world.platforms.some(p=>p.ground&&left>=p.x&&left+128<=p.x+p.w))continue;
    drawProp(ctx,images,world.clearing.theme==='cave'?'moss-rock':'carved-rubble',x,530);
   }
-  return;
- }
- // Native foreground foliage passes faster than the collision plane. It is
- // confined below the player's feet and omitted over gaps so it never fakes a landing.
- const offset=-(cam*1.12)%310;
- for(let x=offset-310;x<960;x+=310){
-  const screenX=snap(x),left=cam+screenX;
-  if(!world.platforms.some(p=>p.ground&&left>=p.x&&left+76<=p.x+p.w))continue;
-  const k=Math.floor(left/310)%2;ctx.drawImage(images.get('house-bushes'),k*32,0,32,16,screenX,456,64,32);
  }
 }
 export function drawLantern(ctx,x,y,lit,time,reduced){
+ if(lit)drawGlow(ctx,x+19,y-38,76,'gold',reduced?.85:.85+Math.sin(time*3+x)*.06);
  rect(ctx,x-4,y-62,6,62,'#19282a');rect(ctx,x-6,y-64,30,4,'#8b7552');rect(ctx,x+18,y-60,2,10,'#514334');
  rect(ctx,x+12,y-50,14,24,'#111a20');rect(ctx,x+10,y-52,18,4,'#9d8760');rect(ctx,x+10,y-28,18,4,'#8d7751');
  rect(ctx,x+16,y-46,6,14,lit?'#ffdfa0':'#5b7067');
@@ -220,6 +219,7 @@ export function drawLandmarks(ctx,images,world,time,reduced){
      for(let y=p.y+20;y<p.y+20+len;y+=4){const sway=reduced?0:Math.round(Math.sin(time*1.2+y*.08+i)*1);rect(ctx,vx+sway*2,y,2,4,stem);if((y/4+i)%3===0)rect(ctx,vx+sway*2+((i%2)?2:-4),y,4,2,leaf);}}
    }else if(kind===2){
     for(let y=p.y+20;y<p.y+40;y+=4)rect(ctx,x+8,y,2,2,'#514334');
+    drawGlow(ctx,x+9,p.y+50,56,'gold',.7);
     rect(ctx,x+2,p.y+40,14,4,'#8b7552');rect(ctx,x+4,p.y+44,10,14,'#111a20');rect(ctx,x+6,p.y+46,6,10,'#ffdfa0');
     rect(ctx,x+8,p.y+48+(reduced?0:Math.floor(time*5+p.id)%2)*2,2,4,'#fff5d1');rect(ctx,x+2,p.y+58,14,2,'#8b7552');
     ctx.globalAlpha=.08;rect(ctx,x-6,p.y+38,30,26,'#ffd88b');ctx.globalAlpha=1;

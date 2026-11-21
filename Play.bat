@@ -2,7 +2,7 @@
 cd /d "%~dp0"
 where node >nul 2>nul
 if not errorlevel 1 (
- node tools\serve.mjs --open
+ node poker-web\serve.mjs --open
  exit /b
 )
 where py >nul 2>nul

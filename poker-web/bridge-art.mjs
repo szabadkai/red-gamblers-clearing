@@ -1,11 +1,12 @@
-// The Huntsman's Bridge scenery, built from the concept pieces (bridge-atlas-v1: chapel tower, red oak,
-// arch span, crypt; bridge-bough-v1: mossy log) at one shared scale, seated on the collision surfaces,
-// and reduced once onto the game's 2-world-unit pixel grid (half-resolution cache, hard alpha) so it
-// matches the sprites. Banks and ruined ledges use procedural masonry in the concept's stone palette.
-// Lamps, banners and the falls animate on top (bridge.mjs). The helpers here are shared with arena-art.mjs.
+import {WOOD_TILE_SIZE as TILE} from './tiles.mjs';
+import {PIXEL} from './art.mjs';
+import {bridgeLedge,bridgeSpan,bridgeLayout} from './bridge-stone.mjs';
+// Huntsman's Bridge foreground. The chapel, oak and shrine use the concept atlas.
+// Tiled stone arches and ledges sit on the collision surfaces in a two-world-unit pixel cache.
+// Lamps, banners and water animate over the cache in bridge.mjs.
 export const P = {
   mortar: '#1a1616', stone: ['#2c2828', '#433b3a', '#5a4f4c', '#6f625a', '#8a7c6e'],
-  moss: ['#3a3f1e', '#5a6226', '#7e8832', '#a8b04a'], bark: ['#22161a', '#3c2827', '#5a3a31', '#7b5340', '#99704f'],
+  moss: ['#25562e', '#468232', '#75a743', '#a8ca58'], bark: ['#22161a', '#3c2827', '#5a3a31', '#7b5340', '#99704f'],
   ivy: ['#4e1220', '#8e1e2c', '#c8352f', '#e2584a'], warm: ['#7a3c18', '#d0782c', '#f3b052', '#ffe2a1'],
   red: ['#4a1621', '#7a2230', '#a83a3a'], cream: '#d9b98a', wood: ['#3a2620', '#5e3e2c', '#83603f']
 };
@@ -77,17 +78,9 @@ export function mushroom(c, x, y) {
   R(x, y - 3, 1, 3, P.cream); R(x - 2, y - 5, 5, 2, P.ivy[2]); D(x - 1, y - 5, P.ivy[3]); D(x + 1, y - 4, P.cream);
 }
 
-// Gnarled oak trunk rising off the top of the frame, flaring into roots at the base.
-// Mossy bough carrying a ledge, joined to its trunk by a limb.
-
-// Stone arch bridge: balustrade, deck, spandrel wall with two round arches open to the falls.
-// Ruined gothic chapel wall with a lit lancet window.
-// Crypt doorway cut into the far bank, lit by candles.
-
-// Concept pieces (bridge-atlas-v1 / bridge-bough-v1), always at one scale so the masonry reads as one
-// building: S world units per atlas pixel (the bough uses its own scale, it has no stones).
-const S = .55, SB = .3;
-const PIECES = { tower: [24, 30, 550, 590, 575], oak: [620, 20, 640, 600, 583], arch: [14, 710, 600, 450, 82], shrine: [640, 740, 610, 410, 396] };
+// Source-to-world scales for the atlas scenery and the separate mossy bough.
+const S = .55;
+const PIECES = { tower: [24, 30, 550, 590, 575], oak: [620, 20, 640, 600, 583], shrine: [640, 740, 610, 410, 396] };
 function piece(c, img, name, x, y, flip = false) {
   const [sx, sy, sw, sh] = PIECES[name], w = sw * S / 2, h = sh * S / 2;
   c.save(); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
@@ -95,62 +88,74 @@ function piece(c, img, name, x, y, flip = false) {
   else c.drawImage(img, sx, sy, sw, sh, Math.round(x / 2), Math.round(y / 2), w, h);
   c.restore();
 }
-// placed so its ground line (or the bridge deck) lands on world y
+// Place the painted ground line at world y.
 const seat = (name, y) => y - PIECES[name][4] * S;
 // Mossy bough cut from the long concept log at its own scale: ivy tip at each end, mossy middle.
 function boughPiece(c, img, x, y, w, seed) {
-  const tip = 180, mid0 = 260 + Math.floor(hash(seed) * 600), sy = 250, sh = 320;
-  const tw = tip * SB / 2, h = sh * SB / 2, X = Math.round(x / 2), Y = Math.round((y - 10 * SB) / 2), W = Math.round(w / 2);
-  c.save(); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-  c.drawImage(img, mid0, sy, (W - 2 * tw) * 2 / SB, sh, X + tw, Y, W - 2 * tw, h);
-  c.drawImage(img, 14, sy, tip, sh, X, Y, tw, h);
-  c.translate(X + W, 0); c.scale(-1, 1); c.drawImage(img, 14, sy, tip, sh, 0, Y, tw, h);
+  const X = Math.round(x / PIXEL), Y = Math.round((y - 3) / PIXEL), W = Math.round(w / PIXEL);
+  const tip = Math.min(27, Math.floor(W / 2));
+  const middleWidth = W - tip * 2;
+  const start = 39 + Math.floor(hash(seed) * 90);
+  c.save(); c.imageSmoothingEnabled = false;
+  // Tile the body if the span grows beyond the strip. All slices stay 1:1.
+  for (let dx = 0; dx < middleWidth;) {
+    const width = Math.min(middleWidth - dx, img.width - start);
+    c.drawImage(img, start, 0, width, img.height, X + tip + dx, Y, width, img.height);
+    dx += width;
+  }
+  c.drawImage(img, 2, 0, tip, img.height, X, Y, tip, img.height);
+  c.translate(X + W, 0); c.scale(-1, 1);
+  c.drawImage(img, 2, 0, tip, img.height, 0, Y, tip, img.height);
   c.restore();
 }
-// Hard alpha and a light posterise so the painted pieces sit on the same pixel grid as the sprites.
+// Hard silhouettes on reduced concept pieces. Keep native terrain colors intact.
 function crisp(c) {
   const d = c.getImageData(0, 0, c.canvas.width, c.canvas.height), p = d.data;
   for (let i = 0; i < p.length; i += 4) {
     if (p[i + 3] < 140) { p[i + 3] = 0; continue; }
-    p[i + 3] = 255; for (let k = 0; k < 3; k++) p[i + k] = Math.min(255, Math.round(p[i + k] / 6) * 6);
+    p[i + 3] = 255;
   }
   c.putImageData(d, 0, 0);
 }
 
 const OAKS = [[915, false], [1715, true], [2360, false], [3375, false], [4055, true], [4770, false]];
 const cache = new WeakMap();
+export function bridgeRegions(platforms) {
+  const regions = new Map();
+  for (const p of platforms) {
+    if (p.kind === 'branch' || p.kind === 'root') continue;
+    const x = Math.round(p.x/PIXEL), y = Math.round(p.y/PIXEL);
+    const material = p.ground ? 'wood' : p.kind === 'bridge' ? 'coping' : 'ruin';
+    regions.set(p, {x, y, w:Math.round((p.x+p.w)/PIXEL)-x, h:p.ground ? H-y : TILE,
+      material, group:p.ground ? 'wood' : 'stone'});
+  }
+  return regions;
+}
+
 function render(platforms, images) {
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(...platforms.map(p => p.x + p.w)) / 2; canvas.height = H;
+  canvas.width = Math.max(...platforms.map(p => p.x + p.w)) / PIXEL; canvas.height = H;
   const c = canvas.getContext('2d');
-  const atlas = images.get('concept-bridge-atlas-v1'), log = images.get('concept-bridge-bough-v1');
-  const px = p => ({ x: Math.round(p.x / 2), y: Math.round(p.y / 2), w: Math.round(p.w / 2) });
+  const atlas = images.get('concept-bridge-atlas-v1'), log = images.get('bridge-bough');
+  const regions = bridgeRegions(platforms);
+  const surface = {atlas:images.get('autotiles'), regions:[...regions.values()]};
   if (atlas) {
     for (const [x, flip] of OAKS) piece(c, atlas, 'oak', flip ? x - 352 + 253 : x - 253, seat('oak', 420), flip);
     piece(c, atlas, 'tower', -40, seat('tower', 420));
     piece(c, atlas, 'shrine', 4375, seat('shrine', 420));
   }
+  const tiles = images.get('bridge-tiles');
+  const spans = platforms.filter(p => p.kind === 'bridge');
   for (const p of platforms) {
-    const q = px(p);
-    if (p.ground) {
-      masonry(c, q.x, q.y, q.w, H - q.y, p.id * 13);
-      mossTop(c, q.x, q.y, q.w, p.id);
-      for (let x = q.x + 20; x < q.x + q.w - 10; x += 37 + Math.floor(hash(x) * 25)) ivy(c, x, q.y + 3, 8 + Math.floor(hash(x * 2) * 16), x);
-    } else if (p.kind === 'lower') { masonry(c, q.x, q.y, q.w, 14, 91); mossTop(c, q.x, q.y, q.w, 92); }
-    else if (p.kind === 'bridge' || p.kind === 'branch' || p.kind === 'root') continue;
-    else {
-      const pierX = q.x + Math.max(0, q.w - 30);
-      masonry(c, pierX, q.y + 5, 20, 215 - q.y, p.id * 5);
-      masonry(c, q.x, q.y, q.w, 6, p.id * 9); mossTop(c, q.x, q.y, q.w, p.id * 3);
-      painter(c).R(q.x, q.y + 6, q.w, 1, P.stone[0]);
-      ivy(c, q.x + 6, q.y + 6, 10 + (p.id % 3) * 5, p.id);
-    }
+    if (['bridge', 'branch', 'root'].includes(p.kind)) continue;
+    const pier = p.x + p.w - 34;
+    const support = spans.find(span => span.x <= pier && pier < span.x + span.w && p.y < span.y);
+    const baseY = p.ground ? H : Math.round((support?.y ?? 420) / PIXEL);
+    bridgeLedge(c, regions.get(p), p.ground ? 'bank' : p.kind, p.id * 137 + 17, baseY, tiles, surface);
   }
+  for (const p of spans) bridgeSpan(c, regions.get(p), p.id + 1, tiles, surface, bridgeLayout(p));
   for (const p of platforms) {
-    if (p.kind === 'bridge' && atlas) {
-      const n = Math.max(1, Math.round(p.w / (PIECES.arch[2] * S)));
-      for (let i = 0; i < n; i++) piece(c, atlas, 'arch', p.x + i * p.w / n, seat('arch', p.y));
-    } else if ((p.kind === 'branch' || p.kind === 'root') && log) {
+    if ((p.kind === 'branch' || p.kind === 'root') && log) {
       // boughs near an oak grow out of its trunk instead of floating beside it
       let x0 = p.x, x1 = p.x + p.w;
       for (const [t] of OAKS) { if (t > x1 && t - x1 < 260) x1 = t - 30; if (t < x0 && x0 - t < 260) x0 = t + 30; }
@@ -164,5 +169,5 @@ function render(platforms, images) {
 export function drawBridgePixels(c, platforms, images) {
   let art = cache.get(platforms);
   if (!art) { art = render(platforms, images); cache.set(platforms, art); }
-  c.save(); c.imageSmoothingEnabled = false; c.drawImage(art, 0, 0, art.width * 2, H * 2); c.restore();
+  c.save(); c.imageSmoothingEnabled = false; c.drawImage(art, 0, 0, art.width * PIXEL, H * PIXEL); c.restore();
 }

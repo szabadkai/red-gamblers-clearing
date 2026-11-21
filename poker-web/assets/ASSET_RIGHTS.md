@@ -7,7 +7,7 @@ those assets. Obtain your own license from the original rights holder before
 using purchased assets in another project.
 
 This notice covers purchased assets wherever they appear, including `Assets/`,
-`ridingHood-web/public/assets/`, and copies in the playable `dist/` build.
+`asset-archive/web/`, and copies in the playable `poker-web/dist/` build.
 It does not replace or expand the original asset licenses.
 
 Some third-party resources are separately credited in the README under their
@@ -25,3 +25,7 @@ These copies retain the original assets’ licensing terms.
 
 Generated concept artwork used by this game is documented separately in
 `concept/ART_NOTES.md`; it is not part of the purchased sprite packs.
+
+Original decorative lilies and mushrooms are documented in
+`environment/WOODLAND_FLORA.md`; their editable source is retained in
+`sources/woodland-flora/`. They are separate from the purchased sprite packs.

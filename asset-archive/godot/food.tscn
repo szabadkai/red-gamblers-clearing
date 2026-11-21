@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=4]
+
+[ext_resource type="Texture2D" uid="uid://m0y3vl2y8qq2" path="res://Assets/Food.png" id="2_2w1ku"]
+
+[node name="foodArt" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(1, -1)
+texture = ExtResource("2_2w1ku")
+hframes = 8
+vframes = 8
+frame = 33
+metadata/_edit_lock_ = true

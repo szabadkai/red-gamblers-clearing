@@ -16,7 +16,7 @@ export const POUNCE_TELL=.45;
 export function makeBoss(kind,id,garden=false){
  const def=BOSS_STATS[kind],hp=garden?90:def.hp;
  return {id,kind,boss:true,x:690,y:420,left:58,right:902,hp,max:hp,face:-1,state:'approach',
-  timer:1.5,flash:0,walk:0,phase:1,cycle:0,pattern:'',garden,wind:0,rest:0,connected:false};
+  timer:1.5,flash:0,walk:0,moving:false,phase:1,cycle:0,pattern:'',garden,wind:0,rest:0,connected:false};
 }
 function warn(world,kind,x,y,w,h,delay=.75,extra={}){
  world.hazards.push({kind,x,y,w,h,delay,life:.24,age:0,...extra});
@@ -34,7 +34,7 @@ export function damageBoss(world,boss,amount){
 export function updateBoss(world,dt){
  const b=world.boss;if(!b||b.hp<=0)return;
  const def=BOSS_STATS[b.kind];b.flash=Math.max(0,b.flash-dt);b.hurt=Math.max(0,(b.hurt||0)-dt);b.blockFlash=Math.max(0,(b.blockFlash||0)-dt);
- b.phase=b.hp<=b.max/2?2:1;b.walk+=dt;
+ b.phase=b.hp<=b.max/2?2:1;b.moving=false;
  // Second wind: one beat of hit stop, a shake and a dark burst when the boss drops to half health.
  if(b.phase===2&&!b.rallied){b.rallied=true;world.hitStop=Math.max(world.hitStop,.14);world.shakePower=6;world.shakeDuration=.35;world.shakeTime=.35;
   world.rings.push({x:b.x,y:b.y-30,radius:150,dark:true,life:.45});world.banner='SECOND WIND';world.bannerTime=2;world.emit('transform_dark');}
@@ -44,7 +44,12 @@ export function updateBoss(world,dt){
  if(b.state==='approach'){
   b.face=Math.sign(world.x-b.x)||b.face;
   const dx=Math.abs(world.x-b.x);
-  if(dx>def.reach){b.x=clamp(b.x+b.face*def.speed*dt,b.left,b.right);return;}
+  if(dx>def.reach){
+   const oldX=b.x;
+   b.x=clamp(oldX+b.face*def.speed*dt,b.left,b.right);
+   b.walk+=Math.abs(b.x-oldX);b.moving=b.x!==oldX;
+   return;
+  }
   b.timer-=dt;if(b.timer>0)return;
   b.state='windup';b.timer=def.tell*(b.garden?.85:1);b.wind=b.timer;b.target=clamp(world.x,75,885);b.targetY=world.y-22;b.strikeDir=b.face;
   const alternate=b.cycle++%2===1;

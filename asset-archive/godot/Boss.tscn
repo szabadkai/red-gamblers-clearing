@@ -1,0 +1,95 @@
+[gd_scene load_steps=12 format=4]
+
+[ext_resource type="Texture2D" uid="uid://be8iytn1ckgq5" path="res://Assets/0x72_DungeonTilesetII_v1.6.png" id="2_24ul1"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rgqsi"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(214, 432, 28, 36)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_smvyy"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(181, 432, 28, 36)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_me6e5"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(148, 432, 28, 36)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_death1"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(277, 430, 26, 34)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_death2"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(309, 430, 26, 34)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_death3"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(341, 430, 26, 34)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ki7vq"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(149, 430, 26, 34)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r7alb"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(117, 430, 26, 34)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iab7e"]
+atlas = ExtResource("2_24ul1")
+region = Rect2(245, 430, 26, 34)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_vnfcv"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rgqsi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_smvyy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_me6e5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_smvyy")
+}],
+"loop": true,
+"name": &"attack",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_death1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_death2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_death3")
+}],
+"loop": false,
+"name": &"death",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ki7vq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_r7alb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_iab7e")
+}],
+"loop": true,
+"name": &"default",
+"speed": 3.0
+}]
+
+[node name="BossArt" type="Node2D"]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+sprite_frames = SubResource("SpriteFrames_vnfcv")
+animation = &"attack"
+autoplay = "default"
