@@ -2,6 +2,7 @@ import {World,SPLIT_PAIRS} from './model.mjs';
 import {CLEARINGS,loadJourney} from './journey.mjs';
 import {STAGES,SCENES,arenaPlatforms} from './story-data.mjs';
 import {makeBoss,damageBoss,updateBoss,updateHazards} from './bosses.mjs';
+import {initChallenge,beforeChallengeStep,updateChallenge} from './challenges.mjs';
 
 export const STORY_SAVE_KEY='red.poker.story.v3';
 // A beaten boss plays its death row and lies there this long before the outro starts.
@@ -12,18 +13,31 @@ export const GRADES=[['S',95],['A',80],['B',60],['C',40],['D',0]];
 export const RECORDS_KEY='red.poker.records';
 export function gradeClearing(stage,t){
  const late=Math.min(20,Math.floor(Math.max(0,t.time-PAR[stage])/4));
- const score=Math.max(0,Math.min(100,100-6*t.hurt-15*t.retries-late+(t.best>=5?5:0)));
- return {score,grade:GRADES.find(([,min])=>score>=min)[0],time:t.time,hurt:t.hurt,retries:t.retries,best:t.best,par:PAR[stage]};
+ const score=Math.max(0,Math.min(100,100-6*t.hurt-15*t.retries-late));
+ return {score,grade:GRADES.find(([,min])=>score>=min)[0],time:t.time,hurt:t.hurt,retries:t.retries,best:t.best,rareHand:t.best>=5,par:PAR[stage]};
 }
 export function loadRecords(storage){
- try{const r=JSON.parse(storage.getItem(RECORDS_KEY)||'{}');return r&&typeof r==='object'&&!Array.isArray(r)?r:{};}catch{return {};}
+ try{
+  const raw=JSON.parse(storage.getItem(RECORDS_KEY)||'{}'),records={};
+  for(const {id} of CLEARINGS){
+   const r=raw?.[id];
+   if(r&&Number.isFinite(r.score)&&r.score>=0&&r.score<=100&&Number.isFinite(r.time)&&r.time>=0&&GRADES.some(([g])=>g===r.grade))records[id]=r;
+  }
+  return records;
+ }catch{return {};}
 }
-// Keeps the best score and the best time separately; says which of them this clearing beat.
+// Old luck-bonus grades remain visible until a new-rules run replaces them.
+// Speed and rare-hand achievements remain independent from the performance grade.
 export function saveRecord(storage,id,result){
- const all=loadRecords(storage),old=all[id],better=!old||result.score>old.score,faster=!old||result.time<old.time;
- all[id]={score:better?result.score:old.score,grade:better?result.grade:old.grade,time:faster?result.time:old.time};
+ const all=loadRecords(storage),old=all[id],better=!old||old.rules!==2||result.score>old.score,faster=!old||result.time<old.time;
+ all[id]={score:better?result.score:old.score,grade:better?result.grade:old.grade,time:faster?result.time:old.time,
+  rules:2,rareHand:!!(old?.rareHand||result.rareHand)};
  try{storage.setItem(RECORDS_KEY,JSON.stringify(all));}catch{}
  return {better,faster,first:!old};
+}
+export function replayStages(storage,saved=loadStory(storage)){
+ const records=loadRecords(storage);
+ return CLEARINGS.flatMap(({id},i)=>records[id]||(saved&&(i<saved.stage||i===saved.stage&&['cleared','home','complete'].includes(saved.phase)))?[i]:[]);
 }
 const PHASES=['trail','lantern','boss','inside','garden','cleared','home','complete'];
 const allScenes=new Set(Object.keys(SCENES));
@@ -31,18 +45,21 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export class StoryWorld extends World{
  reset(stageIndex=0,progress=null){
   super.reset(stageIndex);
-  this.storyPhase='trail';this.storyLocation='trail';this.worldWidth=this.width;this.bossPractice=false;
+  this.storyPhase='trail';this.storyLocation='trail';this.worldWidth=this.width;this.bossPractice=false;this.replay=false;
   this.seen=new Set(progress?.seen||[]);this.dialogue=null;this.boss=null;this.hazards=[];
   this.storyRevision=(this.storyRevision||0)+1;this.sceneClock=0;this.rescueClock=0;
   this.lastEncounterX=0;this.pendingVictory=false;this.bossCorpse=null;this.victoryDelay=0;this.knots=[];
   if(progress?.tally)this.tally={...progress.tally};
   this.result=progress?.phase==='cleared'&&progress.tally?gradeClearing(stageIndex,this.tally):null;
   const phase=progress?.phase||'trail';
-  this.lanternDeck=progress?.lanternDeck??null;
+  this.lanternDeck=progress?.lanternDeck??null;this.lanternNext=progress?.lanternNext||'boss';
+  initChallenge(this,progress?.challengeDone===true);
   if(phase==='trail'&&stageIndex===0&&!progress?.gates)this.deck.preset(SPLIT_PAIRS);
   if(phase==='lantern'){
-   this.resume(this.gates.length,[]);this.enemies=[];this.x=this.clearing.exit.x;this.y=this.clearing.exit.y;
-   this.deck.restore(this.lanternDeck);this.storyPhase='lantern';this.mode='lantern';
+   const held=this.lanternDeck;
+   if(this.lanternNext==='garden'){this.setupRoom('inside');this.knots=[];}
+   else{this.resume(this.gates.length,[]);this.enemies=[];this.x=this.clearing.exit.x;this.y=this.clearing.exit.y;}
+   this.deck.restore(held);this.storyPhase='lantern';this.mode='lantern';
   }
   else if(phase==='boss'||phase==='garden')this.setupArena(phase);
   else if(phase==='inside')this.setupInside();
@@ -102,10 +119,14 @@ export class StoryWorld extends World{
   if(id==='breakfast'){this.setupHome();this.startScene('epilogue');}
   return true;
  }
+ prepareLantern(next='boss'){
+  this.lanternDeck=this.deck.checkpoint();this.lanternNext=next;
+  this.storyPhase='lantern';this.mode='lantern';this.storyRevision++;
+ }
  chooseLanternHand(keep){
   if(this.mode!=='lantern')return false;
   if(!keep){this.deck.reset();this.lanternDeck=this.deck.checkpoint();}
-  this.setupArena();this.startScene(this.stageStory.intro);return true;
+  this.setupArena(this.lanternNext);this.startScene(this.lanternNext==='garden'?'garden':this.stageStory.intro);return true;
  }
  setupRoom(location,checkpoint=null){
   this.arena=true;this.storyLocation=location;this.worldWidth=960;this.gates=[];
@@ -120,28 +141,37 @@ export class StoryWorld extends World{
   this.mode='playing';this.storyRevision++;
  }
  setupArena(phase='boss'){
-  this.setupRoom(phase==='garden'?'garden':'arena',phase==='boss'?this.lanternDeck:null);this.storyPhase=phase;
+  this.setupRoom(phase==='garden'?'garden':'arena',this.lanternDeck);this.storyPhase=phase;
+  this.lanternNext=phase;this.lanternDeck=this.deck.checkpoint();
   this.boss=makeBoss(this.stageStory.boss,this.nextId++,phase==='garden');this.enemies=[this.boss];
   this.collected=3;
  }
  setupInside(){
-  this.setupRoom('inside');this.storyPhase='inside';this.rescueClock=0;
+  this.lanternDeck=null;this.lanternNext='boss';this.setupRoom('inside');this.storyPhase='inside';this.rescueClock=0;
   this.knots=[[240,360],[430,300],[620,240]].map(([x,y])=>({id:this.nextId++,kind:'knot',storyTarget:true,x,y,left:x,right:x,hp:8,max:8,face:1,state:'idle',flash:0,walk:0}));
   this.enemies=[...this.knots];this.collected=3;
  }
  setupHome(){
-  this.setupRoom('home');this.storyPhase='home';this.x=180;this.collected=3;
+  this.lanternDeck=null;this.lanternNext='boss';this.setupRoom('home');this.storyPhase='home';this.x=180;this.collected=3;
  }
  retry(){
-  const progress=this.practice?{phase:'trail',seen:[...this.seen]}:this.snapshot(),tally=this.tally;
-  if(progress.phase==='cleared')progress.phase='boss';
+  const replay=this.replay,progress=this.practice?{phase:'trail',seen:[...this.seen]}:this.snapshot(),tally=this.tally;
+  if(progress.phase==='cleared')progress.phase=this.stageIndex===4?'garden':'boss';
   this.reset(this.stageIndex,{...progress,dialogue:null});
-  this.tally=tally;tally.retries++;
+  this.replay=replay;this.tally=tally;tally.retries++;
   if(this.boss){this.banner=this.stageStory.hint;this.bannerTime=4;}
  }
  advance(){
-  if(this.mode!=='won'||this.practice||this.stageIndex>=STAGES.length-1)return false;
+  if(this.mode!=='won'||this.practice||this.replay||this.stageIndex>=STAGES.length-1)return false;
   const seen=[...this.seen];this.reset(this.stageIndex+1,{phase:'trail',seen});return true;
+ }
+ startReplay(stage){
+  if(!Number.isInteger(stage)||stage<0||stage>=STAGES.length)return false;
+  this.reset(stage,{phase:'trail',seen:['prologue']});this.replay=true;return true;
+ }
+ interactChallenge(){
+  if(this.mode!=='playing'||this.storyPhase!=='trail'||this.practice||this.hitStop>0||this.dying>0)return false;
+  return updateChallenge(this,0,{interact:true});
  }
  practiceDeal(kind){
   if(kind>=10&&kind<15){
@@ -172,6 +202,7 @@ export class StoryWorld extends World{
   const stopped=this.hitStop>0;
   // Collect before moving encounter scenery: opening a choice freezes this whole tick.
   if(!stopped&&input.collect&&this.collectCard())return;
+  if(!stopped&&!this.practice&&this.storyPhase==='trail')beforeChallengeStep(this,dt);
   // The mill wheel carries its two ledges in opposite directions after the lock cracks.
   if(!stopped&&this.boss?.kind==='tollkeeper'&&this.boss.hp<=this.boss.max/2){
    for(const p of this.platforms.slice(1)){
@@ -185,6 +216,7 @@ export class StoryWorld extends World{
   if(this.storyPhase==='trail'&&(this.collected!==held||this.gates.filter(g=>g.open).length!==opened))this.storyRevision++;
   if(this.practice&&!this.bossPractice)return;
   if(this.mode==='dead'||stopped||this.dying>0)return;
+  if(!this.practice&&this.storyPhase==='trail'&&['playing','won'].includes(this.mode))updateChallenge(this,dt,input);
   if(this.storyLocation!=='trail')this.x=clamp(this.x,24,936);
   if(this.bossCorpse)this.bossCorpse.time+=dt;
   if(this.pendingVictory&&this.victoryDelay>0){this.victoryDelay=Math.max(0,this.victoryDelay-dt);if(this.victoryDelay>0)return;}
@@ -199,9 +231,7 @@ export class StoryWorld extends World{
   if(this.storyPhase==='trail'){
    // Reaching the lantern opens an authored encounter room rather than completing the story stage.
    if(this.mode==='won'){
-    if(this.stageIndex===0){
-     this.lanternDeck=this.deck.checkpoint();this.storyPhase='lantern';this.mode='lantern';this.storyRevision++;
-    }else{this.setupArena();this.startScene(this.stageStory.intro);}
+    this.prepareLantern();
     return;
    }
    if(this.x>=160&&this.grounded&&!this.seen.has(this.stageStory.encounter)){
@@ -215,7 +245,7 @@ export class StoryWorld extends World{
     this.hazards.push({kind:'shadow',x:this.x,y:this.y,w:64,h:34,delay:1.1,life:.25,age:0});
    }
    updateHazards(this,dt);
-   if(this.knots.every(k=>k.hp<=0)&&this.x>840){this.setupArena('garden');this.startScene('garden');return;}
+   if(this.knots.every(k=>k.hp<=0)&&this.x>840){this.prepareLantern('garden');return;}
   }
   if(this.storyPhase==='home'&&this.x>=820){this.storyPhase='complete';this.mode='won';this.storyRevision++;}
  }
@@ -224,7 +254,8 @@ export class StoryWorld extends World{
    tally:{time:Math.round(t.time*10)/10,hurt:t.hurt,retries:t.retries,best:t.best}};
   const gates=this.storyPhase==='trail'?this.gates.filter(g=>g.open).length:0;
   if(gates){save.gates=gates;save.embers=this.embers.map(e=>this.clearing.embers.findIndex(([x,y])=>x===e.x&&y===e.y));}
-  if(this.lanternDeck)save.lanternDeck=this.lanternDeck;
+  if(this.lanternDeck){save.lanternDeck=this.lanternDeck;save.lanternStage=this.stageIndex;save.lanternNext=this.lanternNext;}
+  if(this.challenge?.done)save.challengeDone=true;
   return save;
  }
 }
@@ -242,7 +273,11 @@ export function loadStory(storage){
   if(d&&!allowed[data.phase].includes(d.id))return null;
   const trail={};
   if(data.lanternDeck!==undefined||data.phase==='lantern'){
-   if(stage!==0||!['lantern','boss','cleared'].includes(data.phase))return null;
+   if(!['lantern','boss','garden','cleared'].includes(data.phase))return null;
+   if(data.lanternStage===undefined?stage!==0:data.lanternStage!==stage)return null;
+   const next=data.lanternNext||'boss';
+   if(!['boss','garden'].includes(next)||next==='garden'&&stage!==4||data.phase==='boss'&&next!=='boss'||data.phase==='garden'&&next!=='garden')return null;
+   trail.lanternNext=next;
    const deck=data.lanternDeck;
    if(!deck||![deck.hand,deck.pile,deck.discard].every(Array.isArray)||deck.hand.length>5||
     !Number.isInteger(deck.hits)||deck.hits<0||deck.hits>3||(deck.reserve!==null&&deck.hand.length!==5))return null;
@@ -258,12 +293,13 @@ export function loadStory(storage){
    trail.gates=g;trail.embers=e;
   }
   // An older save, or a damaged tally, starts the grade afresh rather than losing the journey.
+  if(data.challengeDone===true)trail.challengeDone=true;
   const t=data.tally;
   if(t&&[t.time,t.hurt,t.retries].every(n=>Number.isFinite(n)&&n>=0)&&Number.isInteger(t.best)&&t.best>=-1&&t.best<=8)trail.tally={time:t.time,hurt:Math.floor(t.hurt),retries:Math.floor(t.retries),best:t.best};
   return {stage,phase:data.phase,seen:data.seen,dialogue:d||null,complete:data.phase==='complete',...trail};
  }catch{return null;}
 }
 export function saveStory(storage,world){
- if(world.practice)return false;
+ if(world.practice||world.replay)return false;
  try{storage.setItem(STORY_SAVE_KEY,JSON.stringify(world.snapshot()));return true;}catch{return false;}
 }

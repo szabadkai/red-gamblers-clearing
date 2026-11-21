@@ -1,7 +1,7 @@
 import {updateEnemies,updateEnemyShots,updatePatches,ENEMY_TYPES} from './enemies.mjs';
 import {CLEARINGS,TRAIL_WIDTH,platformsFor} from './journey.mjs';
 import {skinFor,traits} from './cast.mjs';
-import {bossBox} from './bosses.mjs';
+import {bossBox,extendBossRecovery,cutBossHazards} from './bosses.mjs';
 export const CORPSE_LIFE=1.2;
 // Enemy hit reaction: a white flash, then the hit row, readable at the game's speed.
 export const HIT_TIME=.32;
@@ -19,7 +19,7 @@ export const DAMAGE=[6,14,20,26,32,40,52,64,90];
 export const EFFECTS=['Quick bolt','Heavy bolt','Explosive shot','Piercing lance','Piercing beam','Dark wave','Twin dark waves','Royal burst','Royal burst + wave'];
 export const SUITS=['spades','diamonds','clubs','hearts'];
 // Each suit among the cards a pair or better spends adds its flavour: spades pierce every foe in line, each diamond
-// fills a notch of the draw meter, clubs knock foes back and daze them (not bosses), hearts mend a heart.
+// fills a notch of the draw meter, clubs daze foes or extend a recovering boss's opening, hearts mend a heart.
 export const FLAVOURS=['pierces','draw','knocks back','+1 heart'];
 // Seconds a club-struck foe stays dazed.
 export const DAZE=1.2;
@@ -159,6 +159,7 @@ export class World{
   this.stageIndex=stageIndex;this.clearing=CLEARINGS[stageIndex];this.arena=false;this.width=TRAIL_WIDTH;
   // Briar gates split the trail into sections; each opens once every foe before it has fallen.
   this.gates=this.clearing.gates.map(x=>({x,open:false,age:0}));
+  this.gateGuide=null;this.gateGuideArmed=true;
   this.deck.reset();this.x=60;this.y=420;this.vx=0;this.vy=0;this.facing=1;this.grounded=true;this.surface=0;
   this.coyote=.12;this.buffer=0;this.drop=0;this.health=5;this.invincible=0;this.dash=0;this.dashCD=0;
   this.attack=0;this.swordPending=0;this.attackFacing=1;this.cast=0;this.dark=0;this.transform=0;this.land=0;this.time=0;this.fallCount=0;
@@ -191,16 +192,27 @@ export class World{
  }
  get wall(){return this.gates.find(g=>!g.open);}
  // Foes that still hold the next gate shut (or the exit, once every gate is open).
- get foesAhead(){const i=this.gates.findIndex(g=>!g.open);return this.enemies.filter(e=>!e.boss&&!e.storyTarget&&(i<0||e.section<=i)).length;}
+ get gateFoes(){const i=this.gates.findIndex(g=>!g.open);return this.enemies.filter(e=>e.hp>0&&!e.boss&&!e.storyTarget&&(i<0||e.section<=i));}
+ get foesAhead(){return this.gateFoes.length;}
+ get guidedFoe(){return this.gateGuide&&this.gateFoes.find(e=>e.id===this.gateGuide.targetId);}
  updateGates(dt){
   for(const g of this.gates)if(g.open)g.age+=dt;
-  const g=this.wall;if(!g)return;
+  if(this.gateGuide){this.gateGuide.time-=dt;if(this.gateGuide.time<=0)this.gateGuide=null;}
+  const g=this.wall;if(!g){this.gateGuide=null;return;}
+  if(this.x<g.x-160)this.gateGuideArmed=true;
   if(this.foesAhead===0){
-   g.open=true;this.emit('checkpoint');const healed=this.health<5;if(healed)this.health++;
-   this.banner=healed?'THE BRIARS PART · +1 HEART':'THE BRIARS PART';this.bannerTime=2.2;
-  }else if(this.x>g.x-15){
-   this.x=g.x-15;this.vx=Math.min(this.vx,0);
-   if(this.bannerTime<=0){const n=this.foesAhead;this.banner=`THE BRIARS HOLD · ${n} ${n===1?'FOE':'FOES'} LEFT`;this.bannerTime=1.6;}
+   g.open=true;this.gateGuide=null;this.gateGuideArmed=true;this.emit('checkpoint');const healed=this.health<5;if(healed)this.health++;
+   this.banner=healed?'GATE SAVED · +1 HEART':'GATE SAVED';this.bannerTime=2.2;
+  }else{
+   if(this.x>g.x-90&&this.gateGuideArmed){this.gateGuide={time:3,targetId:null};this.gateGuideArmed=false;}
+   if(this.gateGuide&&!this.guidedFoe){
+    const nearest=this.gateFoes.reduce((a,b)=>Math.hypot(a.x-this.x,a.y-this.y)<Math.hypot(b.x-this.x,b.y-this.y)?a:b);
+    this.gateGuide.targetId=nearest.id;
+   }
+   if(this.x>g.x-15){
+    this.x=g.x-15;this.vx=Math.min(this.vx,0);
+    if(this.bannerTime<=0){const n=this.foesAhead;this.banner=`THE BRIARS HOLD · ${n} ${n===1?'FOE':'FOES'} LEFT`;this.bannerTime=1.6;}
+   }
   }
  }
  spawn(x,s,type=false){const platform=this.platforms[s];if(!platform)return;const kind=typeof type==='string'?type:type?'brute':'scout',def=ENEMY_TYPES[kind];if(!def)return;const tough=kind==='brute'||kind==='guard',section=this.gates.filter(g=>g.x<x).length;const slot=this.enemies.filter(e=>e.kind===kind).length,skin=skinFor(kind,this.clearing.id,slot);
@@ -335,7 +347,7 @@ export class World{
  }
  fire(r,dir,impact){this.bolts.push({x:this.x+dir*20,y:this.y-23,dir,damage:r.damage,tier:r.tier,card:r.thrownCard,life:1.5,hit:new Set(),impact})}
  blast(x,y,radius,damage,dark=false,impact=null){this.rings.push({x,y,radius,dark,life:.45});for(const e of this.enemies){const box=e.boss&&bossBox(e);if(box?Math.hypot(clamp(x,box.x0,box.x1)-x,clamp(y,box.y0,box.y1)-y)<=radius:Math.hypot(e.x-x,e.y-22-y)<=radius){if(this.damage(e,damage,Math.sign(e.x-x)*40)!==false&&impact?.knock)this.knockBack(e,Math.sign(e.x-x)||this.facing);this.pokerImpact(impact,e.hp<=0)}}}
- knockBack(e,dir){if(e.boss||e.storyTarget||e.hp<=0||e.state==='blink')return;e.slide=(e.slide||0)+dir*90*SLIDE;e.rest=Math.max(e.rest||0,DAZE);e.dazed=DAZE;}
+ knockBack(e,dir){if(e.boss){extendBossRecovery(this,e);return;}if(e.storyTarget||e.hp<=0||e.state==='blink')return;e.slide=(e.slide||0)+dir*90*SLIDE;e.rest=Math.max(e.rest||0,DAZE);e.dazed=DAZE;}
  damage(e,amount,push,sword=false){if(this.wall&&e.x>this.wall.x||e.state==='blink')return false;e.hp-=amount;e.flash=.15;
   // A brute or guard that has begun its slam, and a stag rearing or charging, braces through sword hits;
   // only a played hand breaks it.
@@ -384,7 +396,7 @@ export class World{
   if(this.y>530&&this.dying>0){this.dying=0;this.mode='dead';return;}
   if(this.y>530){this.invincible=0;this.hurt();this.fallCount++;this.x=this.checkpoint.x;this.y=this.checkpoint.y;this.vx=0;this.vy=0;this.dash=0;this.buffer=0;this.grounded=true;this.coyote=.12}
   if(!this.arena){
-   this.clearing.checkpoints.forEach((x,i)=>{if(this.x>x&&this.checkpointId<i+1){this.checkpointId=i+1;this.checkpoint={x,y:420};this.emit('checkpoint');this.banner='LANTERN LIT · CHECKPOINT';this.bannerTime=1.6;}});
+   this.clearing.checkpoints.forEach((x,i)=>{if(this.x>x&&this.checkpointId<i+1){this.checkpointId=i+1;this.checkpoint={x,y:420};this.emit('checkpoint');this.banner='LANTERN LIT · FALL RECOVERY';this.bannerTime=2.2;}});
   }
   this.embers=this.embers.filter(e=>{if(Math.hypot(e.x-this.x,e.y-(this.y-18))<24){this.collected++;this.emit('pickup_essence');this.banner=this.collected===3?'THREE FLAMES · THE WAY IS OPEN':`FLAME ${this.collected} / 3`;this.bannerTime=1.8;return false}return true});
   if(!this.arena&&this.collected===3&&Math.hypot(this.x-this.clearing.exit.x,this.y-this.clearing.exit.y)<28){
@@ -393,7 +405,7 @@ export class World{
   }
   updateEnemies(this,dt);updateEnemyShots(this,dt);updatePatches(this,dt);
   if(!this.practice&&this.health<5&&this.bannerTime<=0&&!this.hinted.has('heal')&&this.deck.selectedPlay.heal){this.hinted.add('heal');this.banner='HEARTS MEND · PLAY THIS HAND TO HEAL';this.bannerTime=3.2;}
-  for(const b of this.bolts){let old=b.x;b.x+=b.dir*680*dt;b.life-=dt;if(this.wall&&b.x>this.wall.x-8){b.life=0;continue}for(const e of this.enemies){const box=e.boss&&bossBox(e),lo=Math.min(old,b.x),hi=Math.max(old,b.x),reach=b.tier>=5?65:30;
+  for(const b of this.bolts){let old=b.x;b.x+=b.dir*680*dt;b.life-=dt;if(this.wall&&b.x>this.wall.x-8){b.life=0;continue}cutBossHazards(this,b,old);for(const e of this.enemies){const box=e.boss&&bossBox(e),lo=Math.min(old,b.x),hi=Math.max(old,b.x),reach=b.tier>=5?65:30;
    const miss=box?hi+6<box.x0||lo-6>box.x1||b.y<box.y0-reach/2||b.y>box.y1+4:e.x<lo-22||e.x>hi+22||Math.abs(e.y-23-b.y)>reach;
    if(miss||b.hit.has(e.id))continue;b.hit.add(e.id);if(b.tier===2)this.blast(e.x,e.y-22,100,b.damage,false,b.impact);else{if(this.damage(e,b.damage,b.dir*(30+b.tier*5))!==false&&b.impact?.knock)this.knockBack(e,b.dir);this.pokerImpact(b.impact,e.hp<=0)}if(b.tier<3&&!b.impact?.pierce){b.life=0;break}}}
   this.bolts=this.bolts.filter(b=>b.life>0);this.removeDead();

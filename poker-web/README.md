@@ -37,14 +37,13 @@ advances; Skip scene or holding Escape skips with the same progression outcome.
 The finale ends with a playable walk home alongside Grandmother. Existing routes,
 including the bridge's lower passage, remain intact.
 
-Each boss, the swallowed rooms, and the garden have retry checkpoints. The Briar Hart's
-lantern offers **Keep my hand** or **Deal five**. Keeping carries the cards, saved draw and draw meter.
+Each boss, the swallowed rooms, and the garden have retry checkpoints. Every boss entrance, including the garden,
+offers **Keep my hand** or **Deal five**. Keeping carries the cards, saved draw and draw meter.
 Use the buttons, press 1 or 2, or select with left/right and confirm with Enter (A on a gamepad).
-R restores full health and the chosen opening deal for the Hart. Other encounter checkpoints deal a fresh hand. Continue restores
+R restores full health and the chosen opening deal for that boss. The swallowed room starts with a fresh hand. Continue restores
 saved dialogue at its current line or restarts the saved encounter. On a trail,
 Continue after a reload returns to the last opened briar gate with the embers carried so far. Saves use `red.poker.story.v3`; older
-journeys migrate by clearing name. A saved completed journey can replay the final
-encounter. Practice never writes story progress.
+journeys migrate by clearing name. Chapter replay revisits completed clearings with a fresh tally and can improve records; replay and practice never write campaign progress. Returning to the title restores campaign hints.
 
 Every boss can be beaten with ordinary movement and sword attacks. Rowan's guard
 blocks damage and draw credit until he recovers. Rare hands and Dark Red still
@@ -112,7 +111,7 @@ Cross five authored clearings: Lantern Wood, Broken Crossing, Moss Cavern, Ruine
 Each is 4800 units long, in four sections closed off by briar gates. A gate opens once every foe
 before it has fallen and restores one heart; foes behind a closed gate stay dormant and cannot be hit.
 Collect three embers in each, clear the last section, and reach its lantern. Retrying after a death
-returns to the last opened gate with the earlier sections still cleared. Checkpoint posts preserve your
+returns to the last opened gate with the earlier sections still cleared. Lantern posts labeled **FALL RECOVERY** preserve your
 position after pits (falling costs a heart). The camera looks ahead: Red sits in the left third facing right and the right third facing left. It only shifts after
 she has faced one way for 0.4 s and then eases over about a second, so quick turns to swing don't move the view. Movement uses fixed 60 Hz updates,
 120 ms coyote time, a 140 ms jump buffer, variable jump height, ground/air
@@ -120,7 +119,7 @@ acceleration, and a brief invulnerable dash. Blur or hiding the tab pauses and
 clears input. Progress saves at clearing entrances and at every opened briar gate in this browser. Continue returns to the
 last opened gate (or the entrance) with five hearts and five fresh cards. Existing v1 saves migrate by destination; new saves use stable clearing IDs.
 Practice never overwrites journey progress. Unavailable browser storage is
-reported; there is no cross-device sync, and nothing is saved between gates.
+reported; there is no cross-device sync. Position resumes at a gate or encounter, even when an ember or challenge achievement is saved between gates.
 
 Every third landed sword swing in a row is a finisher: 5 damage instead of 2 (10 instead of 4 as Dark Red), a
 harder knockback and a two-frame hit stop, swung with the character pack's rising crescent slash (`attack2`, unused
@@ -130,14 +129,14 @@ high cards do not count, and nothing is gained at full health). The hand panel s
 restore is shown dim red, and card-drop hints mark choices that would make a mending hand.
 The other suits add their own flavour the same way (`FLAVOURS` in `model.mjs`), so every pair carries two: spades make
 the bolt pierce every foe in line, each diamond spent fills a notch of the draw meter, and clubs knock foes back and
-daze them for 1.2 s (gold stars; bosses shrug it off). The hand panel lists them under the effect, the banner names
+daze them for 1.2 s (gold stars). Against a recovering boss, clubs extend the opening by 0.6 s, once per recovery. Spade shots and naturally piercing hands cut aligned roots, silk, sound rings and axes; ground impacts and shadow warnings still require dodging. The hand panel lists them under the effect, the banner names
 them when played, and card-drop hints include them.
 
 Each clearing is graded S to D when its boss falls: 100 points, minus 6 per heart lost, 15 per retry and 1 per 4 s
-over par (at most 20), plus 5 for a flush or better (`gradeClearing` in `story.mjs`; par is about twice the soak bot's
+over par (at most 20), independent of hand rarity (`gradeClearing` in `story.mjs`; par is about twice the soak bot's
 time). The tally survives retries and is saved with the story. The clearing screen shows the grade and what earned it;
 the best grade and best time per clearing are kept in `red.poker.records` and the best grade shows beside the
-clearing's name on the title screen.
+clearing's name on the title screen. A flush or better earns a separate rare-hand achievement. Records use grading rules 2; old grades are labeled Legacy and are replaced by the next completed run under the new rules, preserving best time.
 
 Thorn House's painted backdrop gets only a light dusk wash (it used to be greyed out), its undergrowth uses the
 terrain sheet's bushes in dusk greens with scarlet berries (`house-bushes`, built in `prepareScenery`) instead of the
@@ -268,7 +267,7 @@ hard alpha edges and removal of isolated texture flecks; it does not blur or
 dither. Original
 terrain, foliage and character animation remain in use.
 Moss Cavern and Ruined Chapel now use generated panoramic backgrounds, eight transparent modular props, and readable stone material, all prepared at the shared logical pixel pitch. Four independently scrolling depths replace the repetitive small columns. Terrain variants share exact edges, and panoramas wrap horizontally; `tests/material-preview.html` verifies the final runtime pixels and shows repeat grids. Source files and full generation prompts are in `assets/concept/ART_NOTES.md`.
-Warm trail lanterns mark checkpoints; banners, mushrooms, falling leaves and
+Warm trail lanterns mark fall recovery; checked diamonds mark saved gates; banners, mushrooms, falling leaves and
 separate stone treatments distinguish the route. Thorn House has a new generated
 background. Separate distant scenery, woodland silhouettes, transparent oak
 canopy and foreground foliage scroll at distinct rates; Motion Off freezes the
@@ -560,3 +559,36 @@ warnings appeared in the review fixture. Evidence: [card-flow recording](../docs
 [draw choices](../docs/poker-prototype/cards-draw-review.jpg),
 [narrow HUD](../docs/poker-prototype/cards-narrow-review.jpg), and
 [short landscape](../docs/poker-prototype/cards-landscape-review.jpg).
+
+
+## Chapter improvements and reproduction
+
+A closed gate briefly points toward the nearest living foe holding it shut, including direction and elevation. The cue lasts three seconds; retreat at least 160 units from the gate and approach again to refresh it. Other sections stay hidden.
+
+Each clearing has an optional challenge, worth a heart (up to five) and a card choice. These do not gate story progression or add grade points. Completion survives retries and reloads; unfinished progress restarts on retry.
+
+| Clearing | Challenge |
+| --- | --- |
+| Lantern Wood | Touch the three numbered lights on the opening ascending ledges in order. |
+| Huntsman's Bridge | Ride each moving lift for 0.65 seconds, left then right. |
+| Moss Cavern | Follow four lights downward without jumping; use S / Down to drop through ledges. |
+| Ruined Chapel | Ring LOW, HIGH, MIDDLE with E / D-pad Up / Interact. A wrong note restarts the sequence. |
+| Thorn House | Interact at the lower flame, then reach the upper light within 12 seconds. Failure can be retried without a health penalty. |
+
+E / D-pad Up prioritizes collecting a nearby eligible card over interacting with a challenge. Pauses, dialogue, the card inspector, and card choices freeze challenges and moving lifts.
+
+To reproduce the browser review:
+
+1. Run `npm run dev -- --dev-tools` and open `/tests/chapter-review.html` at the printed address. This fixture uses memory-only saves and invulnerable setup positions; it never touches your real journey.
+2. Open **Chapter replay**. Only the two completed fixture chapters are enabled. Play one, pause, and return to title; **Continue journey** still points to Moss Cavern. Resize with Desktop, Narrow, or Short landscape and navigate Back with the keyboard.
+3. Choose **Bridge hand choice**, keep the hand, skip the scene, cast, then press R. The five opening cards, saved card and draw notch return. **Deal five** instead stores the new opening deal.
+4. Choose **Last foe guidance**, then **Advance 1s** to see the direction/elevation pointer. Choose **Boss counterplay**, cast K, then advance: the aligned roots disappear and the boss shows **CLUBS · EXTENDED OPENING**. Sword input still deals damage.
+5. Choose **Play bell sequence** to exercise the real movement and E handlers; its completion drops a collectable card. **Bridge lifts** lets you jump onto the two moving platforms.
+6. **Record improvements** captures the real canvas plus a labeled transcript of DOM panels. Setup positions, invulnerability, and scripted inputs are explicitly identified in the recording.
+
+Regression coverage includes both hand choices at all six boss entrances, old saves, replay save isolation and unlocks, equal pair/flush grades, all five challenge routes, challenge reward/persistence, gate retargeting, hazard alignment, recovery caps, and all six sword-only boss fights.
+
+[Chapter replay screenshot](../docs/poker-prototype/chapter-replay.png) ·
+[Gate guidance screenshot](../docs/poker-prototype/chapter-gate-guide.png) ·
+[Bell challenge screenshot](../docs/poker-prototype/chapter-bell-challenge.png) ·
+[Chapter improvements recording](../docs/poker-prototype/chapter-improvements.mp4)

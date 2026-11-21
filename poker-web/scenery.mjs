@@ -193,6 +193,15 @@ export function drawLantern(ctx,x,y,lit,time,reduced){
   rect(ctx,x+18,y-44+(reduced?0:Math.floor(time*5)%2)*2,2,8,'#fff5d1');
  }
 }
+export function drawRecoveryPost(ctx,world,x,lit,time,reduced){
+ drawLantern(ctx,x,420,lit,time,reduced);
+ // A down arrow marks fall recovery; saved gates use a checked diamond.
+ rect(ctx,x+17,348,4,10,'#c2ece0');rect(ctx,x+13,354,12,4,'#c2ece0');rect(ctx,x+17,358,4,4,'#c2ece0');
+ if(Math.abs(world.x-x)<100){
+  ctx.save();ctx.font='10px Silkscreen, monospace';ctx.textAlign='center';
+  rect(ctx,x-45,330,128,15,'#101226ed');ctx.fillStyle='#c2ece0';ctx.fillText('FALL RECOVERY',x+19,341);ctx.restore();
+ }
+}
 export function drawLandmarks(ctx,images,world,time,reduced){
  const {theme}=world.clearing;
  if(theme==='cave'||theme==='chapel'){
@@ -200,7 +209,7 @@ export function drawLandmarks(ctx,images,world,time,reduced){
    drawProp(ctx,images,theme==='cave'?'blue-mushrooms':'candle-shrine',p.x+Math.min(p.w-70,170),p.y+2,i%2===1);
    if(p.w>500)drawProp(ctx,images,theme==='cave'?'moss-rock':'carved-rubble',p.x+p.w-140,p.y+6,i%2===0);
   }
-  world.clearing.checkpoints.forEach((x,i)=>drawLantern(ctx,x,420,world.checkpointId>i,time,reduced));
+  world.clearing.checkpoints.forEach((x,i)=>drawRecoveryPost(ctx,world,x,world.checkpointId>i,time,reduced));
   drawLantern(ctx,96,420,true,time,reduced);return;
  }
  // Each clearing has its own trail banners, lamps and vegetation accents.
@@ -237,7 +246,7 @@ export function drawLandmarks(ctx,images,world,time,reduced){
    }
   }
  }
- world.clearing.checkpoints.forEach((x,i)=>drawLantern(ctx,x,420,world.checkpointId>i,time,reduced));
+ world.clearing.checkpoints.forEach((x,i)=>drawRecoveryPost(ctx,world,x,world.checkpointId>i,time,reduced));
  // One lamp by the starting trail, welcoming rather than collectible.
  drawLantern(ctx,96,420,true,time,reduced);
 }
@@ -246,6 +255,11 @@ const BRIAR={cave:['#12262c','#3d7a80','#c2ece0'],chapel:['#2a1f33','#593d63','#
 export function drawGates(ctx,world,time,reduced){
  const [dark,mid,bright]=BRIAR[world.clearing.theme]||['#2a1418','#6e3540','#c8352f'],held=world.wall;
  for(const g of world.gates){
+  if(g.open){
+   ctx.save();ctx.translate(g.x-40,362);ctx.rotate(Math.PI/4);rect(ctx,-9,-9,18,18,'#101226');rect(ctx,-7,-7,14,14,'#ffdda3');ctx.restore();
+   rect(ctx,g.x-45,362,4,4,'#233737');rect(ctx,g.x-41,366,4,4,'#233737');rect(ctx,g.x-37,358,4,8,'#233737');
+   if(Math.abs(world.x-(g.x-40))<110){ctx.save();ctx.font='10px Silkscreen, monospace';ctx.textAlign='center';rect(ctx,g.x-96,332,112,16,'#101226ed');ctx.fillStyle='#ffdda3';ctx.fillText('SAVED GATE',g.x-40,344);ctx.restore();}
+  }
   const wither=g.open?Math.min(1,g.age/.5):0;if(wither>=1)continue;
   const top=80+340*wither;
   for(let s=0;s<5;s++)for(let y=416;y>=top;y-=4){
@@ -261,6 +275,20 @@ export function drawGates(ctx,world,time,reduced){
    rect(ctx,g.x-30-w,296,w,20,'#101226d8');ctx.fillStyle='#ffdda3';ctx.fillText(label,g.x-24-w,311);
   }
  }
+}
+// Render after the foreground, in world coordinates. Offscreen targets retain a
+// screen-edge pointer and explicit elevation so the cue works on tall routes.
+export function drawGateGuide(ctx,world,cam=0,width=960){
+ const foe=world.guidedFoe;if(!foe||world.storyLocation&&world.storyLocation!=='trail'||world.mode!=='playing')return;
+ const dx=foe.x-world.x,dy=foe.y-world.y;
+ const direction=[dy<-45?'ABOVE':dy>45?'BELOW':'',dx<-25?'LEFT':dx>25?'RIGHT':'HERE'].filter(Boolean).join(' ');
+ const label=`FOE · ${direction}`,x=Math.max(cam+92,Math.min(cam+width-92,foe.x)),y=Math.max(116,Math.min(390,foe.y-66));
+ ctx.save();ctx.font='11px Silkscreen, monospace';ctx.textAlign='center';
+ const w=Math.max(114,ctx.measureText(label).width+16);
+ rect(ctx,x-w/2,y-23,w,20,'#101226f2');ctx.fillStyle='#ffe6a6';ctx.fillText(label,x,y-9);
+ // The arrow points to the actual foe, even when its label is clamped onscreen.
+ const angle=Math.atan2(foe.y-22-y,foe.x-x);ctx.translate(x,y);ctx.rotate(angle);
+ ctx.fillStyle='#ffe6a6';ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(-3,-6);ctx.lineTo(-3,6);ctx.closePath();ctx.fill();ctx.restore();
 }
 export function drawTrailGate(ctx,images,world,time,reduced){
  const {x,y}=world.clearing.exit,ready=world.collected===3;

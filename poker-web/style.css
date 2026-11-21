@@ -293,3 +293,28 @@ body.in-cutscene #collect-card,body.in-cutscene #tutorial-hint,body.at-title #co
  .hand-actions button{min-height:32px;padding:1px 2px;}
  .hand-actions kbd{margin-top:1px;}
 }
+
+/* Optional trail challenges use the same contextual space as the opening lesson. */
+#chapter-challenge{position:absolute;z-index:24;top:12cqw;left:19%;right:19%;text-align:center;pointer-events:none;}
+#chapter-challenge[hidden],#challenge-interact[hidden]{display:none;}
+#challenge-hint{margin:0;padding:6px 10px;border:1px solid #ad9865;background:#14221ff2;color:#eddfbc;font: max(10px,.95cqw)/1.45 Silkscreen,monospace;}
+#challenge-interact{pointer-events:auto;margin-top:5px;min-height:32px;padding:6px 12px;background:#273b31;border-color:#d5ba7c;font-size:max(11px,1cqw);}
+#overlay #replay-list{display:grid;gap:6px;margin:14px 0;}
+#overlay #replay-list button{text-align:left;padding:9px 12px;min-height:44px;}
+#overlay #replay-list strong,#overlay #replay-list span{display:block;}
+#overlay #replay-list strong{font-size:max(11px,1.1cqw);font-weight:normal;}
+#overlay #replay-list span{margin-top:4px;color:#c7c4af;font: max(11px,1.05cqw)/1.4 system-ui,sans-serif;}
+#overlay #replay-list button:disabled{opacity:.6;background:#142023;}
+@media(min-width:761px) and (min-height:451px){
+ #overlay #menu-replay{padding-top:1.4cqw;padding-bottom:1.4cqw;}
+ #overlay #menu-replay h2{margin:0 0 .6cqw;}
+ #overlay #replay-list{gap:4px;margin:10px 0;}
+ #overlay #replay-list button{padding-top:6px;padding-bottom:6px;}
+ #overlay #menu-replay .menu-back{margin-top:.7cqw;}
+}
+@media(max-width:760px){
+ #chapter-challenge{top:11cqw;left:10%;right:10%;}
+ #challenge-hint{font-size:10px;padding:5px 7px;}
+ #challenge-interact{margin-top:3px;padding:4px 10px;min-height:28px;}
+ #lantern .draft-panel{width:86cqw;}
+}

@@ -13,7 +13,7 @@ function walk(w,target,jump=false){
  if(jump)w.jump();
  for(let i=0;i<300;i++){
   const d=target-w.x;w.step(1/60,{axis:Math.abs(d)<1?0:Math.max(-1,Math.min(1,d/22))});
-  if(w.mode==='won')return;
+  if(w.mode==='won'||w.mode==='lantern')return;
   if(w.mode==='cutscene'){skip(w);continue;}
   if(Math.abs(d)<4&&Math.abs(w.vx)<10&&w.grounded)return;
  }
@@ -40,7 +40,7 @@ test('every route requires three embers, then enters its own boss instead of adv
   const w=new StoryWorld();w.reset(stage,{phase:'trail',seen:[STAGES[stage].encounter,'prologue']});
   w.x=w.clearing.exit.x;w.y=w.clearing.exit.y;w.step(1/60);assert.equal(w.storyPhase,'trail');
   arrive(w);
-  if(stage===0){assert.equal(w.mode,'lantern');w.chooseLanternHand(true);}
+  assert.equal(w.mode,'lantern');w.chooseLanternHand(true);
   assert.equal(w.mode,'cutscene');assert.equal(w.dialogue.id,STAGES[stage].intro);
   assert.equal(w.boss.kind,STAGES[stage].boss);assert.equal(w.storyPhase,'boss');assert.equal(w.health,5);
   assert.equal(w.worldWidth,960);skip(w);assert.equal(w.mode,'playing');assert.equal(w.advance(),false);
@@ -95,13 +95,13 @@ test('full story progression rescues Grandmother, fights the garden Wolf, then w
  const w=new StoryWorld();skip(w);
  for(let stage=0;stage<5;stage++){
   w.x=170;w.y=420;w.grounded=true;w.step(1/60);assert.equal(w.dialogue.id,STAGES[stage].encounter);skip(w);
-  arrive(w);if(stage===0)w.chooseLanternHand(true);skip(w);defeat(w);
+  arrive(w);w.chooseLanternHand(true);skip(w);defeat(w);
   if(stage<4){assert.equal(w.dialogue.id,STAGES[stage].outro);skip(w);assert.equal(w.mode,'won');assert.equal(w.advance(),true);}
  }
  assert.equal(w.dialogue.id,'swallowed');assert.equal(w.storyPhase,'inside');skip(w);
  assert.equal(w.knots.length,3);w.x=900;w.step(1/60);assert.equal(w.storyPhase,'inside','cannot exit before rescuing Grandmother');
  for(const k of w.knots)w.damage(k,k.hp,0);w.removeDead();w.step(1/60);
- assert.equal(w.storyPhase,'garden');assert.equal(w.dialogue.id,'garden');skip(w);
+ assert.equal(w.mode,'lantern');w.chooseLanternHand(true);assert.equal(w.storyPhase,'garden');assert.equal(w.dialogue.id,'garden');skip(w);
  assert.equal(w.boss.garden,true);assert.equal(w.boss.hp,90);defeat(w);
  assert.equal(w.dialogue.id,'breakfast');skip(w);assert.equal(w.storyPhase,'home');assert.equal(w.mode,'playing');
  walk(w,830);assert.equal(w.mode,'won');assert.equal(w.storyPhase,'complete');assert.equal(w.advance(),false);
@@ -183,7 +183,7 @@ test('the swallowed room can be climbed and its knots cut with ordinary jumps an
   for(let i=0;i<4;i++){w.sword();tick(w,20);if(w.mode==='drafting')w.dismissDraft();}
   assert.ok(w.knots[k].hp<=0);
  }
- walk(w,690);walk(w,790,true);walk(w,870);assert.equal(w.storyPhase,'garden');assert.equal(w.health,5);
+ walk(w,690);walk(w,790,true);walk(w,870);assert.equal(w.mode,'lantern');w.chooseLanternHand(true);assert.equal(w.storyPhase,'garden');assert.equal(w.health,5);
 });
 
 test('all boss side ledges are reachable with the existing jump envelope',()=>{
@@ -273,5 +273,5 @@ test('a clearing is graded on hearts lost, retries and time over par; the tally 
  defeat(w);assert.equal(w.storyPhase,'cleared');assert.equal(w.result.grade,'B');
  assert.deepEqual(saveRecord(s,'lantern-wood',w.result),{better:true,faster:true,first:true});
  assert.deepEqual(saveRecord(s,'lantern-wood',{...w.result,score:10,grade:'D',time:20}),{better:false,faster:true,first:false});
- assert.deepEqual(loadRecords(s)['lantern-wood'],{score:w.result.score,grade:'B',time:20});
+ assert.deepEqual(loadRecords(s)['lantern-wood'],{score:w.result.score,grade:'B',time:20,rules:2,rareHand:false});
 });

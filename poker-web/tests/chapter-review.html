@@ -1,0 +1,90 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Chapter improvements review</title>
+<style>body{margin:18px;background:#0b141a;color:#ecd9ae;font:14px system-ui}button,a{font:inherit;padding:8px;background:#213a3e;color:#ffe5b2;border:1px solid #657d73;margin:4px}iframe{display:block;width:960px;height:540px;border:0;max-width:100%}p{max-width:960px;line-height:1.5}#status{white-space:pre-line;min-height:3em}</style>
+<h1>Chapter improvements review</h1>
+<p>Real renderer and game input handlers, with deterministic setup and invulnerability. The embedded game uses memory-only storage seeded with two completed chapters and a saved cavern journey. Recording includes the canvas plus a labeled DOM-panel transcript.</p>
+<div><button data-size="960,540">Desktop</button><button data-size="700,700">Narrow</button><button data-size="740,360">Short landscape</button></div>
+<div><button data-setup="title">Title and replay</button><button data-setup="lantern">Bridge hand choice</button><button data-setup="gate">Last foe guidance</button><button data-setup="lifts">Bridge lifts</button><button data-setup="bells">Chapel bells</button><button data-setup="combat">Boss counterplay</button></div>
+<div><button data-key="KeyE">E · Interact / Collect</button><button data-key="KeyK">K · Cast</button><button data-key="KeyR">R · Retry</button><button data-key="Escape">Escape</button><button data-key="Space">Jump</button><button data-hold="KeyD">Walk right 0.6s</button><button data-hold="KeyA">Walk left 0.6s</button><button data-hold="KeyJ">Sword 0.6s</button><button data-action="advance">Advance 1s</button><button data-action="bells">Play bell sequence</button><button id="record">Record improvements · 12 seconds</button><a id="video" hidden download="chapter-improvements.webm">Save recording</a></div>
+<p id="status">Loading assets…</p><iframe title="Frozen chapter review"></iframe>
+<script type="module">
+const $=id=>document.getElementById(id),frame=document.querySelector('iframe');
+const html=await(await fetch('/index.html')).text();
+const campaign=JSON.stringify({version:3,clearing:'moss-cavern',phase:'trail',seen:['prologue'],gates:1,embers:[1,2]});
+const records=JSON.stringify({'lantern-wood':{score:94,grade:'A',time:140,rules:2,rareHand:true},'broken-crossing':{score:99,grade:'S',time:180}});
+const bootstrap=`<base href="/"><script>const memory=new Map([['red.poker.story.v3',${JSON.stringify(campaign)}],['red.poker.records',${JSON.stringify(records)}]]);Object.defineProperty(window,'localStorage',{value:{getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,String(v)),removeItem:k=>memory.delete(k),clear:()=>memory.clear()}});window.requestAnimationFrame=cb=>{window.renderFrame=cb;return 0}</scr`+'ipt>';
+frame.srcdoc=html.replace('<head>','<head>'+bootstrap);
+await new Promise(r=>frame.onload=r);const g=frame.contentWindow;
+for(let i=0;i<480&&(!g.renderFrame||g.document.getElementById('begin').disabled);i++)await new Promise(r=>setTimeout(r,100));
+if(!g.__RED_REVIEW__||!g.renderFrame||g.document.getElementById('begin').disabled)throw Error('Start server with --dev-tools');
+const {world,enterWorld}=g.__RED_REVIEW__,game=g.document.getElementById('game'),d=g.document;
+let now=g.performance.now(),busy=false,scenario='title',lastInnerFocus=null;
+d.addEventListener('focusin',event=>{if(event.target!==d.body)lastInnerFocus=event.target});
+const run=n=>{for(let i=0;i<n;i++)g.renderFrame(now+=1000/60)};
+const key=(code,down)=>d.body.dispatchEvent(new g.KeyboardEvent(down?'keydown':'keyup',{code,bubbles:true,cancelable:true}));
+function wake(){if(world.mode==='paused'){world.mode='playing';run(1);}if(lastInnerFocus?.isConnected&&lastInnerFocus.getClientRects().length)lastInnerFocus.focus({preventScroll:true});}
+function tap(code){wake();key(code,true);run(2);key(code,false);run(1);}
+function hold(code,n=36){wake();key(code,true);run(n);key(code,false);run(12);}
+g.addEventListener('error',event=>{$('status').textContent='ERROR: '+event.message;});
+function status(){
+ $('status').textContent=`${scenario} · callback=${g.renderFrame.name} · clock=${now.toFixed(0)} · live=${g.__POKER_STATE__.mode} · t=${world.time.toFixed(2)} · ${world.mode} · phase ${world.storyPhase} · replay ${world.replay}\n${world.challenge?.name}: ${world.challenge?.done?'complete':world.challenge?.index} · boss ${world.boss?.state||'none'}${world.boss?.clubExtended?' · CLUB RECOVERY EXTENDED':''}\nCampaign save unchanged: ${g.localStorage.getItem('red.poker.story.v3')===campaign}`;
+}
+function setup(kind){
+ scenario=kind;
+ if(kind==='title'){d.getElementById('return-title').click();run(1);status();return;}
+ const stage={lantern:1,gate:0,lifts:1,bells:3,combat:1}[kind];
+ const encounters=['stranger','pip','cavern','chapel','house'];
+ // Setups are replay sessions so they cannot update even the fixture's campaign save.
+ world.reset(stage,{phase:kind==='combat'?'boss':'trail',seen:['prologue',encounters[stage]]});world.replay=true;world.invincible=10000;
+ if(kind==='lantern'){
+  world.enemies=[];world.x=world.clearing.exit.x;world.y=world.clearing.exit.y;world.collected=3;world.embers=[];
+  world.deck.preset([5,18,35,48,1]);world.deck.hit();const draft=world.deck.reward();world.deck.choose(draft.id,0);
+  world.step(1/60);
+ }else if(kind==='gate'){
+  world.x=world.wall.x-50;world.y=420;world.enemies=world.enemies.filter(e=>e.section===0).slice(-1);
+ }else if(kind==='lifts'){
+  world.x=360;world.y=360;world.surface=world.platforms.find(p=>p.x===200&&p.y===360).id;world.enemies=[];
+ }else if(kind==='bells'){
+  world.x=2600;world.y=420;world.surface=world.platforms.find(p=>p.ground&&p.x<2600&&p.x+p.w>2600).id;world.enemies=[];
+ }else{
+  world.x=520;world.boss.x=690;world.boss.state='recover';world.boss.timer=2.8;world.deck.preset([5,18,35,48,1]);
+  world.hazards=[{kind:'roots',x:610,y:420,w:32,h:48,delay:.4,life:4,age:0}];
+ }
+ enterWorld();run(3);status();
+}
+function moveTo(target){
+ wake();const code=target>world.x?'KeyD':'KeyA';key(code,true);
+ for(let i=0;i<200&&Math.abs(world.x-target)>7;i++){run(1);if((code==='KeyD'&&world.x>target)||(code==='KeyA'&&world.x<target))break;}
+ key(code,false);run(14);
+}
+function bellSong(){setup('bells');tap('KeyE');moveTo(2840);tap('KeyE');moveTo(2720);tap('KeyE');status();}
+for(const b of document.querySelectorAll('[data-size]'))b.onclick=()=>{const [w,h]=b.dataset.size.split(',');frame.style.width=w+'px';frame.style.height=h+'px';run(1);status();};
+for(const b of document.querySelectorAll('[data-setup]'))b.onclick=()=>{if(!busy)setup(b.dataset.setup)};
+for(const b of document.querySelectorAll('[data-key]'))b.onclick=()=>{if(!busy){tap(b.dataset.key);status()}};
+for(const b of document.querySelectorAll('[data-hold]'))b.onclick=()=>{if(!busy){hold(b.dataset.hold);status()}};
+document.querySelector('[data-action="advance"]').onclick=()=>{wake();run(60);status()};
+document.querySelector('[data-action="bells"]').onclick=bellSong;
+const capture=document.createElement('canvas');capture.width=960;capture.height=650;const ctx=capture.getContext('2d');
+function videoFrame(){
+ ctx.fillStyle='#0b141a';ctx.fillRect(0,0,960,650);ctx.drawImage(game,0,0);
+ ctx.font='15px monospace';ctx.fillStyle='#ecd9ae';ctx.fillText('DOM PANEL TRANSCRIPT · scripted invulnerable review · '+scenario,14,565);
+ const lines=world.mode==='lantern'?[d.getElementById('lantern-title').textContent,d.getElementById('lantern-hand').textContent,d.getElementById('lantern-copy').textContent]:[
+ d.getElementById('chapter-challenge').hidden?world.banner:d.getElementById('challenge-hint').textContent,
+ `Boss: ${world.boss?.state||'none'}${world.boss?.clubExtended?' · CLUBS EXTENDED THIS OPENING':''} · hazards: ${world.hazards.length}`,
+ `Campaign save unchanged: ${g.localStorage.getItem('red.poker.story.v3')===campaign}`];
+ lines.forEach((line,i)=>ctx.fillText((line||'').replaceAll('\n',' ').slice(0,112),14,590+i*22));
+}
+$('record').onclick=async()=>{
+ if(busy)return;setup('lantern');busy=true;$('status').textContent='Recording…';
+ const stream=capture.captureStream(30),chunks=[],recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};const done=new Promise(r=>recorder.onstop=r);recorder.start();
+ for(let i=0;i<720;i++){
+  if(i===120)setup('combat');if(i===150)tap('KeyK');if(i===200){hold('KeyD',16);hold('KeyJ',30);}
+  if(i===270)setup('gate');if(i===390)setup('lifts');if(i===410){key('KeyD',true);key('Space',true);}if(i===425){key('KeyD',false);key('Space',false);}
+  if(i===530)bellSong();
+  wake();run(1);videoFrame();await new Promise(r=>setTimeout(r,1000/60));
+ }
+ recorder.stop();await done;stream.getTracks().forEach(t=>t.stop());
+ const blob=new Blob(chunks,{type:recorder.mimeType});$('video').href=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(blob)});$('video').hidden=false;busy=false;status();
+};
+for(const button of document.querySelectorAll('button'))button.addEventListener('pointerdown',e=>e.preventDefault());
+run(1);status();
+</script></html>

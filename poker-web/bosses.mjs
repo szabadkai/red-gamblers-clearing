@@ -13,6 +13,29 @@ export function bossBox(e){const b=BOSS_BODY[e.kind];return b?{x0:e.x-b.hw,x1:e.
 export const CHAIN_REACH=220;
 // The Wolf's second leap in phase two gets this much warning (his first leap gets his full tell).
 export const POUNCE_TELL=.45;
+export const CLUB_RECOVERY=.6;
+// Clubs reward a hit during an opening; repeated shots cannot pin a boss forever.
+export function extendBossRecovery(world,boss){
+ if(boss.hp<=0||boss.state!=='recover'||boss.clubExtended)return false;
+ boss.clubExtended=true;boss.timer+=CLUB_RECOVERY;
+ world.texts.push({x:boss.x,y:boss.y-90,text:'CLUBS · LONGER OPENING',life:1});
+ return true;
+}
+const CUTTABLE=new Set(['roots','silk','ring','axe']);
+// Spade bonuses and naturally piercing hands can sever material hazards. Ground
+// impacts and shadow warnings remain dodgeable attacks, never ammunition checks.
+export function cutBossHazards(world,bolt,oldX){
+ if(!world.hazards||!(bolt.impact?.pierce||bolt.tier>=3))return 0;
+ const lo=Math.min(oldX,bolt.x)-6,hi=Math.max(oldX,bolt.x)+6;let cut=0;
+ world.hazards=world.hazards.filter(h=>{
+  if(!CUTTABLE.has(h.kind)||h.life<=0)return true;
+  const top=h.kind==='axe'?h.y-h.h/2:h.y-h.h,bottom=h.kind==='axe'?h.y+h.h/2:h.y;
+  if(hi<h.x-h.w/2||lo>h.x+h.w/2||bolt.y<top-4||bolt.y>bottom+4)return true;
+  world.texts.push({x:h.x,y:top-8,text:'CUT',life:.65});
+  world.impacts.push({x:h.x,y:bolt.y,amount:2,life:.25});cut++;return false;
+ });
+ if(cut)world.emit('attack3');return cut;
+}
 export function makeBoss(kind,id,garden=false){
  const def=BOSS_STATS[kind],hp=garden?90:def.hp;
  return {id,kind,boss:true,x:690,y:420,left:58,right:902,hp,max:hp,face:-1,state:'approach',
@@ -94,7 +117,7 @@ export function updateBoss(world,dt){
     b.chained=true;b.y=420;b.state='windup';b.timer=POUNCE_TELL;b.wind=b.timer;b.target=clamp(world.x,75,885);b.targetY=world.y-22;
     b.face=b.strikeDir=Math.sign(world.x-b.x)||b.face;warn(world,'landing',b.target,420,100,38,b.timer+.6);return;
    }
-   b.chained=false;b.state='recover';b.timer=def.recovery*(b.garden?.85:1);b.y=420;b.wind=0;
+   b.chained=false;b.state='recover';b.clubExtended=false;b.timer=def.recovery*(b.garden?.85:1);b.y=420;b.wind=0;
   }
  }
 }

@@ -2,6 +2,7 @@
 import {drawBridgePixels} from './bridge-art.mjs';
 import {drawMirrored,PIXEL} from './art.mjs';
 import {bridgeLayout} from './bridge-stone.mjs';
+import {drawRecoveryPost} from './scenery.mjs';
 // Coordinates are world units. The original character sprites retain their 2x scale.
 const ink='#111c24';
 const snap=n=>Math.round(n/2)*2;
@@ -62,7 +63,7 @@ function falls(c,x0,time,reduced){
   }
  }
 }
-export function drawBridgeArchitecture(c,images,platforms,time,reduced){
+export function drawBridgeArchitecture(c,images,platforms,time,reduced,world=null){
  const bridges=platforms.filter(p=>p.kind==='bridge');
  for(const b of bridges)falls(c,b.x+70,time,reduced);
  drawBridgePixels(c,platforms,images);
@@ -73,6 +74,7 @@ export function drawBridgeArchitecture(c,images,platforms,time,reduced){
  for(const [x,y] of [[100,420],[730,360],[985,420],[1560,420],[1800,420],[2220,300],[2520,420],[3190,360],[3445,420],[4120,420],[4620,300]])lamp(c,x,y,time,reduced);
  rect(c,1874,316,4,104,'#342c2a');rect(c,1866,312,20,4,'#a28c65');banner(c,1864,320,time,reduced);
  lightPool(c,52,250,110,time,reduced,.16);lightPool(c,4510,488,60,time,reduced,.2);
+ if(world)world.clearing.checkpoints.forEach((x,i)=>drawRecoveryPost(c,world,x,world.checkpointId>i,time,reduced));
 }
 export function drawBridgeAtmosphere(c,cam,time,reduced){
  // Sparse airborne leaves and sparks. Never resemble collectible ember halos.
