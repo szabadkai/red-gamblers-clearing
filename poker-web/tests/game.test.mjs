@@ -10,7 +10,8 @@ test('all poker categories, wheel, partial and empty hands',()=>{
 });
 test('draws bank, swap, refill and preserve 52 unique cards through reshuffles',()=>{
  const d=new Deck();assert.equal(d.hand.length,5);d.hit();d.hit();assert.equal(d.banked,false);const draft=d.hit();assert.equal(d.banked,false);d.choose(draft.id,0);assert.equal(d.banked,true);
- for(let i=0;i<8;i++)d.hit();assert.equal(d.hits,0);assert.equal(d.replace(-1),false);assert.equal(d.banked,true);assert.equal(d.replace(0),true);assert.equal(d.hand.length,5);
+ for(let i=0;i<8;i++)assert.equal(d.hit(),null);assert.equal(d.hits,3,'the meter fills while a draw is saved');assert.equal(d.replace(-1),false);assert.equal(d.banked,true);assert.equal(d.replace(0),true);assert.equal(d.hand.length,5);
+ assert.ok(d.release(),'using the saved card pays out the full meter');assert.equal(d.hits,0);
  d.preset([5,18,2,9,24]);d.play();assert.deepEqual(d.hand,[2,9,24]);d.hit();d.hit();const refill=d.hit();d.choose(refill.id,1);assert.equal(d.hand.length,4);
  for(let cycle=0;cycle<250;cycle++){d.play();for(let i=0;i<15;i++){const offer=d.hit();if(offer)d.choose(offer.id,cycle%2)}let all=[...d.hand,...d.pile,...d.discard,...d.drafts.flatMap(x=>x.cards),...(d.banked?[d.reserve]:[])];assert.equal(all.length,52);assert.equal(new Set(all).size,52);assert.ok(d.hand.length<=5)}
 });

@@ -75,9 +75,15 @@ export class StoryWorld extends World{
  // The opening lesson follows the cards actually held, rather than a timed banner.
  // Retrying/reloading the first section restores its deal, so the lesson naturally restarts;
  // spending or replacing either pair and opening the first gate make its advice disappear.
+ // Once the cards are spent, the sword lesson takes over until the first landed swing.
  get tutorialHint(){
   if(this.practice||this.stageIndex!==0||this.storyPhase!=='trail'||this.mode!=='playing'||this.dying>0||
-   !this.seen.has('stranger')||this.gates[0]?.open)return null;
+   !this.seen.has('stranger'))return null;
+  return this.cardLesson??(this.hinted.has('sword')?null:
+   {id:'sword',action:'sword',cards:[],text:'Swing your sword',detail:'Three landed swings earn a card draw.'});
+ }
+ get cardLesson(){
+  if(this.gates[0]?.open)return null;
   const hand=this.deck.hand,jacks=SPLIT_PAIRS.slice(0,2),sevens=SPLIT_PAIRS.slice(2,4);
   const has=cards=>cards.every(card=>hand.includes(card));
   const cards=has(jacks)?jacks:has(sevens)?sevens:null;

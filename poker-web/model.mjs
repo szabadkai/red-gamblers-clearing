@@ -13,6 +13,9 @@ export const COMBO_WINDOW=1.1;
 export const DEATH_TIME=.9;
 // A knocked-back foe slides: its push becomes a velocity that dies away in about a fifth of a second.
 export const SLIDE=14;
+// A foe staggers from this many sword hits in a row; after that it keeps fighting until the blade lets up
+// for POISE_GAP seconds, so a held swing can't pin it and its wind-up still has to be read.
+export const POISE_HITS=3,POISE_GAP=.6;
 export const HANDS=['High card','Pair','Two pair','Three of a kind','Straight','Flush','Full house','Four of a kind','Straight flush'];
 export const SPLIT_PAIRS=[48,35,5,18,1]; // J♥ J♣ 7♠ 7♦ 3♠
 export const DAMAGE=[6,14,20,26,32,40,52,64,90];
@@ -111,8 +114,10 @@ export class Deck{
  get banked(){return this.reserve!==null}
  take(){if(!this.pile.length)this.pile=this.shuffle(this.discard.splice(0));return this.pile.pop()}
  draw(){if(this.hand.length>=5)return;const card=this.take();if(card!==undefined)this.hand.push(card)}
- hit(){
-  if(this.banked)return null;this.hits=Math.min(3,this.hits+1);if(this.hits<3)return null;
+ hit(){this.hits=Math.min(3,this.hits+1);return this.release();}
+ // A full meter waits while a draw is saved and pays out once the saved card is used.
+ release(){
+  if(this.banked||this.hits<3)return null;
   const draft=this.reward();if(draft)this.hits=0;return draft;
  }
  // A draft outside the meter: every kill drops one.
@@ -260,7 +265,7 @@ export class World{
    if(hit){if(this.damage(e,finisher?base*2.5:base,(finisher?26:10)*this.attackFacing,true)!==false)source??=e}}
   if(source){this.combo=chain+1;this.comboTime=COMBO_WINDOW;
    if(finisher){for(const hit of this.impacts.slice(first))hit.heavy=true;this.hitStop=Math.max(this.hitStop,2/60);this.shakePower=2;this.shakeDuration=.1;this.shakeTime=.1;this.emit('finisher');}
-   this.emit('hit');const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,source);source.dropped=true;this.emit('meter_full');this.banner='CARD DROP · COLLECT WHEN READY';this.bannerTime=1.5}}this.removeDead();
+   this.emit('hit');this.hinted.add('sword');const draft=this.deck.hit();if(draft){this.spawnCardDrop(draft,source);source.dropped=true;this.emit('meter_full');this.banner='CARD DROP · COLLECT WHEN READY';this.bannerTime=1.5}}this.removeDead();
  }
  spawnCardDrop(draft,source){
   if(!draft)return;
@@ -316,14 +321,16 @@ export class World{
  suppressNearbyDrops(){for(const drop of this.cardDrops)if(Math.abs(drop.x-this.x)<32&&Math.abs(drop.y-this.y)<40)drop.blocked=true;}
  useSlot(slot){
   if(this.mode!=='playing'||this.dying>0||!Number.isInteger(slot)||slot<0||slot>=this.deck.hand.length)return false;
-  if(this.deck.banked)return this.deck.replace(slot);
+  if(this.deck.banked){const replaced=this.deck.replace(slot);if(replaced)this.releaseDraw();return replaced;}
   return this.play(slot);
  }
+ releaseDraw(){const draft=this.deck.release();if(draft){this.spawnCardDrop(draft,{x:this.x+this.facing*40,y:this.y});this.emit('meter_full');}}
  cyclePlay(){return this.mode==='playing'&&this.dying===0&&this.deck.nextPlay();}
  play(slot=null){
   if(this.cast>0||this.dying>0||!this.deck.hand.length||this.mode!=='playing')return false;
   const r=this.deck.play(slot);
   if(!r)return false;
+  this.releaseDraw();
   this.bestHand=Math.max(this.bestHand??-1,r.tier);this.tally.best=Math.max(this.tally.best,r.tier);
   this.cast=.36;this.banner=r.thrownCard===undefined?r.name.toUpperCase():cardName(r.thrownCard).toUpperCase();this.bannerTime=1.5;this.emit('attack3');
   if(r.suits.some(s=>s<3)){this.banner+=' · '+flavourText({...r,suits:r.suits.filter(s=>s<3)}).toUpperCase();this.bannerTime=2;}
@@ -346,13 +353,15 @@ export class World{
   this.shakePower=frames*2-2;this.shakeDuration=.1+frames*.025;this.shakeTime=this.shakeDuration;
  }
  fire(r,dir,impact){this.bolts.push({x:this.x+dir*20,y:this.y-23,dir,damage:r.damage,tier:r.tier,card:r.thrownCard,life:1.5,hit:new Set(),impact})}
- blast(x,y,radius,damage,dark=false,impact=null){this.rings.push({x,y,radius,dark,life:.45});for(const e of this.enemies){const box=e.boss&&bossBox(e);if(box?Math.hypot(clamp(x,box.x0,box.x1)-x,clamp(y,box.y0,box.y1)-y)<=radius:Math.hypot(e.x-x,e.y-22-y)<=radius){if(this.damage(e,damage,Math.sign(e.x-x)*40)!==false&&impact?.knock)this.knockBack(e,Math.sign(e.x-x)||this.facing);this.pokerImpact(impact,e.hp<=0)}}}
+ blast(x,y,radius,damage,dark=false,impact=null,hit=null){this.rings.push({x,y,radius,dark,life:.45});for(const e of this.enemies){const box=e.boss&&bossBox(e);if((box?Math.hypot(clamp(x,box.x0,box.x1)-x,clamp(y,box.y0,box.y1)-y)<=radius:Math.hypot(e.x-x,e.y-22-y)<=radius)&&!hit?.has(e.id)){hit?.add(e.id);if(this.damage(e,damage,Math.sign(e.x-x)*40)!==false&&impact?.knock)this.knockBack(e,Math.sign(e.x-x)||this.facing);this.pokerImpact(impact,e.hp<=0)}}}
  knockBack(e,dir){if(e.boss){extendBossRecovery(this,e);return;}if(e.storyTarget||e.hp<=0||e.state==='blink')return;e.slide=(e.slide||0)+dir*90*SLIDE;e.rest=Math.max(e.rest||0,DAZE);e.dazed=DAZE;}
  damage(e,amount,push,sword=false){if(this.wall&&e.x>this.wall.x||e.state==='blink')return false;e.hp-=amount;e.flash=.15;
   // A brute or guard that has begun its slam, and a stag rearing or charging, braces through sword hits;
   // only a played hand breaks it.
   const charging=e.kind==='charger'&&(e.state==='windup'||e.state==='lunge');
-  if(sword&&(charging||e.tough&&e.state==='windup')){e.brace=.15;if(this.bannerTime<=0){this.banner=charging?'IT WON\'T FLINCH · JUMP THE CHARGE':'IT BRACES · STEP BACK, STRIKE AFTER THE SLAM';this.bannerTime=1.8;}}else{e.slide=(e.slide||0)+push*SLIDE;e.wind=0;e.rest=.22;e.hurt=HIT_TIME;e.state='stagger';}
+  if(sword){e.poise=this.time-(e.swordAt??-Infinity)<POISE_GAP?(e.poise||0)+1:1;e.swordAt=this.time;}
+  const shrugs=sword&&e.poise>POISE_HITS;
+  if(sword&&(charging||e.tough&&e.state==='windup'||shrugs)){e.brace=.15;if(this.bannerTime<=0){this.banner=charging?'IT WON\'T FLINCH · JUMP THE CHARGE':shrugs&&!(e.tough&&e.state==='windup')?'IT SHRUGS OFF THE BLADE · DODGE, THEN STRIKE':'IT BRACES · STEP BACK, STRIKE AFTER THE SLAM';this.bannerTime=1.8;}}else{e.slide=(e.slide||0)+push*SLIDE;e.wind=0;e.rest=.22;e.hurt=HIT_TIME;e.state='stagger';}
   this.texts.push({x:e.x,y:e.y-55,text:String(amount),life:.7});this.impacts.push({x:e.x,y:e.y-25,amount,life:.25,knockout:e.hp<=0});
   for(let i=0;i<7;i++)this.particles.push({x:e.x,y:e.y-22,vx:Math.cos(i*2.4)*90,vy:-40-i*12,life:.4});}
  removeDead(){if(this.enemies.some(e=>e.hp<=0))this.emit('enemy_death');for(const e of this.enemies)if(e.hp<=0){
@@ -386,7 +395,7 @@ export class World{
   if(this.pendingSlotCard!==null&&this.cast<=0){const slot=this.deck.hand.indexOf(this.pendingSlotCard);this.pendingSlotCard=null;if(slot>=0)this.play(slot);}
   if(input.play)this.play();
   else if(input.cardSlot!==undefined)this.useSlot(input.cardSlot);
-  else if(input.replace!==undefined)this.deck.replace(input.replace);
+  else if(input.replace!==undefined){if(this.deck.replace(input.replace))this.releaseDraw();}
   this.coyote=this.grounded?.12:Math.max(0,this.coyote-dt);this.tryJump();
   const oldX=this.x,oldY=this.y,wasGround=this.grounded;this.x=clamp(this.x+this.vx*dt,12,this.width-12);this.updateGates(dt);
   if(!this.dash)this.vy+=1300*dt;this.y+=this.vy*dt;this.grounded=false;this.surface=-1;
@@ -407,7 +416,7 @@ export class World{
   if(!this.practice&&this.health<5&&this.bannerTime<=0&&!this.hinted.has('heal')&&this.deck.selectedPlay.heal){this.hinted.add('heal');this.banner='HEARTS MEND · PLAY THIS HAND TO HEAL';this.bannerTime=3.2;}
   for(const b of this.bolts){let old=b.x;b.x+=b.dir*680*dt;b.life-=dt;if(this.wall&&b.x>this.wall.x-8){b.life=0;continue}cutBossHazards(this,b,old);for(const e of this.enemies){const box=e.boss&&bossBox(e),lo=Math.min(old,b.x),hi=Math.max(old,b.x),reach=b.tier>=5?65:30;
    const miss=box?hi+6<box.x0||lo-6>box.x1||b.y<box.y0-reach/2||b.y>box.y1+4:e.x<lo-22||e.x>hi+22||Math.abs(e.y-23-b.y)>reach;
-   if(miss||b.hit.has(e.id))continue;b.hit.add(e.id);if(b.tier===2)this.blast(e.x,e.y-22,100,b.damage,false,b.impact);else{if(this.damage(e,b.damage,b.dir*(30+b.tier*5))!==false&&b.impact?.knock)this.knockBack(e,b.dir);this.pokerImpact(b.impact,e.hp<=0)}if(b.tier<3&&!b.impact?.pierce){b.life=0;break}}}
+   if(miss||b.hit.has(e.id))continue;b.hit.add(e.id);if(b.tier===2)this.blast(e.x,e.y-22,100,b.damage,false,b.impact,b.blasted??=new Set());else{if(this.damage(e,b.damage,b.dir*(30+b.tier*5))!==false&&b.impact?.knock)this.knockBack(e,b.dir);this.pokerImpact(b.impact,e.hp<=0)}if(b.tier<3&&!b.impact?.pierce){b.life=0;break}}}
   this.bolts=this.bolts.filter(b=>b.life>0);this.removeDead();
   for(const r of this.impacts)r.life-=dt;this.impacts=this.impacts.filter(r=>r.life>0);
   for(const r of this.corpses){r.life-=dt;if(r.y<r.floor)r.y=Math.min(r.floor,r.y+500*dt);}this.corpses=this.corpses.filter(r=>r.life>0);

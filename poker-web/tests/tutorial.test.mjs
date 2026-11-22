@@ -5,6 +5,7 @@ import {StoryWorld,loadStory,saveStory} from '../story.mjs';
 const opening=()=>{
  const w=new StoryWorld(()=>.4);
  w.reset(0,{phase:'trail',seen:['prologue','stranger']});
+ w.hinted.add('sword');
  return w;
 };
 const tick=(w,frames,input={})=>{for(let i=0;i<frames;i++)w.step(1/60,input);};
@@ -67,4 +68,13 @@ test('opening lesson follows checkpoints and is hidden outside active opening pl
  const fresh=new StoryWorld();assert.equal(fresh.tutorialHint,null,'wait for the stranger scene');
  const practice=opening();practice.practice=true;assert.equal(practice.tutorialHint,null);
  const later=new StoryWorld();later.reset(1,{phase:'trail',seen:['prologue','stranger','pip']});assert.equal(later.tutorialHint,null);
+});
+
+test('after the card lesson the sword lesson shows until a swing lands',()=>{
+ const w=opening();w.hinted.delete('sword');
+ assert.equal(w.tutorialHint.id,'jacks-cycle','the card lesson comes first');
+ w.gates[0].open=true;
+ assert.equal(w.tutorialHint.id,'sword');assert.equal(w.tutorialHint.action,'sword');
+ w.enemies=[];w.spawn(w.x+40,0);w.enemies[0].hp=99;w.facing=1;w.sword();tick(w,8);
+ assert.ok(w.hinted.has('sword'));assert.equal(w.tutorialHint,null);
 });

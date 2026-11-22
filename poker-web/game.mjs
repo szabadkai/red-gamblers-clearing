@@ -180,7 +180,7 @@ window.addEventListener('keydown',e=>{
  }
  if(e.target.closest('button,summary,a')&&['Enter','Space'].includes(e.code))return;
  if(e.target.matches('select,input')||!controls.includes(e.code))return;e.preventDefault();if(e.repeat)return;
- if(e.code==='KeyP'||e.code==='Escape'){pause();return}if(e.code==='KeyR'){if(started&&world.mode==='playing')reset();return}if(!started||world.mode!=='playing')return;if(e.code==='KeyC'){openCardSelection();return;}press(e.code)});
+ if(e.code==='KeyP'||e.code==='Escape'){pause();return}if(e.code==='KeyR'){if(started&&world.mode==='playing'){pause();$('restart').click();}return}if(!started||world.mode!=='playing')return;if(e.code==='KeyC'){openCardSelection();return;}press(e.code)});
 window.addEventListener('keyup',e=>{if(!$('overlay').hidden)return;if(e.code==='Escape'){skipStarted=null;skipHeld=0;}if(controls.includes(e.code)){if(!e.target.closest('button,summary,a'))e.preventDefault();release(e.code)}});
 window.addEventListener('blur',()=>{clearInput();if(started&&world.mode==='playing'){world.mode='paused';updateUI(true)}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();if(started&&world.mode==='playing'){world.mode='paused';updateUI(true)}}});
@@ -342,7 +342,7 @@ function updateCardControls(){
  $('collect-card').textContent=inputDevice==='gamepad'?'Collect card · D-pad Up':inputDevice==='touch'?'Collect card':'Collect card · E';
  const tutorial=started?world.tutorialHint:null;$('tutorial-hint').hidden=!tutorial;
  if(tutorial){
-  const action=tutorial.action==='cycle'?(inputDevice==='gamepad'?'LB':inputDevice==='touch'?'Cycle':'Q'):(inputDevice==='gamepad'?'Y':inputDevice==='touch'?'Play':'K');
+  const action={cycle:['LB','Cycle','Q'],play:['Y','Play','K'],sword:['X','Sword','J']}[tutorial.action][inputDevice==='gamepad'?0:inputDevice==='touch'?1:2];
   $('tutorial-hint').querySelector('strong').textContent=`${action}: ${tutorial.text}`;
   $('tutorial-hint').querySelector('span').textContent=tutorial.detail;
  }
@@ -592,9 +592,9 @@ function updateUI(force=false){
  $('combo').textContent=r.tier===1?`Pair of ${['twos','threes','fours','fives','sixes','sevens','eights','nines','tens','jacks','queens','kings','aces'][rank]}`:r.name;
  $('effect').textContent=r.tier<0?'Land sword hits to refill':`${EFFECTS[r.tier]} · ${r.damage} damage`;const fl=flavourText({...r,suits:r.suits.filter(s=>s<3||world.health<5)});$('flavour').textContent=fl;$('flavour').hidden=!fl;
  $('play').disabled=!started||world.mode!=='playing'||world.dying>0||!deck.hand.length;
- $('draw-label').textContent=world.deck.banked?'Saved: '+cardName(world.deck.reserve):`Sword hits ${world.deck.hits} / 3`;
+ $('draw-label').textContent=world.deck.banked?'Saved: '+cardName(world.deck.reserve)+(world.deck.hits>=3?' · meter full':''):`Sword hits ${world.deck.hits} / 3`;
  $('deck-count').textContent=`${world.deck.pile.length} in deck · ${world.deck.discard.length} spent${world.cardDrops.length?' · '+world.cardDrops.length+' dropped':''}`;
- [...$('pips').children].forEach((p,i)=>p.classList.toggle('lit',world.deck.banked||i<world.deck.hits));
+ [...$('pips').children].forEach((p,i)=>p.classList.toggle('lit',i<world.deck.hits));
  const sig=deck.hand.join(',')+':'+deck.reserve+':'+deck.playIndex;if(sig!==lastHand||force){lastHand=sig;
   const spent=r.indices.map(i=>cardName(deck.hand[i])).join(', ');
   const description=spent?`${r.name}, ${r.damage} damage. Spend ${spent}. ${flavourText(r)}`:'Empty hand';
@@ -627,7 +627,7 @@ function updateUI(force=false){
  }
  const focused=document.activeElement;
  const inspected=focused?.matches('#hand .card:not(.out)')?focused:cards.get(hover);
- let drawHelp='Three landed swings drop one card.';
+ let drawHelp=`${inputDevice==='gamepad'?'X':inputDevice==='touch'?'Sword':'J'}: three landed swings drop one card.`;
  if(inspected)drawHelp=inspected.title;
  else if(world.deck.banked)drawHelp=inputDevice==='gamepad'?'LT: inspect cards, then A to replace with your saved draw.':inputDevice==='touch'?'Tap a card to replace it with your saved draw.':'1–5 or click: replace a card with your saved draw.';
  else if(world.cardDrops.length)drawHelp=inputDevice==='gamepad'?'D-pad Up near a drop: collect and choose.':inputDevice==='touch'?'Tap Collect near a drop to choose.':'Press E near a drop, or Collect, to choose.';

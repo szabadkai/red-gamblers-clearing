@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {World} from '../model.mjs';
+import {World,POISE_HITS,POISE_GAP,SPLIT_PAIRS,DAMAGE} from '../model.mjs';
 import {updateEnemies,nextTransfer} from '../enemies.mjs';
 const tick=(w,n)=>{for(let i=0;i<n;i++)updateEnemies(w,1/60)};
 test('scouts patrol outside awareness and chase nearby players',()=>{
@@ -160,4 +160,18 @@ test('a bear at half health roars once, then walks faster and slams sooner',()=>
  const from=e.x;tick(w,30);assert.ok(Math.abs(e.x-from)>slow*1.4);
  w.x=e.x-60;let n=0;while(e.state!=='windup'&&n++<60)tick(w,1);assert.ok(e.wind<.5);
  e.hp=1;e.rest=0;e.state='chase';tick(w,1);assert.notEqual(e.state,'roar');
+});
+test('a foe staggers from three sword hits in a row, then keeps winding up until the blade lets up',()=>{
+ const w=new World();w.practiceDeal(0);w.enemies=[];w.spawn(240,0);const e=w.enemies[0];e.hp=99;
+ for(let i=0;i<POISE_HITS;i++){w.damage(e,1,0,true);assert.equal(e.state,'stagger');}
+ e.state='windup';e.wind=.3;e.rest=0;w.damage(e,1,0,true);
+ assert.equal(e.state,'windup');assert.equal(e.wind,.3);assert.ok(e.brace>0);
+ w.time+=POISE_GAP;w.damage(e,1,0,true);assert.equal(e.state,'stagger');
+});
+test('a piercing two pair blasts each foe once',()=>{
+ const w=new World();w.practiceDeal(0);w.enemies=[];for(const x of [200,260,320,380])w.spawn(x,0);
+ for(const e of w.enemies){e.hp=500;e.rest=9;}w.x=120;w.y=420;w.facing=1;w.deck.hand=[...SPLIT_PAIRS];
+ assert.equal(w.deck.selectedPlay.tier,2);assert.ok(w.play());for(let i=0;i<90;i++)w.step(1/60,{});
+ for(const e of w.enemies)assert.ok(500-e.hp<=DAMAGE[2],`foe at ${Math.round(e.x)} took ${500-e.hp}`);
+ assert.ok(w.enemies.every(e=>e.hp<500),'the spade carries the shot through the line');
 });

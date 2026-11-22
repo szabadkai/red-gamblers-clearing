@@ -54,3 +54,10 @@ test('every kill drops a card, and a kill that fills the meter drops only that o
  v.enemies[0].x=220;v.sword();step(v,20);
  assert.equal(v.enemies.length,0);assert.equal(v.cardDrops.length,1);assert.equal(v.deck.hits,0);
 });
+test('sword hits with a saved draw fill the meter, and replacing the saved card drops the earned draw',()=>{
+ const w=new World();w.practiceDeal(0);w.enemies=[];const d=w.deck;
+ d.hit();d.hit();const first=d.hit();d.choose(first.id,0);assert.equal(d.banked,true);
+ for(let i=0;i<3;i++)assert.equal(d.hit(),null);assert.equal(d.hits,3);
+ const drops=w.cardDrops.length;assert.ok(w.useSlot(0));
+ assert.equal(d.banked,false);assert.equal(d.hits,0);assert.equal(w.cardDrops.length,drops+1);
+});
