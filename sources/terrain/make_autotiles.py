@@ -126,6 +126,12 @@ def make(material,mask,v):
                 if not ((top and (y<4 or leaf)) or (bottom and y>=13) or
                         (left and x<3) or (right and x>=13)):
                     im.putpixel((x,y),AIR)
+    elif material in ('house','cave','chapel'):
+        # environment.mjs paints stage-foundations over these and the trim
+        # rows redraw the rim, so only the silhouette reaches the screen.
+        flat = Image.new('RGBA',im.size,face)
+        flat.putalpha(im.getchannel('A'))
+        return flat
     return im
 
 atlas=Image.new('RGBA',(16*T,len(MATERIALS)*4*T))

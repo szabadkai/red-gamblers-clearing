@@ -69,6 +69,7 @@ function splitAt(parts, contacts) {
 }
 
 export function surfaceTiles(r, neighbors = [], material = r.material) {
+  if (!materials.includes(material)) throw new Error(`unknown autotile material: ${material}`);
   const group = terrainGroup(r);
   const touching = neighbors.filter(q => q !== r && terrainGroup(q) === group &&
     q.x <= r.x+r.w && q.x+q.w >= r.x && q.y <= r.y+r.h && q.y+q.h >= r.y);

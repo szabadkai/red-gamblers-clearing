@@ -11,6 +11,7 @@ test('cardinal neighbors select the four corners, edges, center and isolated til
   const tiles = surfaceTiles(rect(0,0,48,48));
   assert.deepEqual(tiles.map(mask),[6,14,12,7,15,13,3,11,9]);
   assert.equal(mask(surfaceTiles(rect(0,0,16,16))[0]),0);
+  assert.throws(() => surfaceTiles(rect(0,0,16,16,'stone')), /unknown autotile material/);
 });
 
 test('adjoining and overlapping runs join only compatible surfaces', () => {
