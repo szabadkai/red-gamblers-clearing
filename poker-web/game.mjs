@@ -10,7 +10,8 @@ import {STORY_IMAGES,drawStoryActor,drawStorySet,drawStoryPortrait,bedCover} fro
 import {CHAPEL_COCOON,drawHazardArt} from './arena-art.mjs';
 import {installLocalTools} from './runtime.mjs';
 import {createMenu} from './menu.mjs';
-import {loadSettings,bindSettings} from './settings.mjs';
+import {loadSettings,bindSettings,bindKeyboard} from './settings.mjs';
+import {ACTIONS,createControls,keyName,LAYOUTS,PAD_BUTTONS,SLOT_KEYS} from './input.mjs';
 import {createMusic,tuneFor,BOSS_TUNES} from './music.mjs';
 import {prepareScenery,drawBackdrop,drawLandmarks,drawTrailGate,drawGates,drawGateGuide,drawForeground} from './scenery.mjs';
 import {PLAYER_CLIPS,playerClip,playerFrame} from './animation.mjs';
@@ -28,7 +29,7 @@ const images=new Map(),cards=new Map();
 const storage={getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)};
 // Advice already shown stays shown across visits; a new journey shows it again.
 let hintCount=0;try{for(const key of JSON.parse(storage.getItem('red.poker.hints')||'[]'))world.hinted.add(key);hintCount=world.hinted.size}catch{}
-const settings=loadSettings(storage),deviceMotion=matchMedia('(prefers-reduced-motion: reduce)');
+const controls=createControls(storage),settings=loadSettings(storage),deviceMotion=matchMedia('(prefers-reduced-motion: reduce)');
 const menu=createMenu(()=>{if(started&&world.mode==='paused')pause()});
 let checkpointSaved=true;
 let savedJourney=loadStory(storage),persistedCompletion=false,lastStoryRevision=-1,lastSceneLine="",skipHeld=0,skipStarted=null,replayHints=null;
@@ -109,7 +110,7 @@ function syncMusic(){
  music.play(silent?'':tuneFor(world),world.storyPhase==='cleared'?'victory':'');if(started)music.preload(BOSS_TUNES[world.stageIndex]);
 }
 function focusGame(){if(started&&world.mode==='playing')$('stage').focus({preventScroll:true})}
-function clearInput(){skipStarted=null;skipHeld=0;keys.clear();edges.clear();releaseJump=false;accumulator=0}
+function clearInput(){skipStarted=null;skipHeld=0;keys.clear();edges.clear();heldCodes.clear();releaseJump=false;accumulator=0}
 function enterWorld(){lastAnim='';lastHand='';formClock=0;cam=0;cameraSnap=true;cardPositions.clear();departing.length=0;clearInput();started=true;persistedCompletion=false;$('overlay').hidden=true;updateUI(true);focusGame()}
 function persistJourney(){
  if(world.practice||world.replay)return;
@@ -131,57 +132,71 @@ function returnToTitle(){
  $('overlay').hidden=false;$('loading').textContent='';
  titleMenu();menu.home();updateUI(true);
 }
-function press(code){if(keys.has(code))return;keys.add(code);edges.add(code)}
-function release(code){keys.delete(code);if(code==='Space')releaseJump=true}
-const controls=['KeyA','KeyD','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight','KeyJ','KeyK','KeyQ','KeyS','ArrowDown','Enter','KeyE','KeyC','KeyP','Escape','KeyR','Digit1','Digit2','Digit3','Digit4','Digit5'];
+// Held actions from every device. A key remembers the action it pressed, so a rebind mid-hold still releases it.
+const heldCodes=new Map();
+function press(action){if(keys.has(action))return;keys.add(action);edges.add(action)}
+function release(action){keys.delete(action);if(action==='jump')releaseJump=true}
+const inControl=e=>e.target instanceof Element&&e.target.closest('button,summary,a');
+// Choice screens take the same commands from the keyboard and the gamepad.
+const MODALS={
+ cards:{buttons:['slot-prev','slot-next','slot-confirm','slot-cancel'],prev:()=>world.moveCardSelection(-1),next:()=>world.moveCardSelection(1),confirm:()=>finishCardSelection(true),cancel:()=>finishCardSelection(false)},
+ lantern:{buttons:['lantern-keep','lantern-deal'],prev:()=>$('lantern-keep').focus(),next:()=>$('lantern-deal').focus(),confirm:()=>finishLantern(true),choose:i=>finishLantern(i===0)},
+ cutscene:{buttons:['dialogue-next','dialogue-skip'],confirm:()=>finishDialogue(false),cancel:()=>finishDialogue(true)},
+ drafting:{buttons:['draft-left','draft-right','draft-skip'],prev:()=>$('draft-left').focus(),next:()=>$('draft-right').focus(),confirm:()=>finishDraft(0),cancel:()=>finishDraft(null),choose:i=>finishDraft(i)}
+};
+const inModal=()=>world.mode==='cards'||started&&$('overlay').hidden&&!!MODALS[world.mode];
+function modalCommand(command,arg){
+ const modal=MODALS[world.mode];if(!modal)return;
+ const buttons=modal.buttons.map($),i=buttons.indexOf(document.activeElement);
+ if(command==='confirm'){if(i>=0)buttons[i].click();else modal.confirm();}
+ else if(command==='tab')buttons[(i+(arg?buttons.length-1:1)+buttons.length)%buttons.length].focus();
+ else modal[command]?.(arg);
+}
+function keyCommand(e,action){
+ const code=e.code,slot=SLOT_KEYS.indexOf(code);
+ if(code==='Tab')return ['tab',e.shiftKey];
+ if(code==='ArrowLeft'||action==='left')return ['prev'];
+ if(code==='ArrowRight'||action==='right')return ['next'];
+ if(code==='Enter'||code==='Space'||action==='interact')return ['confirm'];
+ // Escape holds to skip a scene (see the frame loop); elsewhere it backs out, as does the pause key.
+ if(world.mode!=='cutscene'&&(action==='pause'||world.mode==='cards'&&action==='cards'))return ['cancel'];
+ if(slot===0||slot===1)return ['choose',slot];
+ return null;
+}
+const layoutBanner=()=>`${LAYOUTS[controls.layout].name.toUpperCase()} · ${controls.label('jump')} JUMP · ${controls.label('sword')} SWORD · ${controls.label('play')} PLAY`;
 window.addEventListener('keydown',e=>{
  inputDevice='keyboard';
- if(world.mode==='cards'){
-  if(e.code==='Tab'){e.preventDefault();const buttons=[$('slot-prev'),$('slot-next'),$('slot-confirm'),$('slot-cancel')],i=buttons.indexOf(document.activeElement);buttons[(i+(e.shiftKey?3:1)+4)%4].focus();return;}
-  if(e.code==='Escape'||e.code==='KeyC'){e.preventDefault();finishCardSelection(false);return;}
-  if(e.code==='ArrowLeft'||e.code==='KeyA'){e.preventDefault();if(!e.repeat)world.moveCardSelection(-1);return;}
-  if(e.code==='ArrowRight'||e.code==='KeyD'){e.preventDefault();if(!e.repeat)world.moveCardSelection(1);return;}
-  if((e.code==='Enter'||e.code==='Space')&&!e.target.closest('button')){e.preventDefault();if(!e.repeat)finishCardSelection(true);return;}
-  if(controls.includes(e.code)&&!['Enter','Space'].includes(e.code))e.preventDefault();
+ let action=controls.action(e.code);
+ if(inModal()){
+  if(world.mode==='cutscene'&&e.code==='Escape'){e.preventDefault();if(!e.repeat){skipStarted=performance.now();skipHeld=0;}return;}
+  const command=keyCommand(e,action);
+  if(command||action)e.preventDefault();
+  if(command&&!e.repeat)modalCommand(...command);
   return;
  }
  if(!$('overlay').hidden){
-  if(!e.repeat&&e.code==='KeyR'&&started&&!$('menu-home').hidden){
+  if(!e.repeat&&action==='retry'&&started&&!$('menu-home').hidden){
    if(world.mode==='dead')reset();else if(world.mode==='paused')$('restart').click();
-  }else menu.key(e);
+  }else menu.key(e,action);
   return;
  }
- if(started&&world.mode==='lantern'){
-  const keep=$('lantern-keep'),deal=$('lantern-deal');
-  if(!['Tab','ArrowLeft','ArrowRight','Digit1','Digit2','Enter','Space'].includes(e.code))return;
-  e.preventDefault();if(e.repeat)return;
-  if(e.code==='Digit1'||e.code==='Digit2')finishLantern(e.code==='Digit1');
-  else if(e.code==='Enter'||e.code==='Space')finishLantern(document.activeElement!==deal);
-  else if(e.code==='ArrowLeft')keep.focus();
-  else if(e.code==='ArrowRight')deal.focus();
-  else (document.activeElement===keep?deal:keep).focus();
-  return;
- }
- if(started&&world.mode==='cutscene'){
-  if(['Enter','Space','KeyE','Escape','Tab'].includes(e.code))e.preventDefault();
-  if(e.repeat)return;
-  if(['Enter','Space','KeyE'].includes(e.code))finishDialogue(e.target.id==='dialogue-skip');
-  else if(e.code==='Escape'){skipStarted=performance.now();skipHeld=0;}
-  else if(e.code==='Tab'){const buttons=[$('dialogue-next'),$('dialogue-skip')];buttons[document.activeElement===buttons[0]?1:0].focus();}
-  return;
- }
- if(world.mode==='drafting'){
-  if(e.repeat){e.preventDefault();return;}
-  if(e.code==='Digit1'||e.code==='Digit2'){e.preventDefault();finishDraft(Number(e.code.slice(-1))-1)}
-  else if(e.code==='Escape'||e.code==='KeyP'){e.preventDefault();finishDraft(null)}
-  else if(e.code==='Tab'){e.preventDefault();const buttons=[$('draft-left'),$('draft-right'),$('draft-skip')],i=buttons.indexOf(document.activeElement);buttons[(i+(e.shiftKey?2:1)+3)%3].focus()}
-  else if(controls.includes(e.code)&&!['Enter','Space'].includes(e.code))e.preventDefault();
-  return;
- }
- if(e.target.closest('button,summary,a')&&['Enter','Space'].includes(e.code))return;
- if(e.target.matches('select,input')||!controls.includes(e.code))return;e.preventDefault();if(e.repeat)return;
- if(e.code==='KeyP'||e.code==='Escape'){pause();return}if(e.code==='KeyR'){if(started&&world.mode==='playing'){pause();$('restart').click();}return}if(!started||world.mode!=='playing')return;if(e.code==='KeyC'){openCardSelection();return;}press(e.code)});
-window.addEventListener('keyup',e=>{if(!$('overlay').hidden)return;if(e.code==='Escape'){skipStarted=null;skipHeld=0;}if(controls.includes(e.code)){if(!e.target.closest('button,summary,a'))e.preventDefault();release(e.code)}});
+ if(inControl(e)&&['Enter','Space'].includes(e.code))return;
+ if(e.target instanceof Element&&e.target.matches('select,input'))return;
+ if(!action&&started&&world.mode==='playing'&&controls.notice(e.code)){action=controls.action(e.code);world.banner=layoutBanner();world.bannerTime=3;}
+ if(!action)return;
+ e.preventDefault();if(e.repeat)return;
+ if(action==='pause'){pause();return}
+ if(action==='retry'){if(started&&world.mode==='playing'){pause();$('restart').click();}return}
+ if(!started||world.mode!=='playing')return;
+ if(action==='cards'){openCardSelection();return;}
+ heldCodes.set(e.code,action);press(action);
+});
+window.addEventListener('keyup',e=>{
+ if(e.code==='Escape'){skipStarted=null;skipHeld=0;}
+ const action=heldCodes.get(e.code);if(!action)return;
+ heldCodes.delete(e.code);if(!inControl(e))e.preventDefault();
+ if(![...heldCodes.values()].includes(action))release(action);
+});
 window.addEventListener('blur',()=>{clearInput();if(started&&world.mode==='playing'){world.mode='paused';updateUI(true)}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();if(started&&world.mode==='playing'){world.mode='paused';updateUI(true)}}});
 function newJourney() {
@@ -223,6 +238,15 @@ function applySettings(){
  music.setLevels(settings.sound?settings.music/100:0,settings.sound?settings.effects/100:0);
 }
 bindSettings(settings,storage,applySettings);
+bindKeyboard(controls,ACTIONS,keyName);
+// Key names written into the page: the field guide, the screen-reader description and the shortcut hints.
+function showKeys(){
+ const k=id=>controls.label(id);
+ for(const el of document.querySelectorAll('[data-key]'))el.textContent=k(el.dataset.key);
+ $('stage').setAttribute('aria-label',`Platforming game. ${k('left')} and ${k('right')} move, ${k('jump')} jumps, ${k('dash')} dashes, ${k('down')} drops through ledges, ${k('sword')} attacks, ${k('cycle')} cycles scoring combinations and ${k('play')} plays the highlighted cards. Keys 1 to 5 throw a single card or replace it with your saved draw. ${k('interact')} collects nearby drops or interacts with challenge markers. ${k('cards')} opens the paused card inspector.`);
+ $('pause').setAttribute('aria-keyshortcuts',`${k('pause')} Escape`);$('cycle').setAttribute('aria-keyshortcuts',k('cycle'));$('inspect-cards').setAttribute('aria-keyshortcuts',k('cards'));
+}
+controls.onChange(showKeys);showKeys();
 deviceMotion.addEventListener('change',applySettings);
 $('effects-level').addEventListener('change',()=>sound('pickup_essence'));
 $('sound').addEventListener('change',()=>sound('pickup_essence'));
@@ -243,49 +267,39 @@ function steer(e){
  if(d>r){origin.x+=dx*(1-r/d);origin.y+=dy*(1-r/d);dx*=r/d;dy*=r/d;placeStick();}
  knob.style.transform=`translate(${dx}px,${dy}px)`;
  const dead=r*.3,down=dy>r*.6&&dy>Math.abs(dx);
- dx<-dead?touchDown('KeyA'):touchUp('KeyA');dx>dead?touchDown('KeyD'):touchUp('KeyD');down?touchDown('KeyS'):touchUp('KeyS');
+ dx<-dead?touchDown('left'):touchUp('left');dx>dead?touchDown('right'):touchUp('right');down?touchDown('down'):touchUp('down');
 }
 zone.onpointerdown=e=>{if(stickId!==null)return;e.preventDefault();zone.setPointerCapture(e.pointerId);stickId=e.pointerId;origin={x:e.clientX,y:e.clientY};placeStick();stick.classList.add('active');steer(e)};
 zone.onpointermove=e=>{if(e.pointerId===stickId)steer(e)};
-zone.onpointerup=zone.onpointercancel=zone.onlostpointercapture=e=>{if(e.pointerId!==stickId)return;stickId=null;for(const code of ['KeyA','KeyD','KeyS'])touchUp(code);stick.classList.remove('active');stick.style.left=stick.style.top='';knob.style.transform='';};
+zone.onpointerup=zone.onpointercancel=zone.onlostpointercapture=e=>{if(e.pointerId!==stickId)return;stickId=null;for(const code of ['left','right','down'])touchUp(code);stick.classList.remove('active');stick.style.left=stick.style.top='';knob.style.transform='';};
 zone.oncontextmenu=e=>e.preventDefault();
 // Devices that report a fine pointer but get touched still get the controls.
 window.addEventListener('touchstart',()=>{inputDevice='touch';document.body.classList.add('touch-seen')},{passive:true});
-function holdTouch(){if(started&&world.mode==='playing')for(const code of ['KeyA','KeyD','KeyJ'])if(touchHeld.has(code))keys.add(code);}
-// Gamepad (standard mapping): stick or d-pad moves, A jumps, X swings, Y plays the hand, B/RB/RT dash, Start pauses.
-const PAD_BUTTONS={0:'Space',1:'ShiftLeft',2:'KeyJ',3:'KeyK',4:'KeyQ',5:'ShiftLeft',6:'KeyC',7:'ShiftLeft',9:'KeyP',12:'MenuUp',13:'KeyS',14:'KeyA',15:'KeyD'};
-const padHeld=new Set();
-function padDown(code){
+function holdTouch(){if(started&&world.mode==='playing')for(const code of ['left','right','sword'])if(touchHeld.has(code))keys.add(code);}
+// Gamepad (standard mapping, see PAD_BUTTONS): stick or d-pad moves, A jumps, X swings, Y plays the hand, B/RB/RT dash, Start pauses.
+const padHeld=new Set(),PAD_CANCEL={cards:['dash','cards','pause'],cutscene:['pause'],drafting:['dash']};
+function padDown(action){
  inputDevice='gamepad';
- if(world.mode==='cards'){
-  if(code==='KeyA'||code==='KeyD')world.moveCardSelection(code==='KeyA'?-1:1);
-  else if(code==='Space')finishCardSelection(true);
-  else if(code==='ShiftLeft'||code==='KeyC'||code==='KeyP')finishCardSelection(false);
+ if(inModal()){
+  const command={left:'prev',right:'next',jump:'confirm'}[action]??(PAD_CANCEL[world.mode]?.includes(action)?'cancel':null);
+  if(command)modalCommand(command);
   return;
  }
- if(!$('overlay').hidden){menu.pad(code);return;}
+ if(!$('overlay').hidden){menu.pad(action);return;}
  if(!loaded||!started)return;
- if(world.mode==='cutscene'){if(code==='Space')finishDialogue(false);else if(code==='KeyP')finishDialogue(true);return;}
- if(world.mode==='lantern'){
-  if(code==='KeyA')$('lantern-keep').focus();
-  else if(code==='KeyD')$('lantern-deal').focus();
-  else if(code==='Space')finishLantern(document.activeElement!==$('lantern-deal'));
-  return;
- }
- if(world.mode==='drafting'){if(code==='KeyA')$('draft-left').focus();else if(code==='KeyD')$('draft-right').focus();else if(code==='Space')finishDraft(document.activeElement===$('draft-right')?1:0);else if(code==='ShiftLeft')finishDraft(null);return;}
- if(code==='KeyP')pause();else if(world.mode==='playing'){if(code==='KeyC')openCardSelection();else press(code==='MenuUp'?'KeyE':code);}
+ if(action==='pause')pause();else if(world.mode==='playing'){if(action==='cards')openCardSelection();else press(action==='up'?'interact':action);}
 }
 function pollGamepad(){
  const pad=[...(navigator.getGamepads?.()||[])].find(p=>p?.connected),now=new Set();
  if(pad){
-  for(const [i,code] of Object.entries(PAD_BUTTONS))if(pad.buttons[i]?.pressed)now.add(code);
-  const [x=0,y=0]=pad.axes;if(x<-.4)now.add('KeyA');if(x>.4)now.add('KeyD');if(y>.7)now.add('KeyS');if(y<-.7)now.add('MenuUp');
+  for(const [i,action] of Object.entries(PAD_BUTTONS))if(pad.buttons[i]?.pressed)now.add(action);
+  const [x=0,y=0]=pad.axes;if(x<-.4)now.add('left');if(x>.4)now.add('right');if(y>.7)now.add('down');if(y<-.7)now.add('up');
  }
- for(const code of now)if(!padHeld.has(code))padDown(code);
- for(const code of padHeld)if(!now.has(code))release(code==='MenuUp'?'KeyE':code);
- padHeld.clear();for(const code of now)padHeld.add(code);
+ for(const action of now)if(!padHeld.has(action))padDown(action);
+ for(const action of padHeld)if(!now.has(action))release(action==='up'?'interact':action);
+ padHeld.clear();for(const action of now)padHeld.add(action);
  // Held directions and the sword survive a pause or scene that cleared the keyboard state.
- if(started&&world.mode==='playing')for(const code of ['KeyA','KeyD','KeyJ'])if(now.has(code))keys.add(code);
+ if(started&&world.mode==='playing')for(const action of ['left','right','sword'])if(now.has(action))keys.add(action);
 }
 function finishDraft(index){
  if(world.mode!=='drafting')return;
@@ -325,25 +339,26 @@ function drawCardFace(canvas,id){
 }
 function openCardSelection(){if(world.openCardSelection()){clearInput();lastSlotView='';updateUI(true);$('slot-confirm').focus()}}
 function finishCardSelection(confirm){if(world.mode!=='cards')return;world.finishCardSelection(confirm);clearInput();updateUI(true);focusGame();}
+// Key names for the current device: K follows touch too, B labels buttons that show a key or gamepad button.
+const K=id=>controls.label(id,inputDevice),B=id=>controls.label(id,inputDevice==='gamepad'?'gamepad':'keyboard');
 function updateCardControls(){
  const selecting=started&&world.mode==='cards';$('card-select').hidden=!selecting;
  $('inspect-cards').disabled=!started||world.mode!=='playing'||!world.deck.hand.length||world.dying>0;
- $('inspect-cards').querySelector('kbd').textContent=inputDevice==='gamepad'?'LT':'C';
- $('play').querySelector('kbd').textContent=inputDevice==='gamepad'?'Y':'K';$('cycle').querySelector('kbd').textContent=inputDevice==='gamepad'?'LB':'Q';
+ $('inspect-cards').querySelector('kbd').textContent=B('cards');
+ $('play').querySelector('kbd').textContent=B('play');$('cycle').querySelector('kbd').textContent=B('cycle');$('pause').querySelector('kbd').textContent=B('pause');
  const near=started&&world.nearbyCardDrop;$('collect-card').hidden=!near;
  const challenge=started&&world.mode==='playing'&&!near&&!world.tutorialHint?challengeHint(world):null;
  $('chapter-challenge').hidden=!challenge;
  $('challenge-hint').setAttribute('aria-live',world.stageIndex===4&&world.challenge?.index===1?'off':'polite');
  if($('challenge-hint').textContent!==(challenge?.text||''))$('challenge-hint').textContent=challenge?.text||'';
  $('challenge-interact').hidden=!challenge?.canInteract;
- $('challenge-interact').textContent=inputDevice==='gamepad'?'Interact · D-pad Up':inputDevice==='touch'?'Interact':'Interact · E';
+ $('challenge-interact').textContent=inputDevice==='touch'?'Interact':'Interact · '+B('interact');
  $('draft-help').textContent=inputDevice==='gamepad'?'Left / Right select · A choose · B leave':'1 / 2 choose · Esc leave';
  $('draft-skip').textContent=inputDevice==='gamepad'?'Leave it · B':'Leave it · Esc';
- $('collect-card').textContent=inputDevice==='gamepad'?'Collect card · D-pad Up':inputDevice==='touch'?'Collect card':'Collect card · E';
+ $('collect-card').textContent=inputDevice==='touch'?'Collect card':'Collect card · '+B('interact');
  const tutorial=started?world.tutorialHint:null;$('tutorial-hint').hidden=!tutorial;
  if(tutorial){
-  const action={cycle:['LB','Cycle','Q'],play:['Y','Play','K'],sword:['X','Sword','J']}[tutorial.action][inputDevice==='gamepad'?0:inputDevice==='touch'?1:2];
-  $('tutorial-hint').querySelector('strong').textContent=`${action}: ${tutorial.text}`;
+  $('tutorial-hint').querySelector('strong').textContent=`${K(tutorial.action)}: ${tutorial.text}`;
   $('tutorial-hint').querySelector('span').textContent=tutorial.detail;
  }
  const reserve=world.deck.reserve;$('saved-card').hidden=reserve===null;
@@ -627,11 +642,11 @@ function updateUI(force=false){
  }
  const focused=document.activeElement;
  const inspected=focused?.matches('#hand .card:not(.out)')?focused:cards.get(hover);
- let drawHelp=`${inputDevice==='gamepad'?'X':inputDevice==='touch'?'Sword':'J'}: three landed swings drop one card.`;
+ let drawHelp=`${K('sword')}: three landed swings drop one card.`;
  if(inspected)drawHelp=inspected.title;
  else if(world.deck.banked)drawHelp=inputDevice==='gamepad'?'LT: inspect cards, then A to replace with your saved draw.':inputDevice==='touch'?'Tap a card to replace it with your saved draw.':'1–5 or click: replace a card with your saved draw.';
- else if(world.cardDrops.length)drawHelp=inputDevice==='gamepad'?'D-pad Up near a drop: collect and choose.':inputDevice==='touch'?'Tap Collect near a drop to choose.':'Press E near a drop, or Collect, to choose.';
- else if(world.deck.hand.length)drawHelp=inputDevice==='gamepad'?'LT: choose a card to throw. Y: play the combo.':inputDevice==='touch'?'Tap a card to throw it. Play casts the combo.':'1–5 or click: throw one card. K: play the combo.';
+ else if(world.cardDrops.length)drawHelp=inputDevice==='gamepad'?'D-pad Up near a drop: collect and choose.':inputDevice==='touch'?'Tap Collect near a drop to choose.':`Press ${B('interact')} near a drop, or Collect, to choose.`;
+ else if(world.deck.hand.length)drawHelp=inputDevice==='gamepad'?'LT: choose a card to throw. Y: play the combo.':inputDevice==='touch'?'Tap a card to throw it. Play casts the combo.':`1–5 or click: throw one card. ${B('play')}: play the combo.`;
  $('draw-help').textContent=drawHelp;
  $('dark-meter').hidden=world.dark<=0;$('dark-time').textContent=world.dark.toFixed(1)+'s';$('dark-meter').querySelector('i').style.transform=`scaleX(${world.dark/6})`;
  const nextToast=world.bannerTime>0?world.banner:'';if(nextToast!==toast){toast=nextToast;$('toast').textContent=toast}
@@ -830,7 +845,7 @@ function draw(){
  ctx.save();ctx.translate(-snap(cam),0);drawPatches();drawGateGuide(ctx,world,cam,960);ctx.restore();drawBossCard();if(world.dying>0||world.mode==='dead'){ctx.fillStyle=`rgba(11,8,16,${(world.mode==='dead'?1:1-world.dying/DEATH_TIME)*.55})`;ctx.fillRect(0,0,960,480);}ctx.restore();drawDock();ctx.restore();screen.imageSmoothingEnabled=false;screen.clearRect(0,0,960,540);screen.drawImage(raster,0,0,960,540);
 }
 function frame(now){let dt=Math.min((now-last)/1000||0, .05);last=now;pollGamepad();holdTouch();if(loaded&&started){if(started&&world.mode==='playing'){accumulator+=dt;let first=true;
-  while(accumulator>=1/60){const input={axis:Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),sword:keys.has('KeyJ')};if(first&&world.hitStop<=0){input.jump=edges.has('Space');input.jumpRelease=releaseJump;input.dash=edges.has('ShiftLeft')||edges.has('ShiftRight');input.play=edges.has('KeyK');input.cycle=edges.has('KeyQ');input.collect=edges.has('KeyE');input.interact=input.collect;input.drop=edges.has('KeyS')||edges.has('ArrowDown');for(let i=0;i<5;i++)if(edges.has('Digit'+(i+1)))input.cardSlot=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}
+  while(accumulator>=1/60){const input={axis:Number(keys.has('right'))-Number(keys.has('left')),sword:keys.has('sword')};if(first&&world.hitStop<=0){input.jump=edges.has('jump');input.jumpRelease=releaseJump;input.dash=edges.has('dash');input.play=edges.has('play');input.cycle=edges.has('cycle');input.collect=edges.has('interact');input.interact=input.collect;input.drop=edges.has('down');for(let i=0;i<5;i++)if(edges.has('slot'+(i+1)))input.cardSlot=i;edges.clear();releaseJump=false;first=false}const before=world.time;world.step(1/60,input);const elapsed=world.time-before;visual+=elapsed;formClock+=elapsed;accumulator-=1/60}
   for(const event of world.events.splice(0)){sound(event);buzz(event);}
  }else accumulator=0;
  if(started&&world.mode==='cutscene')speak(dt);

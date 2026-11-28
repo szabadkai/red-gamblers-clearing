@@ -57,3 +57,51 @@ export function bindSettings(settings, storage, apply) {
   };
   apply();
 }
+
+// Keyboard section: a layout picker and one button per action that listens for the next key.
+export function bindKeyboard(controls, actions, keyName) {
+  const get = id => document.getElementById(id);
+  const layout = get('key-layout'), list = get('key-list'), status = get('key-status');
+  let listening = null;
+  const rows = actions.map(({id, name}) => {
+    const row = document.createElement('div'), label = document.createElement('span'), button = document.createElement('button');
+    row.className = 'menu-row key-row';
+    label.id = 'key-name-' + id; label.textContent = name;
+    button.dataset.action = id; button.setAttribute('aria-describedby', label.id);
+    button.onclick = () => listen(id, button);
+    button.onblur = () => { if (listening?.button === button) stop(''); };
+    row.append(label, button); list.append(row);
+    return button;
+  });
+  function render() {
+    layout.value = controls.layout;
+    layout.querySelector('[value="custom"]').hidden = controls.layout !== 'custom';
+    for (const button of rows) if (listening?.button !== button) {
+      const keys = controls.keys(button.dataset.action);
+      button.textContent = keys.length ? keys.map(keyName).join(' · ') : 'No key';
+      button.classList.toggle('unbound', !keys.length);
+    }
+  }
+  function stop(message) {
+    listening = null; status.textContent = message; render();
+  }
+  function listen(id, button) {
+    listening = {id, button};
+    button.textContent = 'Press a key…';
+    status.textContent = `Press a key for ${actions.find(a => a.id === id).name}. Esc cancels.`;
+  }
+  // Capture phase, so the key never reaches the menus or the game.
+  window.addEventListener('keydown', event => {
+    if (!listening) return;
+    if (!listening.button.getClientRects().length) { stop(''); return; }
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (event.code === 'Escape') { stop(''); return; }
+    const result = controls.rebind(listening.id, event.code);
+    if (!result.ok) { status.textContent = `${keyName(event.code)} is kept for menus and card slots. Press another key.`; return; }
+    const orphan = result.orphan && actions.find(a => a.id === result.orphan).name;
+    stop(orphan ? `${orphan} has no key now. Choose one for it.` : '');
+  }, true);
+  layout.onchange = () => { if (layout.value !== 'custom') { controls.setLayout(layout.value); status.textContent = ''; } };
+  controls.onChange(render);
+  render();
+}

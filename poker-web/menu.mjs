@@ -57,11 +57,11 @@ export function createMenu(resume) {
       page.scrollBy(0, direction * page.clientHeight * .65);
     } else move(direction);
   }
-  function key(event) {
+  function key(event, action) {
     if (event.code === 'Tab') {
       event.preventDefault();
       move(event.shiftKey ? -1 : 1);
-    } else if (event.code === 'Escape' || event.code === 'KeyP') {
+    } else if (event.code === 'Escape' || action === 'pause') {
       event.preventDefault();
       if (!event.repeat) back();
     } else if (['ArrowUp','ArrowDown'].includes(event.code) && !event.target.matches('select,input[type="range"]')) {
@@ -69,15 +69,16 @@ export function createMenu(resume) {
       navigate(event.code === 'ArrowDown' ? 1 : -1);
     }
   }
-  function pad(code) {
+  // Gamepad actions from input.mjs: up/down move, A confirms, B or Start backs out, left/right adjust.
+  function pad(action) {
     const el = document.activeElement;
-    if (code === 'MenuUp' || code === 'KeyS') navigate(code === 'KeyS' ? 1 : -1);
-    else if (code === 'KeyP' || code === 'ShiftLeft') back();
-    else if (code === 'Space') {
+    if (action === 'up' || action === 'down') navigate(action === 'down' ? 1 : -1);
+    else if (action === 'pause' || action === 'dash') back();
+    else if (action === 'jump') {
       if (el?.matches('select') && page.contains(el)) adjust(el, 1);
       else (items().includes(el) ? el : items()[0])?.click();
-    } else if (code === 'KeyA' || code === 'KeyD') {
-      if (page.contains(el)) adjust(el, code === 'KeyD' ? 1 : -1);
+    } else if (action === 'left' || action === 'right') {
+      if (page.contains(el)) adjust(el, action === 'right' ? 1 : -1);
     }
   }
   function adjust(el, direction) {

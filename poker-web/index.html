@@ -13,7 +13,7 @@
 <div id="boss-hud" hidden><strong id="boss-name"></strong><div id="boss-health" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i id="boss-fill"></i></div><small id="boss-tell"></small></div>
 <div id="dark-meter" hidden><span>DARK RED <b id="dark-time">6.0s</b></span><i></i><small>Double sword damage · faster movement</small></div>
 <div id="toast" aria-live="polite"></div>
-<div id="touch" class="touch" aria-hidden="true"><div id="stickzone"><div id="stick"><i id="knob"></i></div></div><button tabindex="-1" data-hold="Space" class="big" style="--x:8cqw;--y:8cqw;--s:11cqw">JUMP</button><button tabindex="-1" data-hold="KeyJ" style="--x:23cqw;--y:6cqw;--s:8.5cqw">SWORD</button><button tabindex="-1" data-hold="ShiftLeft" style="--x:19cqw;--y:19cqw;--s:7.5cqw">DASH</button><button tabindex="-1" data-hold="KeyK" style="--x:6.5cqw;--y:24cqw;--s:7.5cqw">HAND</button></div>
+<div id="touch" class="touch" aria-hidden="true"><div id="stickzone"><div id="stick"><i id="knob"></i></div></div><button tabindex="-1" data-hold="jump" class="big" style="--x:8cqw;--y:8cqw;--s:11cqw">JUMP</button><button tabindex="-1" data-hold="sword" style="--x:23cqw;--y:6cqw;--s:8.5cqw">SWORD</button><button tabindex="-1" data-hold="dash" style="--x:19cqw;--y:19cqw;--s:7.5cqw">DASH</button><button tabindex="-1" data-hold="play" style="--x:6.5cqw;--y:24cqw;--s:7.5cqw">HAND</button></div>
 <section class="table" aria-label="Poker hand" inert>
 <div class="hand-info"><p class="eyebrow" id="hand-label">POKER HAND</p><h2 id="combo">Pair</h2><p id="effect">Heavy bolt · 14 damage</p><p id="flavour" hidden></p><div class="hand-actions"><button id="play" class="cast-button">Play <kbd>K</kbd></button><button id="cycle" class="cast-button" hidden aria-keyshortcuts="Q">Cycle <kbd>Q</kbd></button><button id="inspect-cards" class="cast-button" aria-keyshortcuts="C">Cards <kbd>C</kbd></button></div><span id="play-description" class="sr-only" role="status"></span></div>
 <div id="hand" aria-label="Five card slots"></div>
@@ -58,6 +58,11 @@
    <label class="menu-row" for="motion">Motion<select id="motion"><option value="system">Match device</option><option value="reduced">Reduced</option><option value="full">Full</option></select></label>
    <div id="fullscreen-row" class="menu-row" hidden><span>Screen</span><button id="fullscreen">Enter full screen</button></div>
   </fieldset>
+  <fieldset><legend>Keyboard</legend>
+   <label class="menu-row" for="key-layout">Layout<select id="key-layout"><option value="wasd">WASD + J K L</option><option value="arrows">Arrows + Z X C V</option><option value="custom">Custom</option></select></label>
+   <div id="key-list"></div>
+   <p id="key-status" class="menu-note" role="status"></p>
+  </fieldset>
   <p id="settings-status" class="menu-note" role="status"></p>
   <button class="menu-back">Back</button>
  </section>
@@ -66,24 +71,25 @@
   <h3>On the trail</h3>
   <p>Defeat the foes at each briar gate. Gather three embers and reach the lantern to face the guardian.</p>
   <p>Lantern posts mark fall recovery: falling returns you to the last lit post. Open briar gates save your trail progress for death, retry, and your next visit. At a locked gate, a brief arrow points toward a remaining foe, including whether it is above or below you.</p>
-  <p>Each clearing has an optional challenge for a heart and a card drop. Follow its gold markers or use E, D-pad Up, or the nearby action button. Completing it never blocks your journey.</p>
+  <p>Each clearing has an optional challenge for a heart and a card drop. Follow its gold markers or use <span data-key="interact">E</span>, D-pad Up, or the nearby action button. Completing it never blocks your journey.</p>
   <p>Before every guardian, keep your prepared hand and draw meter or deal five fresh cards. Your chosen opening is restored when you retry that encounter.</p>
   <h3>Playing your hand</h3>
   <p>Play the highlighted cards together, or cycle to save a pair for later. Throw a single card for 6 damage. Flushes and higher awaken Dark Red for six seconds.</p>
-  <p>Every third landed sword swing earns a card drop. Stand near it and press E, D-pad Up, or Collect to choose between two cards. Combat pauses only when you collect. With a full hand, choose a slot to replace or play a combination to make room. Esc or B leaves the drop for later.</p>
+  <p>Every third landed sword swing earns a card drop. Stand near it and press <span data-key="interact">E</span>, D-pad Up, or Collect to choose between two cards. Combat pauses only when you collect. With a full hand, choose a slot to replace or play a combination to make room. Esc or B leaves the drop for later.</p>
   <p>Pairs hit hard, two pair explodes, and trips and straights pierce. Spades pierce, diamonds fill the draw meter, clubs stagger ordinary foes, and hearts heal. Against guardians, clubs lengthen a recovery opening once, and piercing shots cut roots, silk, rings, and thrown axes in their path. Every guardian can still be beaten with the sword.</p>
   <h3>Controls</h3>
   <table class="control-list"><thead><tr><th>Action</th><th>Keyboard</th><th>Gamepad</th></tr></thead><tbody>
-   <tr><th>Move / drop</th><td>A, D / S or arrows</td><td>Stick or D-pad</td></tr>
-   <tr><th>Jump / dash</th><td>Space / Shift</td><td>A / B</td></tr>
-   <tr><th>Sword / play hand</th><td>J / K</td><td>X / Y</td></tr>
-   <tr><th>Cycle play</th><td>Q</td><td>LB</td></tr>
-   <tr><th>Use a card slot</th><td>1–5 or click; C to inspect</td><td>LT, left/right, A; B cancels</td></tr>
-   <tr><th>Collect nearby card</th><td>E or Collect button</td><td>D-pad Up</td></tr>
-   <tr><th>Use challenge marker</th><td>E or action button</td><td>D-pad Up</td></tr>
-   <tr><th>Pause</th><td>P or Esc</td><td>Start</td></tr>
-   <tr><th>Retry (asks first)</th><td>R</td><td>Pause, then Retry</td></tr>
+   <tr><th>Move / drop</th><td><span data-key="left">A</span>, <span data-key="right">D</span> / <span data-key="down">S</span></td><td>Stick or D-pad</td></tr>
+   <tr><th>Jump / dash</th><td><span data-key="jump">Space</span> / <span data-key="dash">Shift</span></td><td>A / B</td></tr>
+   <tr><th>Sword / play hand</th><td><span data-key="sword">J</span> / <span data-key="play">K</span></td><td>X / Y</td></tr>
+   <tr><th>Cycle play</th><td><span data-key="cycle">L</span></td><td>LB</td></tr>
+   <tr><th>Use a card slot</th><td>1–5 or click; <span data-key="cards">C</span> to inspect</td><td>LT, left/right, A; B cancels</td></tr>
+   <tr><th>Collect nearby card</th><td><span data-key="interact">E</span> or Collect button</td><td>D-pad Up</td></tr>
+   <tr><th>Use challenge marker</th><td><span data-key="interact">E</span> or action button</td><td>D-pad Up</td></tr>
+   <tr><th>Pause</th><td><span data-key="pause">P</span> or Esc</td><td>Start</td></tr>
+   <tr><th>Retry (asks first)</th><td><span data-key="retry">R</span></td><td>Pause, then Retry</td></tr>
   </tbody></table>
+  <p>Settings › Keyboard switches between WASD + J K L and Arrows + Z X C V, or changes any key.</p>
   <p>On touchscreens, steer with your left thumb. Tap the action buttons, Cycle, or a card to use it.</p>
   <h3>Journey record</h3>
   <div id="journey-trail"><span>Lantern Wood</span><span>The Huntsman’s Bridge</span><span>Moss Cavern</span><span>Ruined Chapel</span><span>Thorn House</span></div>

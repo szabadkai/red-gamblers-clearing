@@ -13,7 +13,7 @@ creates the deployable `dist/`. GitHub Pages serves this build at the site root.
 
 Settings and the field guide are available from the title and pause menus. Continue journey takes priority when a checkpoint exists. New journey asks before replacing it. The audio mixer preserves the original sound preference. Motion follows the device until you choose Full or Reduced.
 
-Use Tab or the arrow keys to navigate, and Escape to go back. On a controller use the D-pad, A to select, B to go back and left/right to change a setting.
+Keyboard play uses WASD + J K L or Arrows + Z X C V (W, ↑ and Space jump in both). Until a layout is picked in Settings › Keyboard, pressing the other layout's sword, play or cycle key switches to it; any key can be rebound there. Bindings live in `input.mjs` and every on-screen key name is built from them. Use Tab or the arrow keys to navigate, and Escape to go back. On a controller use the D-pad, A to select, B to go back and left/right to change a setting.
 
 All practice and review instructions below use `npm run dev -- --dev-tools` on the loopback address printed in the terminal. Choose **Developer tools**, select a preset, then **Start practice**. The release build contains the player menu and omits the developer module and review fixtures.
 

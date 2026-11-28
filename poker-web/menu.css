@@ -90,3 +90,5 @@ body:has(#overlay:not([hidden])) #stage>nav { visibility: hidden; }
   #overlay h3, #overlay legend { margin: 12px 0 4px; }
 }
 #stage:has(#overlay:not([hidden])) > :is(.hud, .table, #journey-hud, #objective, #toast, #boss-hud, #dark-meter) { visibility: hidden; }
+.key-row button { min-width: 9em; }
+.key-row button.unbound { border-color: #ce5658; color: #f0b0a8; }
