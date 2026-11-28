@@ -12,7 +12,8 @@ export function loadSettings(storage) {
     sound: typeof saved?.sound === 'boolean' ? saved.sound : sound,
     music: level(saved?.music),
     effects: level(saved?.effects),
-    motion: motionModes.includes(saved?.motion) ? saved.motion : 'system'
+    motion: motionModes.includes(saved?.motion) ? saved.motion : 'system',
+    tutorials: saved?.tutorials !== false
   };
 }
 
@@ -29,6 +30,9 @@ export function bindSettings(settings, storage, apply) {
   }
   sound.checked = settings.sound;
   sound.onchange = () => { settings.sound = sound.checked; changed(); };
+  const tutorials = get('tutorials');
+  tutorials.checked = settings.tutorials;
+  tutorials.onchange = () => { settings.tutorials = tutorials.checked; changed(); };
   motion.value = settings.motion;
   motion.onchange = () => { settings.motion = motion.value; changed(); };
   for (const channel of ['music', 'effects']) {

@@ -318,3 +318,4 @@ body.in-cutscene #collect-card,body.in-cutscene #tutorial-hint,body.at-title #co
  #challenge-interact{margin-top:3px;padding:4px 10px;min-height:28px;}
  #lantern .draft-panel{width:86cqw;}
 }
+#stage.teach-move .hand-info,#stage.teach-move .draw-info,#stage.teach-sword .hand-info{visibility:hidden}

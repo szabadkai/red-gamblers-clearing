@@ -47,17 +47,23 @@ test('every route requires three embers, then enters its own boss instead of adv
  }
 });
 
-test('Lantern Wood opens with a wolf for the jacks and two foes in line for the sevens',()=>{
+test('Lantern Wood opens with a wolf for the sword and two foes in line for the sevens',()=>{
  const w=new StoryWorld(()=>.4);skip(w);
  for(let frame=0;frame<60&&w.mode==='playing';frame++)w.step(1/60,{axis:1});
  assert.equal(w.dialogue?.id,'stranger');skip(w);
- assert.match(w.banner,/JACKS/);
  const [wolf,boar,secondWolf]=w.enemies;
- w.step(1/60,{cycle:true,play:true});tick(w,42);
- assert.ok(!w.enemies.includes(wolf));assert.deepEqual(w.deck.hand,[5,18,1]);
+ // A player following the lessons: jump, sword the wolf, collect its card, then cast from the gap's edge.
+ w.step(1/60,{jump:true});tick(w,60);
+ for(let f=0;f<900&&w.enemies.includes(wolf);f++){const dx=wolf.x-w.x;w.step(1/60,{axis:Math.abs(dx)>40?Math.sign(dx):0,sword:Math.abs(dx)<=60});}
+ assert.ok(!w.enemies.includes(wolf));
+ tick(w,30);for(let f=0;f<120&&!w.nearbyCardDrop;f++)w.step(1/60,{axis:Math.sign(w.cardDrops[0].x-w.x)});
+ w.step(1/60,{collect:true});w.chooseDraft(0);
+ for(let f=0;f<400&&w.x<600;f++)w.step(1/60,{axis:1});tick(w,40);
+ assert.equal(w.tutorialHint.id,'sevens-cycle');assert.ok(boar.x-w.x>200,'the line waits beyond the gap');
+ w.step(1/60,{cycle:true});w.step(1/60,{cycle:true});assert.equal(w.tutorialHint.id,'sevens-play');
  w.step(1/60,{play:true});tick(w,90);
  assert.ok(!w.enemies.includes(boar)&&!w.enemies.includes(secondWolf));
- assert.equal(w.kills,3);assert.equal(w.deck.hits,1);
+ assert.equal(w.kills,3);assert.equal(w.tutorialHint.id,'jacks-play');
 });
 
 test('both Hart lantern choices survive reload, an interrupted intro and combat retries',()=>{

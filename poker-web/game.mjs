@@ -233,7 +233,7 @@ $('slot-confirm').onclick=()=>finishCardSelection(true);
 $('slot-cancel').onclick=()=>finishCardSelection(false);
 $('cycle').onclick=()=>{if(started&&world.cyclePlay()){updateUI();focusGame()}};
 function applySettings(){
- reduced=settings.motion==='system'?deviceMotion.matches:settings.motion==='reduced';
+ reduced=settings.motion==='system'?deviceMotion.matches:settings.motion==='reduced';world.tutorials=settings.tutorials;
  document.body.classList.toggle('reduced',reduced);
  music.setLevels(settings.sound?settings.music/100:0,settings.sound?settings.effects/100:0);
 }
@@ -357,8 +357,13 @@ function updateCardControls(){
  $('draft-skip').textContent=inputDevice==='gamepad'?'Leave it · B':'Leave it · Esc';
  $('collect-card').textContent=inputDevice==='touch'?'Collect card':'Collect card · '+B('interact');
  const tutorial=started?world.tutorialHint:null;$('tutorial-hint').hidden=!tutorial;
+ // The card panel fills in as the lessons reach it: nothing during movement, the draw meter from the sword lesson.
+ $('stage').classList.toggle('teach-move',['move','jump','drop'].includes(tutorial?.id));$('stage').classList.toggle('teach-sword',tutorial?.id==='sword');
+ const summary=inputDevice==='touch'?'':[['Move',inputDevice==='gamepad'?'Stick':`${K('left')} ${K('right')}`],...['jump','dash','sword','play','cycle','interact','cards','pause']
+  .map(id=>[{interact:'Collect'}[id]??id[0].toUpperCase()+id.slice(1),K(id)])].map(pair=>pair.join('\u00a0')).join(' · ');
+ if($('key-summary').textContent!==summary)$('key-summary').textContent=summary;
  if(tutorial){
-  $('tutorial-hint').querySelector('strong').textContent=`${K(tutorial.action)}: ${tutorial.text}`;
+  $('tutorial-hint').querySelector('strong').textContent=`${[...new Set([tutorial.action].flat().map(K))].join(' / ')}: ${tutorial.text}`;
   $('tutorial-hint').querySelector('span').textContent=tutorial.detail;
  }
  const reserve=world.deck.reserve;$('saved-card').hidden=reserve===null;
@@ -644,12 +649,13 @@ function updateUI(force=false){
  const inspected=focused?.matches('#hand .card:not(.out)')?focused:cards.get(hover);
  let drawHelp=`${K('sword')}: three landed swings drop one card.`;
  if(inspected)drawHelp=inspected.title;
+ else if(world.tutorialHint?.id==='sword');
  else if(world.deck.banked)drawHelp=inputDevice==='gamepad'?'LT: inspect cards, then A to replace with your saved draw.':inputDevice==='touch'?'Tap a card to replace it with your saved draw.':'1–5 or click: replace a card with your saved draw.';
  else if(world.cardDrops.length)drawHelp=inputDevice==='gamepad'?'D-pad Up near a drop: collect and choose.':inputDevice==='touch'?'Tap Collect near a drop to choose.':`Press ${B('interact')} near a drop, or Collect, to choose.`;
  else if(world.deck.hand.length)drawHelp=inputDevice==='gamepad'?'LT: choose a card to throw. Y: play the combo.':inputDevice==='touch'?'Tap a card to throw it. Play casts the combo.':`1–5 or click: throw one card. ${B('play')}: play the combo.`;
  $('draw-help').textContent=drawHelp;
  $('dark-meter').hidden=world.dark<=0;$('dark-time').textContent=world.dark.toFixed(1)+'s';$('dark-meter').querySelector('i').style.transform=`scaleX(${world.dark/6})`;
- const nextToast=world.bannerTime>0?world.banner:'';if(nextToast!==toast){toast=nextToast;$('toast').textContent=toast}
+ const nextToast=world.bannerTime>0&&!world.tutorialHint?world.banner:'';if(nextToast!==toast){toast=nextToast;$('toast').textContent=toast}
  if(started&&(world.mode!==previousMode||force)){
   const changed=previousMode!==world.mode||$('overlay').hidden;
   previousMode=world.mode;

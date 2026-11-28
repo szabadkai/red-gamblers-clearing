@@ -130,8 +130,8 @@ export function updateEnemies(world,dt){
   e.specialCD=Math.max(0,(e.specialCD||0)-dt);
   const dx=world.x-e.x,dy=world.y-e.y;
   // world.calm: the trail's opening scene has not played yet, so nothing hunts Red at the trailhead.
-  const visible=!beyond&&!world.calm&&Math.abs(dx)<360&&Math.abs(dy)<210;
-  if(visible&&!world.practice&&world.bannerTime<=0){const hint=hintFor(e);if(hint&&!world.hinted.has(hint[0])){world.hinted.add(hint[0]);world.banner=hint[1];world.bannerTime=3.2;}}
+  const visible=!beyond&&!world.calm&&Math.abs(dx)<(world.sight??360)&&Math.abs(dy)<210;
+  if(visible&&!world.practice&&world.bannerTime<=0&&!world.tutorialHint){const hint=hintFor(e);if(hint&&!world.hinted.has(hint[0])){world.hinted.add(hint[0]);world.banner=hint[1];world.bannerTime=3.2;}}
   e.alert=visible?5:Math.max(0,(e.alert||0)-dt);
   const aware=visible||e.alert>0;
   if(e.fly){updateFlyer(world,e,def,dt,aware,dx);continue;}

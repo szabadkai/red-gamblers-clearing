@@ -27,8 +27,8 @@ export const LAYOUTS = {
 const SWITCH_KEYS = {wasd: ['KeyJ', 'KeyK', 'KeyL'], arrows: ['KeyZ', 'KeyX', 'KeyV']};
 
 export const PAD_BUTTONS = {0: 'jump', 1: 'dash', 2: 'sword', 3: 'play', 4: 'cycle', 5: 'dash', 6: 'cards', 7: 'dash', 9: 'pause', 12: 'up', 13: 'down', 14: 'left', 15: 'right'};
-const PAD_LABELS = {left: 'Left', right: 'Right', down: 'Down', jump: 'A', dash: 'B', sword: 'X', play: 'Y', cycle: 'LB', interact: 'D-pad Up', cards: 'LT', pause: 'Start', retry: 'Pause, then Retry'};
-const TOUCH_LABELS = {jump: 'Jump', dash: 'Dash', sword: 'Sword', play: 'Play', cycle: 'Cycle', interact: 'Collect', cards: 'Tap a card', pause: 'Pause'};
+const PAD_LABELS = {left: 'Stick left', right: 'Stick right', down: 'Stick down', jump: 'A', dash: 'B', sword: 'X', play: 'Y', cycle: 'LB', interact: 'D-pad Up', cards: 'LT', pause: 'Start', retry: 'Pause, then Retry'};
+const TOUCH_LABELS = {left: 'Stick', right: 'Stick', down: 'Stick down', jump: 'Jump', dash: 'Dash', sword: 'Sword', play: 'Play', cycle: 'Cycle', interact: 'Collect', cards: 'Tap a card', pause: 'Pause'};
 
 const ARROWS = {ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓'};
 export function keyName(code) {

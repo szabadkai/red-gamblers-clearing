@@ -43,7 +43,7 @@ Use the buttons, press 1 or 2, or select with left/right and confirm with Enter 
 R restores full health and the chosen opening deal for that boss. The swallowed room starts with a fresh hand. Continue restores
 saved dialogue at its current line or restarts the saved encounter. On a trail,
 Continue after a reload returns to the last opened briar gate with the embers carried so far. Saves use `red.poker.story.v3`; older
-journeys migrate by clearing name. Chapter replay revisits completed clearings with a fresh tally and can improve records; replay and practice never write campaign progress. Returning to the title restores campaign hints.
+journeys migrate by clearing name. Chapter replay revisits completed clearings with a fresh tally and can improve records; replay and practice never write campaign progress. Returning to the title restores campaign hints. The first clearing teaches one verb at a time, each prompt naming the player's own keys: walk, then after the stranger jump, drop, sword, collect, the sevens and jacks, and dash. A lesson ends by doing it; foes hold back while one shows, and the card panel fills in as the lessons reach it. Settings › Tutorial prompts turns them off.
 
 Every boss can be beaten with ordinary movement and sword attacks. Rowan's guard
 blocks damage and draw credit until he recovers. Rare hands and Dark Red still

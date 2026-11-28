@@ -32,13 +32,13 @@ test('only an explicitly enabled local server installs the practice and inspecti
 test('settings preserve the old mute preference and round trip separately from checkpoints', () => {
   const data=new Map([['red.poker.sound','off'],['red.poker.story.v3','checkpoint']]);
   const storage={getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,value)};
-  assert.deepEqual(loadSettings(storage),{sound:false,music:100,effects:100,motion:'system'});
-  const changed={sound:true,music:35,effects:0,motion:'reduced'};
+  assert.deepEqual(loadSettings(storage),{sound:false,music:100,effects:100,motion:'system',tutorials:true});
+  const changed={sound:true,music:35,effects:0,motion:'reduced',tutorials:false};
   assert.ok(saveSettings(storage,changed));
   assert.deepEqual(loadSettings(storage),changed);
   assert.equal(data.get('red.poker.story.v3'),'checkpoint');
   data.set('red.poker.settings.v1','{"music":999,"effects":"off","sound":null,"motion":"bad"}');
-  assert.deepEqual(loadSettings(storage),{sound:false,music:100,effects:100,motion:'system'});
+  assert.deepEqual(loadSettings(storage),{sound:false,music:100,effects:100,motion:'system',tutorials:true});
   data.set('red.poker.settings.v1','corrupt');
   assert.equal(loadSettings(storage).sound,false);
   const unavailable={getItem(){throw Error()},setItem(){throw Error()}};

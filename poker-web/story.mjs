@@ -43,6 +43,8 @@ const PHASES=['trail','lantern','boss','inside','garden','cleared','home','compl
 const allScenes=new Set(Object.keys(SCENES));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export class StoryWorld extends World{
+ // Settings › Tutorial prompts; off hides every opening lesson.
+ tutorials=true;
  reset(stageIndex=0,progress=null){
   super.reset(stageIndex);
   this.storyPhase='trail';this.storyLocation='trail';this.worldWidth=this.width;this.bossPractice=false;this.replay=false;
@@ -72,28 +74,38 @@ export class StoryWorld extends World{
  }
  get stageStory(){return STAGES[this.stageIndex];}
  get calm(){return !this.practice&&this.storyPhase==='trail'&&!this.seen.has(this.stageStory.encounter);}
- // The opening lesson follows the cards actually held, rather than a timed banner.
- // Retrying/reloading the first section restores its deal, so the lesson naturally restarts;
- // spending or replacing either pair and opening the first gate make its advice disappear.
- // Once the cards are spent, the sword lesson takes over until the first landed swing.
+ // Opening lessons, one at a time, in the order the verbs are needed: walk, then (after the stranger) jump,
+ // drop from a ledge, sword, collect a drop, the cards actually held, and dash.
+ // Each is marked done by doing it, at any time, so a player who already knows skips it.
  get tutorialHint(){
-  if(this.practice||this.stageIndex!==0||this.storyPhase!=='trail'||this.mode!=='playing'||this.dying>0||
-   !this.seen.has('stranger'))return null;
-  return this.cardLesson??(this.hinted.has('sword')?null:
-   {id:'sword',action:'sword',cards:[],text:'Swing your sword',detail:'Three landed swings earn a card draw.'});
+  if(!this.tutorials||this.practice||this.stageIndex!==0||this.storyPhase!=='trail'||this.mode!=='playing'||this.dying>0||
+   !this.seen.has('prologue'))return null;
+  const lesson=(id,action,text,detail)=>this.hinted.has(id)?null:{id,action,cards:[],text,detail};
+  if(!this.seen.has('stranger'))return lesson('move',['left','right'],'Walk','Take the basket down the trail.');
+  const ledge=this.grounded&&!this.platforms[this.surface]?.ground;
+  return lesson('jump','jump','Jump','Hold it for a higher jump. The ledges climb to an ember.')??
+   (ledge?lesson('drop','down','Drop down','Fall through the ledge you stand on.'):null)??
+   lesson('sword','sword','Swing your sword','Three landed swings earn a card draw.')??
+   (this.cardDrops.length?lesson('collect','interact','Collect the card','Stand beside it. The fight pauses while you choose.'):null)??
+   this.cardLesson??
+   (this.gates[1]?.open?null:lesson('dash','dash','Dash','Slip through an attack, or cross a gap fast.'));
  }
+ // While the first lessons run, foes wait until Red comes close instead of crossing the clearing.
+ get sight(){return this.tutorialHint?200:360;}
+ collectCard(){const ok=super.collectCard();if(ok)this.hinted.add('collect');return ok;}
  get cardLesson(){
   if(this.gates[0]?.open)return null;
   const hand=this.deck.hand,jacks=SPLIT_PAIRS.slice(0,2),sevens=SPLIT_PAIRS.slice(2,4);
   const has=cards=>cards.every(card=>hand.includes(card));
-  const cards=has(jacks)?jacks:has(sevens)?sevens:null;
+  // The sword takes the first wolf, so the sevens go first: the boar and wolf behind it stand in line.
+  const cards=has(sevens)?sevens:has(jacks)?jacks:null;
   if(!cards)return null;
   const jackLesson=cards===jacks,play=this.deck.selectedPlay;
   const selected=play.tier===1&&play.indices.length===2&&play.indices.every(index=>cards.includes(hand[index]));
   const name=jackLesson?'jacks':'sevens',action=selected?'play':'cycle';
   return {id:`${name}-${action}`,action,cards,text:`${selected?'Cast':'Select'} the ${name}`,
-   detail:jackLesson?(has(sevens)?'Keep the sevens for a piercing shot.':'This pair knocks foes back and can mend a heart.'):
-    'Face foes in a line: the spade pierces, the diamond earns a draw notch.'};
+   detail:jackLesson?'This pair knocks foes back and can mend a heart.':
+    `Face foes in a line: the spade pierces, the diamond earns a draw notch.${has(jacks)?' Keep the jacks for later.':''}`};
  }
  get objective(){
   if(this.practice)return this.arena?'Practice arena':`Find the three embers · ${this.collected}/3`;
@@ -117,9 +129,6 @@ export class StoryWorld extends World{
   if(!skip&&index<SCENES[id].lines.length-1){this.dialogue.index++;this.storyRevision++;return true;}
   this.seen.add(id);this.dialogue=null;this.mode='playing';this.storyRevision++;
   this.invincible=Math.max(this.invincible,1);this.vx=0;this.vy=0;this.buffer=0;this.swordPending=0;
-  if(id==='stranger'&&!this.hinted.has('split-pairs')&&this.deck.hand.join(',')===SPLIT_PAIRS.join(',')){
-   this.hinted.add('split-pairs');this.banner='CYCLE TO THE JACKS · SAVE THE SEVENS TO PIERCE';this.bannerTime=5;
-  }
   if(id===this.stageStory.outro&&id!=='breakfast'){this.storyPhase='cleared';this.mode='won';}
   if(id==='swallowed')this.startScene('inside');
   if(id==='breakfast'){this.setupHome();this.startScene('epilogue');}
@@ -203,12 +212,19 @@ export class StoryWorld extends World{
    if(!(this.stageIndex===4&&this.storyPhase==='boss')){this.bossCorpse={kind:boss.kind,x:boss.x,y:boss.y,face:boss.face,time:0};this.victoryDelay=BOSS_DEATH;}
   }
  }
+ noteLessons(input){
+  if(input.axis)this.hinted.add('move');
+  if(input.jump)this.hinted.add('jump');
+  if(input.dash)this.hinted.add('dash');
+  if(input.drop&&this.grounded&&!this.platforms[this.surface]?.ground)this.hinted.add('drop');
+ }
  step(dt,input={}){
   if(this.mode!=='playing')return;
   const stopped=this.hitStop>0;
   // Collect before moving encounter scenery: opening a choice freezes this whole tick.
   if(!stopped&&input.collect&&this.collectCard())return;
   if(!stopped&&!this.practice&&this.storyPhase==='trail')beforeChallengeStep(this,dt);
+  if(!stopped&&!this.practice&&this.stageIndex===0&&this.storyPhase==='trail')this.noteLessons(input);
   // The mill wheel carries its two ledges in opposite directions after the lock cracks.
   if(!stopped&&this.boss?.kind==='tollkeeper'&&this.boss.hp<=this.boss.max/2){
    for(const p of this.platforms.slice(1)){
